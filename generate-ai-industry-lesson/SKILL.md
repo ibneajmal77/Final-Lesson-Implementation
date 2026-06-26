@@ -97,7 +97,10 @@ Select one primary tool for each capability. Mention alternatives in a compariso
 
 ## Write the complete lesson
 
-Follow [lesson-template.md](references/lesson-template.md).
+Follow [lesson-template.md](references/lesson-template.md). The standard lesson structure is the
+dynamic hybrid template: classify each module as **Concept-build**, **Hybrid**, or
+**Implementation** before writing. Preserve full conceptual depth and full runnable
+implementation; remove duplicate scaffolding, not knowledge.
 Read [cognitive-learning-design.md](references/cognitive-learning-design.md) and use its
 two-layer learning architecture.
 

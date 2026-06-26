@@ -1,445 +1,882 @@
 # Lesson Template
 
-Use a two-layer structure:
+Use this template for every substantial lesson unless the user explicitly asks for a different structure.
 
-- **Learning path:** cognitively sequenced modules for first-pass understanding and retention.
-- **Reference and production depth:** complete implementation and operational material.
+The standard is:
 
-Use every required section unless genuinely inapplicable. Explain omissions.
+```text
+full conceptual understanding
++ full runnable implementation
++ production judgment
++ retention support
+- repeated academic scaffolding
+```
+
+Do not compress concepts to make a lesson feel lean. Remove duplicate framing, not knowledge.
+
+## Core design
+
+Every lesson must be built around one coherent business scenario and one cumulative project increment.
+
+Use a dynamic module system:
+
+- **Concept-build module:** for topics where the learner needs deep conceptual understanding.
+- **Hybrid module:** for topics where concept and implementation must be taught together.
+- **Implementation module:** for topics where the main work is building, testing, operating, or deploying a component.
+
+Classify each module before writing. Do not force every topic into the same repeated substructure.
+
+## Universal lesson structure
+
+```text
+# Lesson title
+
+## Lesson brief
+## Business target
+## Starting checkpoint
+## System map and build roadmap
+
+## [Concept-build / Hybrid / Implementation] module 1: Topic
+## [Concept-build / Hybrid / Implementation] module 2: Topic
+## [Concept-build / Hybrid / Implementation] module 3: Topic
+## [Concept-build / Hybrid / Implementation] module 4: Topic
+## [Concept-build / Hybrid / Implementation] module 5: Topic
+## Optional module 6-9 when needed
+
+## Reference glossary
+## Full test suite
+## Experiment playbook
+## Evaluation and acceptance
+## Model-selection or system-decision memo
+## Failure modes and debugging
+## Security, privacy, and governance
+## Performance and cost
+## Deployment and operations
+## Bridge to the next lesson
+## Practical assignment
+## Interview preparation
+## Mastery check
+## Production-readiness checklist
+## Lesson summary
+## Official references
+```
+
+Use five to nine modules. A short lesson can use five. A deep foundation, RAG, agent, model-training, or production lesson should usually use seven to nine.
 
 ## Lesson title
 
 Use a precise capability-oriented title.
 
-## Lesson metadata
+Good:
+
+```text
+Foundation Models and LLM Fundamentals
+Model API Integration and Multi-Provider Reliability
+Embeddings and Semantic Retrieval
+```
+
+Avoid vague titles such as `Introduction`, `Advanced AI`, or `Project`.
+
+## Lesson brief
+
+This replaces separate metadata, learning outcomes, prerequisites, and "how to use this lesson" sections.
+
+Use a compact table:
+
+```text
+| Item | Detail |
+|---|---|
+| What you learn | ... |
+| What you build | ... |
+| Why it matters | ... |
+| Primary roles | ... |
+| Prerequisites | ... |
+| Tools | ... |
+| Estimated time | ... |
+| Final deliverable | ... |
+| Carries forward | ... |
+| Verified | Date checked for changing technical details |
+```
+
+Keep this section short. Do not repeat the business case here.
+
+## Business target
+
+This replaces separate "why this lesson exists" and "business problem" sections.
 
 Include:
 
-- Primary role or roles
-- Difficulty
-- Estimated study time
-- Estimated implementation time
-- Prerequisite lessons
-- Project increment
-- Tools
-- Verified date for changing technical details
+```text
+Current workflow:
+Target workflow:
+Inputs:
+Outputs:
+Constraints:
+Risk level:
+Acceptance metrics:
+Non-goals:
+```
 
-## How to use this lesson
+Non-goals are required. They prevent lesson drift into later lessons.
 
-Explain:
+Examples:
 
-- Essential first pass
-- Hands-on path
-- Production/reference path
-- Suggested study sessions
-- Where to stop and retrieve before continuing
+```text
+Non-goals:
+- This lesson does not build RAG.
+- This lesson does not fine-tune a model.
+- This lesson does not deploy an autonomous agent.
+```
 
-## Why this lesson exists
+## Starting checkpoint
 
-Explain:
+This replaces long prerequisite and prior-knowledge activation sections.
 
-- Industry use
-- Business value
-- Where it appears in production
-- Roles that need it
-- When it should not be used
+Include:
 
-## Business problem
+```text
+You should already know:
+Required setup:
+Answer before continuing:
+- Question 1
+- Question 2
+- Question 3
+```
 
-Define:
+Use three to five prior-knowledge questions. They must connect to previous lessons or required assumptions.
 
-- Organization and user
-- Current workflow
-- Pain point
-- Inputs and outputs
-- Constraints
-- Risk level
-- Baseline
-- Success metrics
+## System map and build roadmap
 
-## Learning outcomes
+This is required before the modules. It gives the learner the full system shape before code begins.
 
-Use measurable verbs such as implement, evaluate, diagnose, compare, deploy, and defend.
+Include these subsections:
 
-## Prerequisites
+```text
+### Concept map
+### Project architecture
+### Trust boundaries
+### State ownership
+### Failure boundaries
+### Tool choices
+### Project structure
+### Environment setup
+### Data/API contract
+### Baseline
+### Build milestones
+### Implementation assembly checklist
+```
 
-List:
+Use only the subsections that are relevant, but never omit:
 
-- Knowledge
-- Previous lessons
-- Software
-- Accounts or services
-- Hardware
-- Data
+- Concept map
+- Project architecture
+- Trust boundaries
+- Build milestones
+- Implementation assembly checklist
 
-Provide a fallback for unavailable paid services or GPUs where practical.
+### Concept map
 
-## Activate prior knowledge
+Show the conceptual flow the learner must understand.
 
-Ask three to five questions connecting the lesson to prerequisites. Do not answer them
-immediately.
+Example:
 
-## Lesson concept map
+```text
+text
+  -> tokenizer
+  -> token IDs
+  -> embeddings
+  -> transformer blocks
+  -> logits
+  -> decoding
+  -> output
+  -> evaluation
+```
 
-Show:
+### Project architecture
 
-- Prior concepts
-- New concepts
-- Build artifact
-- Production outcome
-- Next lesson dependency
+Show the project flow the learner will build.
 
-## Learning module map
+Example:
 
-List five to nine modules. For each, include:
+```text
+synthetic cases
+  -> schema validation
+  -> model runner
+  -> result store
+  -> evaluator
+  -> report
+```
 
-- Central question
-- Estimated time
-- New concepts
-- Practice artifact
+### Trust boundaries
 
-## Essential learning modules
+Identify where data, model output, user input, tools, external APIs, and logs become risky.
 
-For every module, use:
+Do not write generic security text. Tie each boundary to the lesson system.
 
-### Module question
+### Tool choices
 
-Ask one prediction or diagnostic question.
+For each major tool, state:
 
-### Concepts
+```text
+Purpose:
+Why selected:
+Important limitation:
+Alternative:
+When to switch:
+```
 
-Introduce three to seven concepts. Define terms at first use.
+Select one primary tool for each capability. Mention alternatives in a table instead of implementing many equivalent frameworks.
+
+### Project structure
+
+Show the final file tree.
+
+Every file shown should either appear in a module or be clearly marked optional.
+
+### Environment setup
+
+Include:
+
+- dependencies;
+- environment variables;
+- local services;
+- Docker or Compose when relevant;
+- verification command;
+- no real credentials.
+
+### Data/API contract
+
+Include:
+
+- input schema;
+- output schema;
+- valid example;
+- invalid example;
+- boundary example;
+- validation rule;
+- provenance;
+- privacy;
+- versioning.
+
+For model training, include split and leakage rules. For APIs, include idempotency and compatibility rules.
+
+### Baseline
+
+Always establish the simplest useful baseline before adding AI or optimization.
+
+The baseline can be:
+
+- deterministic rules;
+- keyword/rule classifier;
+- SQL query;
+- non-RAG search;
+- simple model;
+- existing workflow measurement.
+
+State what the baseline proves and what it does not prove.
+
+### Build milestones
+
+Map modules to concrete artifacts:
+
+```text
+| Module | Type | Concept focus | Implementation artifact | Tests |
+|---|---|---|---|---|
+```
+
+### Implementation assembly checklist
+
+Required.
+
+Include:
+
+```text
+At the end of this lesson, your project should contain:
+- file or directory
+- file or directory
+
+After each module, run:
+- command
+
+The final verification command is:
+- command
+
+The final expected artifact is:
+- report/API/model/index/deployment/etc.
+```
+
+This prevents copy-paste implementation gaps.
+
+## Module type A: Concept-build module
+
+Use when the topic is mainly conceptual.
+
+Examples:
+
+- tokenization;
+- embeddings;
+- attention;
+- transformer blocks;
+- model lifecycle;
+- leakage;
+- calibration;
+- retrieval scoring;
+- gradient descent;
+- quantization.
+
+Structure:
+
+```text
+## Concept-build module N: Topic
+
+### Core question
+### Mental model
+### Key concepts
+### Worked example
+### Mini-implementation
+### Tests
+### Verify
+### Module completion checkpoint
+### Common misconception
+### Guided practice and independent transfer
+### Recall
+```
+
+### Core question
+
+Ask one question the learner should be able to answer after the module.
 
 ### Mental model
 
-Use one concise explanation or visual.
+Give a clear conceptual model before code. Use a diagram when relationships matter.
+
+### Key concepts
+
+Define terms at first use. Do not rely only on the glossary.
+
+For every major concept, include:
+
+```text
+Definition:
+Mental model:
+Example:
+Production consequence:
+Failure mode:
+Implementation or demo:
+```
 
 ### Worked example
 
-Demonstrate the complete reasoning and verification.
+Show the concept step by step with reasoning.
 
-### Guided practice
+### Mini-implementation
 
-Provide a completion task with hints.
+Add a small runnable demo that makes the concept observable.
 
-### Independent practice
+### Tests
 
-Provide a non-identical transfer task.
+Include unit tests when the mini-implementation is code.
 
-### Retrieval checkpoint
+### Verify
+
+Give the exact command and expected outcome.
+
+### Module completion checkpoint
+
+Required.
+
+Use:
+
+```text
+At this point, your project should:
+- contain these files
+- pass these tests
+- produce this output
+- preserve these safety/quality constraints
+```
+
+### Common misconception
+
+Use:
+
+```text
+Misconception:
+Why it seems plausible:
+Correct model:
+Test case:
+```
+
+### Guided practice and independent transfer
+
+Provide:
+
+- one guided task with hints;
+- one non-identical transfer task.
+
+### Recall
 
 Ask three to five closed-book questions.
 
-### Misconception check
+## Module type B: Hybrid module
 
-Correct at least one likely misconception.
+Use when the topic requires both deep concept and serious implementation.
 
-### Connection
+Examples:
 
-Link the module to previous and next concepts.
+- generation controls;
+- context windows;
+- structured output;
+- retrieval quality;
+- agent tool use;
+- evaluation;
+- safety controls;
+- model selection;
+- prompt/context engineering.
 
-After every two or three modules, add a cumulative retrieval checkpoint.
+Structure:
+
+```text
+## Hybrid module N: Topic
+
+### Core question
+### Concept model
+### Product consequence
+### Worked example
+### Build
+### Tests
+### Experiment
+### Interpret results
+### Verify
+### Module completion checkpoint
+### Failure drill
+### Common misconception
+### Guided practice and independent transfer
+### Recall
+```
+
+### Concept model
+
+Explain the technical idea deeply enough to support implementation and interview reasoning.
+
+### Product consequence
+
+Connect the concept to the business workflow, user risk, cost, latency, quality, or reliability.
+
+### Build
+
+Show exact files and complete code for the relevant component.
+
+### Tests
+
+Place tests immediately after the code they verify.
+
+### Experiment
+
+Define a concrete experiment:
+
+```text
+Input:
+Settings:
+Metric:
+Expected evidence:
+Failure signal:
+```
+
+### Interpret results
+
+Explain what the experiment proves and what it does not prove.
+
+### Verify
+
+Give the command and expected output.
+
+### Module completion checkpoint
+
+Required.
+
+### Failure drill
+
+Use a realistic failure:
+
+```text
+Failure:
+Evidence:
+Fix:
+Prevention:
+```
+
+### Common misconception
+
+Required.
+
+### Guided practice and independent transfer
+
+Required.
+
+### Recall
+
+Required.
+
+## Module type C: Implementation module
+
+Use when the topic is mainly building, operating, or deploying a component.
+
+Examples:
+
+- schemas;
+- persistence;
+- API wrapper;
+- CLI;
+- telemetry;
+- Docker;
+- deployment;
+- CI/CD;
+- serving infrastructure.
+
+Structure:
+
+```text
+## Implementation module N: Capability
+
+### Purpose
+### Design decision
+### Build
+### Unit tests
+### Verify in runtime
+### Module completion checkpoint
+### Failure drill
+### Production note
+### Guided practice and independent transfer
+### Recall
+```
+
+For every implementation component, include:
+
+```text
+Purpose:
+Design decision:
+Complete code:
+Test:
+Runtime verification:
+Failure drill:
+Operational concern:
+```
+
+Do not add deployment or cloud tools merely to appear advanced. Include them when they support the lesson outcome or prepare the next lesson.
 
 ## Reference glossary
 
-Collect all terminology for later lookup. Do not require reading it before the modules.
+Required for substantial lessons.
 
-## Cumulative mental model
+Include all important terms for lookup, but do not force the learner to read the glossary before the modules.
 
-Reconstruct the complete lesson flow after the modules.
+Do not use the glossary as a substitute for inline explanation.
 
-## Architecture and data flow
+## Full test suite
 
-Include:
-
-- Component diagram
-- Request, data, or training flow
-- Trust boundaries
-- State ownership
-- Failure boundaries
-
-Use Mermaid only when the rendering environment supports it; otherwise use a compact text diagram.
-
-## Design decisions
-
-Compare:
-
-- Selected approach
-- Deterministic baseline
-- Main alternatives
-- Selection criteria
-- Tradeoffs
-
-## Tooling
-
-For each selected tool, state:
-
-- Purpose
-- Why selected
-- Important APIs or configuration
-- Limitations
-- Alternative
-- When the alternative is preferable
-
-## Project structure
-
-Show the files created or changed.
-
-## Environment setup
+Required.
 
 Include:
 
-- Dependencies
-- Environment variables
-- Services
-- Configuration
-- Docker setup when relevant
-- Verification command
+```text
+Command:
+Expected result:
+Test map:
+What this suite proves:
+What this suite does not prove:
+```
 
-Never include real credentials.
+Separate software tests from model/system evaluation.
 
-## Data contract
+## Experiment playbook
+
+Required for AI, ML, retrieval, agent, evaluation, safety, or production lessons.
+
+Use a concrete table:
+
+```text
+| Experiment | Input | Settings | Metric | Expected evidence | Failure signal |
+|---|---|---|---|---|---|
+```
+
+Examples:
+
+- tokenizer comparison;
+- greedy versus sampled decoding;
+- base versus instruction model;
+- context growth;
+- missing evidence;
+- adversarial instruction;
+- structured-output attempt;
+- retrieval recall;
+- agent invalid action;
+- latency and cost report;
+- quality regression.
+
+## Evaluation and acceptance
+
+Required.
 
 Include:
 
-- Input schema
-- Output schema
-- Valid example
-- Invalid example
-- Boundary example
-- Validation
-- Provenance
-- Privacy
-- Versioning
+- held-out cases;
+- functional metrics;
+- model/system quality metrics;
+- business metrics;
+- latency/cost metrics;
+- safety/security gates;
+- acceptance threshold.
 
-For training, include split and leakage rules. For APIs, include idempotency and compatibility.
+Never fabricate results. Use empty result fields or templates when the lesson is not executed.
 
-## Establish the baseline
+## Model-selection or system-decision memo
 
-Implement or define the simplest valid baseline. Record its evaluation method.
+Required.
 
-## Minimal working implementation
+Use `Model-selection memo` for model-focused lessons.
 
-Build the smallest end-to-end vertical slice.
+Use `System-decision memo` for application, RAG, agent, infrastructure, or MLOps lessons.
 
-For every milestone:
+Template:
 
-- State the goal.
-- Show the relevant file.
-- Explain the important logic.
-- Provide a verification step.
-- Describe the expected result.
-
-Use worked-example fading:
-
-- Fully worked vertical slice
-- Partially completed extension
-- Independent transfer task
-
-## Production implementation
-
-Add:
-
-- Typed configuration
-- Validation
-- Error handling
-- Timeouts
-- Bounded retries
-- Idempotency
-- Logging
-- Authentication and authorization
-- Persistence
-- Concurrency controls
-- Tests
-- Observability
-
-Include only controls relevant to the architecture, but explain any omitted production concern.
-
-## Testing
-
-Separate:
-
-- Unit tests
-- Integration tests
-- Contract tests
-- End-to-end tests
-- Data tests
-- Security tests
-- Failure tests
-
-State what each category protects.
-
-## Evaluation
-
-Define:
-
-- Held-out evaluation data
-- Functional metrics
-- Model or system metrics
-- Business metrics
-- Latency and throughput
-- Resource use
-- Cost
-- Safety and security gates
-
-Include a comparison table with empty result fields if the lesson is not being executed.
-
-Never fabricate measured results.
+```text
+Decision:
+Candidate or design:
+Evidence:
+Measured strengths:
+Measured failures:
+Blocked risks:
+Cost/latency notes:
+Privacy/security notes:
+Operational notes:
+Decision:
+Next experiment:
+```
 
 ## Failure modes and debugging
 
-Use a table:
+Required.
 
+Use:
+
+```text
 | Symptom | Likely causes | Diagnostic evidence | Corrective action | Prevention |
 |---|---|---|---|---|
+```
 
-Include normal operational failures and topic-specific failures.
+Include topic-specific failures, not only generic operational failures.
 
 ## Security, privacy, and governance
 
-Cover:
+Required when the lesson touches data, users, tools, APIs, models, retrieval, agents, deployment, logs, or generated outputs.
 
-- Threats
-- Trust boundaries
-- Identity
-- Permissions
-- Sensitive data
-- Secrets
-- Audit logs
-- Retention and deletion
-- Human approval
-- Applicable standards
+Tie controls to the lesson architecture:
 
-Show where controls are enforced.
+- authentication and authorization;
+- tenant isolation where relevant;
+- sensitive data and PII;
+- secret handling;
+- prompt injection or adversarial input;
+- tool permissions;
+- sandboxing;
+- audit logs;
+- retention and deletion;
+- human approval;
+- model/provider data policy;
+- applicable standards where relevant.
+
+Do not delegate authorization decisions to an LLM.
 
 ## Performance and cost
 
-Cover relevant dimensions:
+Required.
 
-- Time complexity
-- Memory
-- CPU or GPU
-- Network
-- Storage
-- Batch size
-- Concurrency
-- Caching
-- Latency
-- Throughput
-- Unit economics
+Include relevant dimensions:
+
+- latency;
+- throughput;
+- input/output token cost;
+- CPU/GPU memory;
+- storage;
+- network;
+- batch size;
+- concurrency;
+- caching;
+- prefill/decode or equivalent phase costs;
+- unit economics.
 
 Provide a measurement procedure.
 
-## Deployment
+## Deployment and operations
+
+Required for application, API, agent, retrieval, MLOps, production, or capstone lessons.
+
+For conceptual lessons, include a lightweight operational path and clearly mark it as operational practice, not production integration.
 
 Include:
 
-- Packaging
-- Configuration
-- Infrastructure
-- Health checks
-- Migration
-- Release strategy
-- Canary or shadow deployment
-- Rollback
+- packaging;
+- configuration;
+- health checks;
+- deployment target;
+- rollout;
+- rollback;
+- logs;
+- metrics;
+- traces;
+- alerts;
+- runbook;
+- ownership.
 
-## Observability and operations
+Default teaching choice for simple app/API lessons:
 
-Define:
+- local-first;
+- Docker;
+- OpenTelemetry;
+- one simple cloud deployment target, such as Cloud Run;
+- alternatives table for AWS/Azure/Kubernetes/GPU serving when relevant.
 
-- Logs
-- Metrics
-- Traces
-- Dashboards
-- Alerts
-- Ownership
-- Runbook
-- Incident response
+Do not force Cloud Run for training, GPU inference, distributed systems, or high-throughput serving lessons.
 
-Connect operational metrics to quality and business outcomes.
+## Bridge to the next lesson
+
+Required.
+
+State exactly what the next lesson assumes the learner can now do.
+
+Example:
+
+```text
+The next lesson assumes you can:
+- record model ID and revision
+- measure token count and latency
+- separate model output from validated output
+- identify missing-evidence and unsafe-output failures
+```
 
 ## Practical assignment
 
-Require the learner to extend or transfer the implementation.
+Required.
 
-Specify:
+Include:
 
-- Scenario
-- Requirements
-- Constraints
-- Required artifacts
-- Acceptance criteria
-- Optional stretch goals
+```text
+### Scenario
+### Requirements
+### Constraints
+### Required artifacts
+### Acceptance criteria
+### Stretch goals
+```
 
-The assignment must require transfer to a different case or constraint. It must not be a copy of
-the worked example.
+The assignment must require transfer. It must not be a direct copy of the worked example.
 
 ## Interview preparation
 
-Include:
-
-- Concept questions
-- Coding or implementation questions
-- Debugging scenarios
-- System-design questions
-- Tradeoff questions
-- Strong-answer expectations
-
-Do not provide memorized slogans as answers.
-
-## One-page memory sheet
+Required.
 
 Include:
 
-- Central mental model
-- Key relationships
-- Decision table
-- Five common misconceptions
-- Essential commands or formulas
+```text
+### Concept questions
+### Coding or implementation questions
+### Debugging questions
+### System-design question
+### Tradeoff questions
+```
 
-## Retrieval bank
+For each category, include strong-answer expectations. Do not provide slogans.
 
-Include ten to twenty closed-book prompts spanning:
+## Mastery check
 
-- Recall
-- Explanation
-- Prediction
-- Diagnosis
-- Comparison
-- Transfer
+Required.
 
-## Spaced-review plan
+Use:
 
-Define retrieval tasks for:
+```text
+### One-page memory model
+### Retrieval bank
+### Self-assessment
+### Spaced-review plan
+```
 
-- One day
-- Three days
-- One week
-- Three to four weeks
+Retrieval prompts must include:
+
+- recall;
+- explanation;
+- prediction;
+- diagnosis;
+- comparison;
+- transfer.
+
+Spaced review must include:
+
+- one day;
+- three days;
+- one week;
+- three to four weeks.
 
 ## Production-readiness checklist
 
+Required.
+
 Use actionable checkboxes covering:
 
-- Data
-- Code
-- Tests
-- Evaluation
-- Security
-- Performance
-- Deployment
-- Monitoring
-- Cost
-- Rollback
-- Documentation
+- data;
+- code;
+- tests;
+- evaluation;
+- security;
+- performance;
+- deployment;
+- monitoring;
+- cost;
+- rollback;
+- documentation;
+- next-lesson handoff.
 
 ## Lesson summary
 
+Required.
+
 Summarize:
 
-- Concepts learned
-- Capability built
-- Important tradeoffs
-- Common mistakes
-- Production outcome
-- Next lesson
+- concepts learned;
+- implementation built;
+- important tradeoffs;
+- common mistakes;
+- production outcome;
+- what carries forward.
+
+## Official references
+
+Required when current tools, APIs, libraries, services, standards, or external claims are used.
+
+Use primary sources:
+
+- official product documentation;
+- official framework documentation;
+- standards bodies;
+- original papers when needed.
+
+Record verification date for changing technical details in the lesson brief.
+
+## Final quality gate
+
+Before calling a lesson complete, verify:
+
+- one coherent business scenario;
+- concept map and project architecture;
+- five to nine classified modules;
+- every major concept has definition, mental model, example, production consequence, failure mode, and implementation/demo;
+- every major implementation component has purpose, design decision, complete code, test, runtime verification, failure drill, and operational concern;
+- module completion checkpoints exist;
+- experiment playbook exists;
+- decision memo exists;
+- bridge to next lesson exists;
+- full tests and evaluation are separated;
+- security, performance, deployment, and operations are tied to the architecture;
+- no unsupported benchmark numbers or fabricated results;
+- no secrets or private data;
+- original curriculum scope is preserved;
+- source files are not overwritten unless explicitly requested.
