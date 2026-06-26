@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate AI Industry Lesson"
+  short_description: "Create cognitive, production-focused AI lessons"
+  default_prompt: "Use $generate-ai-industry-lesson to write a cognitively optimized, production-ready AI lesson from my industry curriculum."
