@@ -14,6 +14,50 @@ full conceptual understanding
 
 Do not compress concepts to make a lesson feel lean. Remove duplicate framing, not knowledge.
 
+## Source compliance contract
+
+Before drafting or revising a lesson, extract a private source compliance contract from the
+curriculum and lesson-plan files. This contract is not usually a learner-facing section. It is a
+generation and review checklist that prevents source requirements from being accidentally dropped.
+
+The contract must include:
+
+- required concepts and terminology;
+- required tools and services;
+- guided implementation tasks;
+- business implementation or project deliverable;
+- evaluation criteria and acceptance evidence;
+- production concerns;
+- practical assignment requirements;
+- interview preparation scope;
+- prerequisite and next-lesson boundaries.
+
+For each source requirement, decide where it belongs:
+
+- **Essential module:** concept or skill the learner must understand during the main path.
+- **Project artifact:** code, data, test, report, or configuration the learner must build.
+- **Production/reference layer:** operational concern, comparison table, checklist, or runbook item.
+- **Manual/optional path:** tool or experiment that is useful but not required for the runnable core.
+- **Deferred boundary:** item that belongs to a later lesson and must be named as a non-goal or bridge.
+
+Do not silently omit a required source tool or concern. If a source-required item is not implemented
+directly, mention it in one of these ways:
+
+- as an optional/manual experiment;
+- as an alternative tool with switching criteria;
+- as a production or governance checklist item;
+- as a next-lesson dependency;
+- as an explicit non-goal with rationale.
+
+Examples:
+
+- If the source lists Jupyter but the lesson uses scripts for reproducibility, mention Jupyter as an
+  optional controlled-experiment notebook while keeping scripts as the source of truth.
+- If the source lists a hosted model API but the current lesson is not the API-integration lesson,
+  allow manually recorded hosted results and defer automated provider integration to the next lesson.
+- If the source lists regional availability or provider data policy, include them in the
+  model-selection memo, security section, or production-readiness checklist.
+
 ## Core design
 
 Every lesson must be built around one coherent business scenario and one cumulative project increment.
@@ -25,6 +69,58 @@ Use a dynamic module system:
 - **Implementation module:** for topics where the main work is building, testing, operating, or deploying a component.
 
 Classify each module before writing. Do not force every topic into the same repeated substructure.
+
+## Readability and concept-teaching standard
+
+Preserve technical vocabulary, but do not introduce it as isolated terminology. Teach every important
+concept through this progression:
+
+```text
+plain idea
+  -> technical name
+  -> concrete business example
+  -> production consequence
+  -> implementation or test
+```
+
+For foundation, architecture, model, retrieval, agent, security, and infrastructure lessons, write the
+explanation so a learner can first form a mental picture, then attach the correct technical language.
+Do not reduce the technical depth. Reduce the cognitive friction.
+
+Use this prose pattern whenever a concept is non-trivial:
+
+```text
+Start with: "What is happening in plain terms?"
+Then define: "The technical term is ..."
+Then show: "In this lesson's business workflow, this appears when ..."
+Then warn: "The common failure is ..."
+Then connect: "The code/test makes this visible by ..."
+```
+
+Avoid these patterns:
+
+- term lists without explanation;
+- table-only teaching for first exposure;
+- jumping from a definition directly into a large code block;
+- assuming a learner understands why a component exists because its name is familiar;
+- explaining model internals without connecting them to observable product behavior;
+- adding implementation before the learner knows what the implementation is trying to make visible.
+
+Before substantial code, add a short bridge paragraph:
+
+```text
+This code does not build the whole system. It makes <concept> observable by <artifact/test>.
+```
+
+This is required for all future lessons. The target reading experience is:
+
+```text
+understand the concept
+  -> see why it matters
+  -> inspect the implementation
+  -> verify behavior
+  -> remember the decision rule
+```
 
 ## Universal lesson structure
 
@@ -227,6 +323,14 @@ When to switch:
 
 Select one primary tool for each capability. Mention alternatives in a table instead of implementing many equivalent frameworks.
 
+Every source-required tool must be accounted for. Classify each as:
+
+- implemented in the core project;
+- used manually or optionally;
+- mentioned as an alternative;
+- deferred to a later lesson;
+- rejected for this lesson with a reason.
+
 ### Project structure
 
 Show the final file tree.
@@ -330,8 +434,9 @@ Structure:
 ## Concept-build module N: Topic
 
 ### Core question
-### Mental model
 ### Key concepts
+### Connected dry run
+### Mental model
 ### Worked example
 ### Mini-implementation
 ### Tests
@@ -346,24 +451,118 @@ Structure:
 
 Ask one question the learner should be able to answer after the module.
 
-### Mental model
-
-Give a clear conceptual model before code. Use a diagram when relationships matter.
-
 ### Key concepts
+
+Place this section before the mental model. Its job is to give the learner the vocabulary needed to
+understand the mental model without feeling lost.
 
 Define terms at first use. Do not rely only on the glossary.
 
-For every major concept, include:
+For each important concept, explain:
 
 ```text
-Definition:
-Mental model:
-Example:
+Concept/term:
+Why it matters:
+Very simple example:
+```
+
+Write these explanations as if explaining the term to a layperson, while preserving the correct
+technical language. The learner should build a strong understanding of the definitions before seeing
+the mental model.
+
+Good:
+
+```text
+Concept/term: Logit
+Why it matters: The model uses logits to score possible next tokens before choosing what to generate.
+Very simple example: If the prompt is "refund requires", the model may give " evidence" a higher
+score than " banana".
+```
+
+Weak:
+
+```text
+Logit: unnormalized score.
+```
+
+The weak version is technically true, but it is not enough for first exposure.
+
+For every major concept, teach the idea in this order. You do not have to use these exact labels in
+the learner-facing prose, but the explanation must contain this logic:
+
+```text
+Plain idea:
+Technical definition:
+Business/workflow example:
 Production consequence:
 Failure mode:
-Implementation or demo:
+Implementation or demo that makes it observable:
 ```
+
+Use tables for comparison or lookup, not as the only explanation of a new idea.
+
+### Connected dry run
+
+Place this section after Key concepts and before the mental model when the module has a process,
+pipeline, lifecycle, model-internal flow, data flow, runtime flow, or several definitions that only
+make sense together.
+
+Its job is to connect the definitions into one simple start-to-end example. The learner should be
+able to say, "I know the terms, and now I can see how they work together."
+
+Use one example from the lesson's business workflow. Walk through it slowly:
+
+Start with this overview table:
+
+```text
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | ... | ... |
+| 2 | ... | ... |
+| 3 | ... | ... |
+```
+
+Then write the deeper walkthrough with matching step numbers:
+
+```text
+Input or situation:
+Step 1: what changes?
+Step 2: what changes next?
+Step 3: what does the system/model/component have now that it did not have before?
+Step 4: which key concept is active here?
+Step 5: what can go wrong?
+Final state: what has been achieved, and what has not been proven?
+```
+
+The dry run must be deeper than a short example. It should explicitly show:
+
+- a compact step table before the detailed explanation;
+- matching step numbers in the detailed walkthrough;
+- the object/state before the step;
+- the object/state after the step;
+- which key concept is being used;
+- why that step matters for the project;
+- what misunderstanding or production failure it prevents.
+
+Examples where a connected dry run is required:
+
+- text -> tokens -> token IDs -> embeddings -> hidden states;
+- hidden states -> logits -> probabilities -> decoding -> output;
+- prompt/context -> prefill -> decode -> KV cache -> latency/cost;
+- query -> retrieval -> reranking -> context -> grounded answer;
+- tool request -> permission check -> tool call -> audit record -> recovery;
+- training data -> split -> training -> evaluation -> model-selection decision.
+
+For a simple implementation-only module with one obvious action, this section can be omitted. If the
+module has three or more interacting concepts or components, include it.
+
+### Mental model
+
+Give a clear conceptual model after the key concepts section and, when used, after the connected dry
+run. Use a diagram when relationships matter. The mental model should connect already introduced
+concepts into a working picture, not introduce many new terms for the first time.
 
 ### Worked example
 
@@ -439,6 +638,8 @@ Structure:
 ## Hybrid module N: Topic
 
 ### Core question
+### Key concepts
+### Connected dry run
 ### Concept model
 ### Product consequence
 ### Worked example
@@ -454,9 +655,52 @@ Structure:
 ### Recall
 ```
 
+### Key concepts
+
+Place this section before the concept model. Explain the vocabulary the learner needs before they
+see the system/process model.
+
+For each important concept, explain:
+
+```text
+Concept/term:
+Why it matters:
+Very simple example:
+```
+
+Use layman-friendly explanations while preserving correct technical language. If a concept is
+advanced, explain the plain idea first and then name the term.
+
+### Connected dry run
+
+Required for hybrid modules when the learner must understand how concepts drive behavior before
+implementing the component. Use one small business example and trace it through the system from
+input to observable output.
+
+Show:
+
+- a `Dry-run map` table with `Step | What happens | Concepts being used`;
+- the input or event entering the system;
+- the intermediate states created by the model, data contract, runtime, evaluator, or tool;
+- where each key concept appears in the flow;
+- what the implementation will later make visible or enforce;
+- what the flow does not prove.
+
+After the table, use matching numbered step headings in the deeper walkthrough. Keep the example
+simple enough to follow, but explain each transition deeply enough that a learner can reconstruct the
+process without memorizing the table of terms.
+
 ### Concept model
 
 Explain the technical idea deeply enough to support implementation and interview reasoning.
+
+Use the readability standard:
+
+```text
+plain idea -> technical name -> business example -> production consequence -> implementation/test
+```
+
+Do not list advanced terms before the learner has a simple mental model for the behavior.
 
 ### Product consequence
 
@@ -465,6 +709,9 @@ Connect the concept to the business workflow, user risk, cost, latency, quality,
 ### Build
 
 Show exact files and complete code for the relevant component.
+
+Before the first large code block, add a bridge explaining what hidden behavior the code exposes and
+why that artifact belongs in the project.
 
 ### Tests
 
@@ -539,6 +786,8 @@ Structure:
 ## Implementation module N: Capability
 
 ### Purpose
+### Key concepts
+### Connected dry run
 ### Design decision
 ### Build
 ### Unit tests
@@ -554,12 +803,29 @@ For every implementation component, include:
 
 ```text
 Purpose:
+Key concepts when the component introduces important operational vocabulary:
+Connected dry run when several implementation pieces interact:
 Design decision:
+Concept-to-code bridge:
 Complete code:
 Test:
 Runtime verification:
 Failure drill:
 Operational concern:
+```
+
+For implementation modules, the connected dry run can be operational rather than conceptual. Still
+start with the same `Dry-run map` table, then explain the matching numbered steps. Example:
+
+```text
+CLI command
+  -> load config
+  -> validate input
+  -> call service
+  -> write result
+  -> emit logs/traces
+  -> health check
+  -> rollback decision
 ```
 
 Do not add deployment or cloud tools merely to appear advanced. Include them when they support the lesson outcome or prepare the next lesson.
@@ -652,6 +918,16 @@ Operational notes:
 Decision:
 Next experiment:
 ```
+
+When models, providers, data residency, or hosted services are involved, the memo must also account
+for source-required deployment and governance factors such as:
+
+- model ID and revision;
+- provider or serving location;
+- regional availability;
+- data-retention and training-on-input policy;
+- privacy or enterprise controls;
+- rate limits and fallback implications.
 
 ## Failure modes and debugging
 
@@ -865,10 +1141,18 @@ Record verification date for changing technical details in the lesson brief.
 
 Before calling a lesson complete, verify:
 
+- source compliance contract is satisfied;
+- every required source concept, tool, guided implementation item, evaluation criterion,
+  production concern, assignment requirement, and interview topic is covered or explicitly deferred;
 - one coherent business scenario;
 - concept map and project architecture;
 - five to nine classified modules;
 - every major concept has definition, mental model, example, production consequence, failure mode, and implementation/demo;
+- process-heavy or interaction-heavy modules include a connected dry run that starts with a `Step | What happens | Concepts being used` table, uses matching numbered walkthrough steps, traces one simple example from start to finish, and shows where each key concept comes into play;
+- every non-trivial concept follows the readability progression:
+  plain idea -> technical name -> business example -> production consequence -> implementation/test;
+- tables support explanations but do not replace first-pass teaching;
+- substantial code blocks have concept-to-code bridge paragraphs;
 - every major implementation component has purpose, design decision, complete code, test, runtime verification, failure drill, and operational concern;
 - module completion checkpoints exist;
 - experiment playbook exists;
@@ -879,4 +1163,5 @@ Before calling a lesson complete, verify:
 - no unsupported benchmark numbers or fabricated results;
 - no secrets or private data;
 - original curriculum scope is preserved;
+- no required source tool or production concern is omitted silently;
 - source files are not overwritten unless explicitly requested.

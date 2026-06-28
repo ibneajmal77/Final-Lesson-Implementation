@@ -1,2608 +1,1480 @@
 # Model API Integration and Multi-Provider Reliability
 
-## Lesson metadata
+## Lesson brief
 
-| Field | Value |
+| Item | Detail |
 |---|---|
-| Curriculum position | Core Lesson 09 |
-| Primary roles | Applied AI Engineer, Generative AI Engineer, Forward-Deployed AI Engineer, AI Solutions Architect |
-| Supporting roles | LLM Engineer, AI Evaluation Engineer, AI Platform Engineer, Site Reliability Engineer |
-| Difficulty | Intermediate |
-| Estimated study time | 9-13 hours |
-| Estimated implementation time | 12-18 hours |
-| Prerequisite lessons | Lessons 01-08 |
-| Project increment | Multi-provider model gateway for the Northstar Support drafting pilot |
-| Primary tools | Python, OpenAI Python SDK, Anthropic Python SDK, HTTPX, Pydantic, Redis, OpenTelemetry, pytest |
-| Technical guidance verified | June 25, 2026 |
-| Learning design | Eight-module cognitive path plus complete implementation and production reference |
+| What you learn | How to build a provider-independent model gateway with authentication boundaries, message/response contracts, streaming, structured output validation, tool-call controls, multimodal request handling, retries, fallback, tracing, usage, and cost attribution. |
+| What you build | A runnable multi-provider AI gateway for the Northstar Support pilot with two provider adapters, schema-constrained JSON, streaming events, bounded retries, circuit breaking, usage ledger, OpenTelemetry hooks, Redis-ready state, FastAPI endpoint, Docker packaging, and tests. |
+| Why it matters | Production applications cannot call hosted models as disposable scripts. They need a stable service boundary where provider-specific behavior, failures, cost, security, and output validity are controlled before business logic depends on model output. |
+| Primary roles | Applied AI Engineer, Generative AI Engineer, Forward-Deployed AI Engineer, AI Solutions Architect, AI Platform Engineer. |
+| Prerequisites | Lessons 01-08, especially Lesson 08 token/cost/model-behavior concepts; Python; HTTP; JSON; async basics; basic API authentication. |
+| Tools | Python, FastAPI, HTTPX, Pydantic, pytest, OpenTelemetry, Redis, Docker, native provider SDKs as optional adapter variants. |
+| Estimated time | 9-12 hours study, 12-18 hours implementation. |
+| Final deliverable | A tested multi-provider gateway that returns validated support-draft JSON, streams output events, records usage by tenant/user, and makes fallback behavior observable. |
+| Carries forward | Lesson 10 uses this gateway to manage prompt versions, prompt regression tests, context boundaries, and prompt injection controls. |
+| Verified | Current API/tool guidance checked against official documentation on June 27, 2026. |
 
-## How to use this lesson
+This lesson is an application-engineering lesson with deep reliability content. The core idea is not "learn one provider SDK." The core idea is to create a stable boundary between your product and changing model providers.
 
-This lesson has two layers.
+## Business target
 
-### Essential first pass
+Northstar Support wants to integrate a model candidate selected in Lesson 08 into a support-agent workflow. The model may classify a ticket, extract issue details, and draft a response, but it must not make customer-facing decisions by itself.
 
-Complete the eight learning modules in order. Each module contains:
-
-- One central engineering question
-- A small concept set
-- A worked example
-- Guided practice
-- Independent transfer
-- A closed-book retrieval checkpoint
-- A misconception check
-
-Stop after each checkpoint and answer without looking back. Recommended sessions:
-
-| Session | Modules | Approximate time | Output |
-|---|---|---:|---|
-| A | API boundary; contracts and adapters | 75-100 minutes | Provider-neutral request flow |
-| B | Structured output; streaming | 75-105 minutes | Schema gate and stream event model |
-| C | Errors and retries; circuits and fallback | 90-120 minutes | Retry matrix and routing policy |
-| D | Tools and multimodal input; tracing and cost | 90-120 minutes | Tool boundary and usage ledger |
-
-### Hands-on path
-
-After the modules:
-
-1. Add the gateway package to `ai-industry-labs`.
-2. Implement one milestone at a time.
-3. Run unit tests before enabling real credentials.
-4. Exercise one provider in a development project.
-5. Enable the second provider only after contract tests pass.
-6. Run the failure-injection and fallback evaluation.
-
-### Production and reference path
-
-The reference layer includes:
-
-- Provider API differences
-- Complete data contracts
-- OpenAI and Anthropic adapters
-- Retry and circuit-breaker behavior
-- Tool-call controls
-- Usage and cost accounting
-- Testing, deployment, observability, and incident response
-
-The provider APIs and SDKs change. Recheck the official references and regenerate the lockfile
-before using this lesson in a later environment.
-
-### Retrieval rule
-
-When recall is difficult, reconstruct the flow before rereading:
-
-```text
-business request
-→ gateway contract
-→ policy and routing
-→ provider adapter
-→ validated provider result
-→ usage ledger and trace
-→ business logic
-```
-
-## Why this lesson exists
-
-Lesson 08 established how language models tokenize, generate, and fail. It also produced a
-shortlist of hosted candidates for the Northstar Support pilot.
-
-A direct provider call is sufficient for a disposable experiment:
-
-```python
-response = client.responses.create(model=model, input=prompt)
-```
-
-It is not a sufficient production boundary.
-
-A production application must answer questions the model provider cannot answer for it:
-
-- Which tenant and user initiated this request?
-- Which provider and model are approved for this data?
-- What timeout is appropriate for this user interaction?
-- Which failures can be retried safely?
-- Did the provider receive the request but lose the response?
-- Can another provider receive semantically equivalent input?
-- Was structured output validated before business code used it?
-- Did a stream end normally, fail, or get cancelled?
-- Which tool may be called, with which identity and permissions?
-- How many tokens and dollars belong to this customer and feature?
-- Which provider request ID helps diagnose an incident?
-- What happens when a model or API is deprecated?
-
-This lesson builds that boundary.
-
-Use a gateway when several application capabilities need consistent:
-
-- Authentication and secret handling
-- Provider isolation
-- Validation
-- Reliability policy
-- Routing
-- Tracing
-- Usage accounting
-- Safety controls
-
-Do not create a large centralized platform merely because one script calls one model. A gateway
-is justified when shared policy and operational ownership outweigh the added network hop and
-abstraction cost.
-
-## Business problem
-
-### Organization and workflow
-
-Northstar Support is implementing the bounded pilot selected in Lesson 07:
-
-> Permission-aware, evidence-backed response drafting for eligible support cases, with mandatory
-> agent approval and no autonomous financial or account action.
-
-Lesson 08 selected one hosted primary candidate and one fallback candidate. The support service
-now needs to request:
-
-- Ticket classification
-- Structured issue extraction
-- Priority recommendation
-- Draft text streamed to the agent interface
-- Read-only policy lookup through a controlled tool
-
-Lesson 10 will design the prompts. This lesson builds the reliable provider boundary that those
-prompts will use.
-
-### Current baseline
-
-The prototype has provider calls embedded directly in application handlers:
-
-```text
-HTTP handler
-→ provider SDK
-→ raw model text
-→ application code parses or displays it
-```
-
-Observed risks:
-
-- Provider-specific objects leak into business code.
-- Default provider timeouts are much longer than the product latency budget.
-- SDK retries and application retries can multiply each other.
-- Raw JSON-like text is parsed inconsistently.
-- Streaming failures produce partial drafts without a final status.
-- Usage is visible in provider dashboards but not attributable to a tenant or feature.
-- Fallback behavior is manual and untested.
-- Conversation history may be trapped in provider-specific state.
-- Tool arguments can reach execution code before validation.
-
-### Target workflow
-
-```text
-Support API
-→ authenticate user and resolve tenant
-→ authorize requested capability
-→ build provider-neutral ModelRequest
-→ gateway applies data, budget, and routing policy
-→ adapter calls approved provider
-→ validate response or stream events
-→ record trace, usage, cost, and outcome
-→ return safe result to support workflow
-→ agent reviews before any customer-facing action
-```
-
-### Inputs
-
-- Tenant and user identifiers supplied by trusted application middleware
-- Synthetic or approved ticket content
-- Canonical conversation messages
-- Requested operation
-- Output schema when structured data is required
-- Approved model tier
-- Latency and output-token budgets
-- Optional read-only tools
-- Optional image or document references that passed upload validation
-
-### Outputs
-
-- Validated text or typed structured data
-- Normalized tool-call proposals
-- Normalized stream events
-- Provider and model identity
-- Provider request ID
-- Token usage
-- Estimated cost from a dated price catalog
-- Trace and gateway request IDs
-- Explicit final status or normalized failure
-
-### Constraints
-
-- Provider secrets never reach a browser or model prompt.
-- Customer text is not logged by default.
-- Tenant and user identity are supplied by trusted code, not by the model.
-- Model output is untrusted.
-- Invalid structured output cannot reach business logic.
-- Automatic retry and fallback are allowed only for side-effect-free model generation.
-- Write-capable tools are not automatically replayed.
-- Every request has bounded time, output, retry, and spending budgets.
-- The application owns canonical conversation state.
-- The pilot remains human-reviewed.
-
-### Acceptance metrics
-
-| Area | Acceptance requirement |
+| Area | Decision |
 |---|---|
-| Contract | Provider-specific types do not cross the adapter boundary |
-| Structured output | 100% of downstream records pass the declared Pydantic schema |
-| Reliability | Retryable, terminal, and ambiguous failures are classified correctly in the fixed fault set |
-| Retry safety | No unsafe or ambiguous write action is automatically replayed |
-| Fallback | Every fallback records the failed provider, reason, selected provider, and added latency |
-| Attribution | 100% of successful and failed calls include tenant, user, operation, provider, and model |
-| Streaming | Every stream emits exactly one terminal `completed`, `failed`, or `cancelled` event |
-| Cost | Token usage comes from provider response metadata; prices come from a dated external catalog |
-| Security | Keys remain server-side; tool names and arguments are allowlisted and validated |
-| Operations | Provider request IDs and gateway trace IDs are available for incident diagnosis |
+| Current workflow | Experiments are run manually or through one-off scripts. Provider calls are not isolated, structured outputs are not guaranteed, and cost is not attributed to tenant/user/feature. |
+| Target workflow | Applications call one internal gateway contract. The gateway routes to an approved provider, validates output, streams events, applies retry/fallback policy, records cost/usage, and exposes traces. |
+| Inputs | Tenant/user identity, feature name, support ticket text, optional conversation state, optional multimodal parts, requested output schema, approved tool names, model route preference. |
+| Outputs | Validated `DraftResponse`, stream events, provider metadata, usage record, trace identifiers, and explicit failure classification. |
+| Constraints | No hard-coded secrets, no real customer data in the lesson, no model-authorized business actions, no invalid structured output passed downstream, retries only on safe failures. |
+| Risk level | High. API integration failures can cause outages, hidden cost spikes, duplicate actions, privacy violations, or unsafe customer-facing output. |
+| Acceptance metrics | Provider-specific code isolated; schema-invalid output rejected; fallback tested and observable; usage attributable by tenant/user; retry policy bounded and safe; traces include provider/model/request IDs. |
 
-## Learning outcomes
+Non-goals:
 
-After completing this lesson, you will be able to:
+- This lesson does not design the final prompt package; Lesson 10 handles prompt and context engineering.
+- This lesson does not build RAG; retrieval begins later.
+- This lesson does not allow autonomous write actions.
+- This lesson does not claim one provider is globally best.
+- This lesson does not require paid API credentials for the required path; real provider calls are optional.
 
-- Design a provider-neutral model request and response contract.
-- Isolate provider SDK behavior behind adapters.
-- Configure server-side authentication, explicit timeouts, and bounded output.
-- Normalize text, structured output, streams, tool calls, usage, and provider request IDs.
-- Validate schema-constrained output before business use.
-- Distinguish transport, timeout, rate-limit, authentication, validation, safety, and provider
-  failures.
-- Decide which failures are terminal, retryable, or ambiguous.
-- Prevent hidden retry multiplication across SDK and gateway layers.
-- Implement exponential backoff with jitter and provider-directed delay.
-- Implement a Redis-backed circuit breaker.
-- Route to a fallback provider without hiding degraded behavior.
-- Keep canonical conversation state provider-independent.
-- Validate tool arguments and enforce permissions outside the model.
-- Handle image, document, and audio capability differences explicitly.
-- Attribute token usage and estimated cost by tenant, user, feature, provider, and model.
-- Add OpenTelemetry spans without leaking prompts or secrets.
-- Test normal, boundary, failure, adversarial, and cancellation paths.
-- Deploy and operate the gateway with canary release, rollback, alerts, and incident procedures.
+## Starting checkpoint
 
-## Prerequisites
+You should already know:
 
-### Knowledge
+- Token count drives cost and latency.
+- Model outputs vary with decoding settings and provider/model revisions.
+- Structured output still needs validation.
+- Provider data policy, region, and model revision matter before production use.
+- Human approval remains mandatory for customer-facing support responses.
 
-- Production Python, typing, and async programming
-- HTTP clients and APIs
-- Pydantic validation
-- Unit and integration testing
-- SQL and durable records
-- Authentication and authorization boundaries
-- Token accounting and model behavior from Lesson 08
+Required setup:
 
-### Existing project
+- Python 3.11 or newer.
+- A virtual environment.
+- Docker only for the deployment section.
+- Redis is optional for local learning; in-memory state is used in tests.
+- Real provider API keys are optional. The required project runs with fake and mocked adapters.
 
-Continue using `ai-industry-labs`. Earlier lessons should already provide:
+Answer before continuing:
 
-- A source package and test layout
-- Locked dependencies
-- Application configuration
-- FastAPI or another server boundary
-- Structured logging
-- SQL persistence
-- Docker and CI
-- The Lesson 08 model catalog and hosted candidate
+- Why should business code not call provider SDKs directly?
+- Which failures are safe to retry, and which are not?
+- What must happen when a provider returns malformed JSON?
+- Why does fallback need to be visible in traces and reports?
+- Why should usage be attributed to tenant and user, not only to provider account?
 
-### Accounts and services
+## System map and build roadmap
 
-For the complete integration:
+Content labels used in this lesson:
 
-- One approved OpenAI API project
-- One approved Anthropic workspace
-- Redis for shared circuit state
-- An OpenTelemetry collector or console exporter
-- A development database for usage records
+- **Concept:** API boundary and reliability ideas you must be able to explain.
+- **Project:** code, tests, commands, and artifacts you can copy into the gateway.
+- **Production:** operational controls required before real deployment.
+- **Interview:** reasoning patterns you should defend without notes.
 
-Provider credentials are optional for unit tests. Mocked adapters are the default learning path.
+### Source compliance contract
 
-### Fallback when paid services are unavailable
-
-Implement the gateway and run all contract, retry, circuit, fallback, and accounting tests with
-fake adapters. A local OpenAI-compatible server may be added as an extension, but do not claim it
-proves compatibility with a hosted provider.
-
-### Data
-
-Use the synthetic support cases from Lesson 08. Do not send real customer data until:
-
-- The provider and region are approved.
-- Contractual data handling is reviewed.
-- Retention and deletion behavior are documented.
-- Logging and tracing redaction are verified.
-- The use case passes security and privacy review.
-
-## Activate prior knowledge
-
-Answer without looking back:
-
-1. Why is deterministic decoding not equivalent to a correct response?
-2. Which parts of the context budget must be counted before a model request?
-3. Why must model output be treated as untrusted input?
-4. What is the difference between a timeout and proof that no provider-side work occurred?
-5. Which identity made the support agent eligible for the pilot: the model, the gateway, or the
-   application?
-
-Do not continue until you can explain questions 1, 3, and 5.
-
-## Lesson concept map
-
-```text
-Lessons 01-06
-Python + async + tests + APIs + SQL
-                 │
-Lesson 07        │       Lesson 08
-bounded use case │       model behavior and candidate selection
-        └────────┴──────────────┐
-                               ▼
-                    provider-neutral contract
-                               │
-              ┌────────────────┼────────────────┐
-              ▼                ▼                ▼
-       provider adapters   reliability      control plane
-       text/JSON/stream    timeout/retry    identity/budget
-       tools/multimodal    circuit/fallback tracing/cost
-              └────────────────┼────────────────┘
-                               ▼
-                validated model capability
-                               │
-                               ▼
-               Lesson 10: versioned prompts
-```
-
-## Learning module map
-
-| Module | Central question | Time | New concepts | Practice artifact |
-|---|---|---:|---|---|
-| API boundary | What belongs between business code and a provider SDK? | 35 min | gateway, policy boundary, trust boundary, canonical state | Responsibility map |
-| Contracts and adapters | How can two providers implement one application capability? | 45 min | port, adapter, capability matrix, normalization | Provider-neutral contract |
-| Structured output | How does typed data become safe for business logic? | 45 min | schema constraint, parse, validation gate, refusal | Schema gate |
-| Streaming | How do partial events remain observable and correct? | 40 min | SSE, delta, accumulator, terminal event, cancellation | Unified stream |
-| Errors and retries | Which failures may be tried again? | 50 min | error taxonomy, retry safety, ambiguity, backoff, jitter | Retry matrix |
-| Circuits and fallback | When should traffic stop going to a failing provider? | 45 min | circuit breaker, degraded mode, fallback, semantic parity | Routing policy |
-| Tools and multimodal input | How are model-proposed actions and non-text inputs controlled? | 50 min | tool proposal, argument validation, approval, media capability | Tool boundary |
-| Tracing, usage, and cost | How is every call attributable without leaking data? | 45 min | correlation, span, usage ledger, price catalog, unit cost | Trace and usage record |
-
-## Essential learning modules
-
-## Learning module: The model API boundary
-
-### Module question
-
-If an HTTP handler can call a provider SDK directly, why add another layer?
-
-### Essential concepts
-
-- A **gateway** is a service or library boundary that applies shared policy before and after model
-  calls.
-- A **trust boundary** is a point where data crosses between components with different authority
-  or reliability assumptions.
-- A **policy boundary** is the component responsible for enforcing rules such as allowed
-  providers, data classes, budgets, and retries.
-- **Canonical state** is the application-owned representation that remains valid when providers
-  change.
-- A **provider request ID** is the provider's identifier for one API request; it is not the same
-  as the application's request or trace ID.
-
-### Mental model
-
-The provider generates. The gateway governs the call. The application owns the workflow.
-
-```text
-Application authority     Gateway policy          Provider capability
----------------------     --------------          -------------------
-user and tenant           routing                 generation
-permissions               timeout and retry       provider tools
-business state            validation              token usage
-human approval            tracing and cost        provider request ID
-```
-
-### Worked example
-
-A support agent requests a draft. The incoming JSON claims `tenant_id="enterprise-a"`.
-
-Incorrect flow:
-
-```text
-request JSON tenant_id
-→ send directly to provider
-→ trust returned draft
-```
-
-Correct flow:
-
-1. Authentication middleware resolves the agent identity.
-2. Authorization resolves the tenant and draft permission.
-3. The handler ignores tenant identity supplied by untrusted request content.
-4. The gateway receives trusted identity attributes from server context.
-5. The gateway selects only providers approved for that tenant's data class.
-6. The result remains a draft requiring agent approval.
-
-The model never decides tenant membership or approval authority.
-
-### Guided practice
-
-Assign each responsibility to application, gateway, or provider:
-
-- Verify the support agent may access ticket `T-104`.
-- Select a model approved for confidential support text.
-- Generate a draft.
-- Validate extracted issue fields.
-- Approve a refund.
-- Report provider input and output tokens.
-
-Hint: only one item belongs solely to the provider.
-
-### Independent practice
-
-Draw the boundary for an internal legal summarization tool. Mark where document permission,
-provider selection, generation, citation validation, and final legal review occur.
-
-### Retrieval checkpoint
-
-Close the lesson and answer:
-
-1. What three responsibilities remain outside the model?
-2. Why should canonical conversation state remain application-owned?
-3. How does a provider request ID differ from a trace ID?
-4. What justifies a gateway instead of a direct SDK call?
-
-### Misconception check
-
-**Misconception:** A provider abstraction makes providers interchangeable.
-
-Why it seems plausible: both accept text and return text.
-
-Correct model: an adapter normalizes a selected common capability. Models still differ in
-quality, role semantics, tool behavior, structured-output support, context limits, safety
-behavior, latency, and data policy.
-
-Test case: send the same tool schema and ambiguous support ticket through both adapters. Compare
-normalized shape and semantic behavior separately.
-
-### Connection
-
-This module used Lesson 07's authority boundaries. The next module turns the boundary into typed
-contracts.
-
-## Learning module: Provider-neutral contracts and adapters
-
-### Module question
-
-Which information should be common across providers, and which information must stay inside an
-adapter?
-
-### Essential concepts
-
-- A **port** is an interface defined by the application.
-- An **adapter** translates a provider-specific API into that interface.
-- **Normalization** maps provider-specific objects into a stable application model.
-- A **capability matrix** records which providers support required text, structured, streaming,
-  tool, and media features.
-- **Semantic parity** means the fallback can satisfy the same business contract, not merely accept
-  similar parameters.
-
-### Mental model
-
-Normalize the business capability, not every provider feature.
-
-```text
-ModelRequest ──> ModelProvider port ──> OpenAI adapter
-                              └───────> Anthropic adapter
-
-Provider response ──> normalized result ──> schema and policy gate
-```
-
-### Worked example
-
-The application needs structured issue extraction:
-
-```text
-category: billing | account | technical | security
-requires_approval: boolean
-summary: short string
-```
-
-Common contract:
-
-- Messages
-- Output schema
-- Maximum output
-- Tenant, user, and operation metadata
-- Usage and request identity in the result
-
-Adapter-owned details:
-
-- OpenAI Responses API request shape
-- Anthropic Messages API system-message handling
-- Provider event classes
-- Provider exception classes
-- Provider usage object fields
-
-The application receives the same `ModelResult[IssueExtraction]` from either adapter.
-
-### Guided practice
-
-For each field, decide common contract or adapter detail:
-
-- `tenant_id`
-- `previous_response_id`
-- `max_output_tokens`
-- `request-id` header
-- `messages`
-- Anthropic content blocks
-- `operation`
-- OpenAI output items
-
-Hint: provider-specific continuation IDs may be recorded, but must not become canonical state.
-
-### Independent practice
-
-Design a capability matrix for:
-
-- Text generation
-- Typed structured output
-- Streaming text
-- Client-side tools
-- Image input
-- PDF input
-- Audio input
-
-Use `supported`, `unsupported`, or `provider-specific`. Do not infer support from marketing names.
-
-### Retrieval checkpoint
-
-1. Define port and adapter.
-2. What does normalization protect?
-3. Why is a lowest-common-denominator API dangerous?
-4. What is semantic parity?
-5. Name two details that must stay inside an adapter.
-
-### Misconception check
-
-**Misconception:** A provider-independent interface should expose every feature from every
-provider.
-
-Correct model: expose stable business capabilities. Add explicit provider extensions only when
-the business case accepts reduced portability.
-
-Test case: an audio-specific parameter appears in the common text request. The contract is now
-coupled to a feature other providers may not support.
-
-### Connection
-
-The adapter contract is useful only if its outputs are safe. The next module builds the schema
-gate.
-
-## Cumulative retrieval: Boundary and contract
-
-Without looking back:
-
-1. Draw application, gateway, adapter, and provider.
-2. Place identity, authorization, generation, validation, and approval.
-3. Explain why provider neutrality does not imply model equivalence.
-4. Give one field that belongs in the common request and one that does not.
-5. Predict what breaks if business code imports provider response classes.
-
-## Learning module: Structured output as a validation gate
-
-### Module question
-
-If a provider offers schema-constrained output, why validate again in the application?
-
-### Essential concepts
-
-- **Structured output** asks a model to produce data conforming to a declared schema.
-- **Constrained generation** restricts allowable output tokens according to a grammar or schema.
-- A **validation gate** prevents unvalidated output from crossing into business logic.
-- A **refusal** is a provider or model decision not to produce the requested content.
-- **Repair** is a second attempt to transform invalid output; it is a new model call, not proof
-  the original output was safe.
-
-### Mental model
-
-```text
-schema sent to provider
-→ provider generation
-→ SDK parse
-→ application Pydantic validation
-→ domain validation
-→ business use
-```
-
-Provider schema support improves reliability. The application still owns correctness.
-
-### Worked example
-
-Schema:
-
-```python
-class IssueExtraction(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    category: Literal["billing", "account", "technical", "security"]
-    requires_approval: bool
-    summary: str = Field(min_length=1, max_length=240)
-```
-
-Provider output:
-
-```json
-{
-  "category": "billing",
-  "requires_approval": false,
-  "summary": "Customer reports a duplicate charge."
-}
-```
-
-Pydantic accepts the shape, but domain policy adds:
-
-```text
-duplicate charge + possible refund
-→ requires_approval must be true
-```
-
-Schema validation checks shape. Domain validation checks business meaning.
-
-### Guided practice
-
-Add these constraints:
-
-- Reject unknown fields.
-- Limit summary length.
-- Allow only four categories.
-- Require approval when the requested action is financial.
-
-Hint: the first three are schema constraints; the last is a domain invariant.
-
-### Independent practice
-
-Create a schema for security-ticket triage with:
-
-- Severity
-- Indicators
-- Account-compromise suspicion
-- Escalation requirement
-
-Add one invariant that cannot safely be delegated to the model.
-
-### Retrieval checkpoint
-
-1. Why validate after constrained generation?
-2. What is the difference between schema and domain validation?
-3. When should invalid output be rejected instead of repaired?
-4. Why must refusal be represented separately from parse failure?
-
-### Misconception check
-
-**Misconception:** Valid JSON is valid business data.
-
-Correct model: JSON parsing proves syntax. Schema validation proves declared shape. Domain
-validation enforces business invariants. Authorization determines allowed action.
-
-Test case: a valid record says `requires_approval=false` for a $500 refund request.
-
-### Connection
-
-Structured output is consumed after completion. Streaming introduces partial, non-final data.
-
-## Learning module: Streaming without losing correctness
-
-### Module question
-
-How can a UI display partial text without treating partial text as a completed result?
-
-### Essential concepts
-
-- **Server-Sent Events (SSE)** is an HTTP streaming format where a server sends a sequence of
-  events.
-- A **delta** is an incremental piece of output.
-- An **accumulator** reconstructs the complete output from ordered deltas.
-- A **terminal event** explicitly marks completion, failure, or cancellation.
-- **Backpressure** occurs when a consumer processes events more slowly than they arrive.
-- **Cancellation** is the deliberate termination of work after a user disconnect or deadline.
-
-### Mental model
-
-```text
-started
-→ zero or more text deltas
-→ optional usage or metadata
-→ exactly one terminal event
-```
-
-Partial text is presentation state, not committed business state.
-
-### Worked example
-
-The draft stream emits:
-
-```text
-started
-text_delta("I understand")
-text_delta(" you were charged twice.")
-failed(provider_timeout)
-```
-
-The UI may show the partial text as interrupted. It must not:
-
-- Mark the draft complete
-- Persist it as approved
-- Send it to the customer
-- Assume usage is zero
-- silently retry and splice a second provider's text into the first stream
-
-A fallback stream begins as a new attempt with a new attempt ID.
-
-### Guided practice
-
-Define four normalized stream events:
-
-- `started`
-- `text_delta`
-- `completed`
-- `failed`
-
-Add fields needed to distinguish gateway request, attempt, provider, model, and sequence.
-
-### Independent practice
-
-Design cancellation behavior when an agent closes the browser after 200 tokens. Specify:
-
-- Which coroutine is cancelled
-- What final status is stored
-- Whether provider billing may still occur
-- Which metrics increment
-
-### Retrieval checkpoint
-
-1. Why is a delta not a result?
-2. What invariant applies to terminal events?
-3. Why should fallback not splice into an existing stream?
-4. What is backpressure?
-5. What evidence should a cancelled request retain?
-
-### Misconception check
-
-**Misconception:** Streaming only changes the user interface.
-
-Correct model: streaming changes connection lifetime, timeout behavior, cancellation, partial
-state, event ordering, usage collection, and failure handling.
-
-Test case: disconnect the client after the first delta and inspect stored status and open
-provider connections.
-
-### Connection
-
-Streams expose failures over time. The next module classifies those failures and decides whether
-another attempt is safe.
-
-## Cumulative retrieval: Validated output and streams
-
-1. Reconstruct the structured-output gate.
-2. Explain why a domain invariant is not a prompt instruction.
-3. Draw the legal stream-event sequence.
-4. Diagnose a stream that has two `completed` events.
-5. Explain what the UI may do with partial text and what business logic may not do.
-
-## Learning module: Error taxonomy and bounded retries
-
-### Module question
-
-Which failures should be retried, and what can a timeout not prove?
-
-### Essential concepts
-
-- A **terminal failure** should not be retried without changing the request or configuration.
-- A **retryable failure** may succeed when attempted again after a bounded delay.
-- An **ambiguous completion** means the caller does not know whether remote work completed.
-- **Exponential backoff** increases delay after successive failures.
-- **Jitter** adds randomness so clients do not retry simultaneously.
-- A **retry budget** caps attempts, elapsed time, and added cost.
-
-### Mental model
-
-Retry only when all three are true:
-
-```text
-failure is transient
-AND operation is safe to repeat
-AND retry budget remains
-```
-
-### Worked example
-
-| Failure | Retry? | Reason |
-|---|---|---|
-| Invalid API key | No | Configuration or secret error |
-| Invalid schema request | No | Same request will fail again |
-| Rate limit with delay | Yes, bounded | Capacity may recover |
-| Provider 503 | Yes, bounded | Usually transient |
-| Connection failed before send | Yes, bounded | No response received |
-| Read timeout during pure generation | Maybe | Duplicate provider work and cost are possible, but no business write occurs |
-| Timeout after `send_refund` tool | No automatic replay | Remote side effect may have completed |
-| Model refusal | No transport retry | This is a behavior outcome, not network failure |
-
-For Northstar's draft generation, a duplicated provider request costs money but does not send a
-customer response. The gateway may retry within budget and record every attempt.
-
-### Guided practice
-
-Classify:
-
-- 401 authentication
-- 429 rate limit
-- 400 invalid request
-- 529 overloaded provider
-- socket connect timeout
-- read timeout after a write-capable tool call
-- schema validation failure
-
-Use `terminal`, `retryable`, or `policy decision`.
-
-### Independent practice
-
-Create a retry policy for a batch classification job where latency is less important than cost.
-Compare it with the interactive drafting policy.
-
-### Retrieval checkpoint
-
-1. State the three retry conditions.
-2. Why is timeout not proof that no remote work occurred?
-3. What problem does jitter prevent?
-4. Why disable SDK retries when the gateway owns retries?
-5. What three dimensions bound a retry budget?
-
-### Misconception check
-
-**Misconception:** `POST` requests must never be retried.
-
-Correct model: HTTP method alone is insufficient. A side-effect-free generation request may be
-repeated under policy, while a tool-driven financial write may be unsafe even if wrapped in a
-different method.
-
-Test case: compare a duplicate draft generation with a duplicate refund command.
-
-### Connection
-
-Retries help isolated transient failures. A circuit breaker handles sustained provider failure.
-
-## Learning module: Circuit breakers and observable fallback
-
-### Module question
-
-When should the gateway stop sending requests to a provider before every caller waits for a
-timeout?
-
-### Essential concepts
-
-- A **circuit breaker** temporarily blocks calls after repeated qualifying failures.
-- **Closed** means calls are allowed.
-- **Open** means calls fail fast or route elsewhere.
-- **Half-open** means limited probes test recovery.
-- **Fallback** selects an alternate provider or model.
-- **Degraded mode** is a deliberate reduced-capability operating state.
-
-### Mental model
-
-```text
-closed --failure threshold--> open
-open --cooldown--> half-open
-half-open --success--> closed
-half-open --failure--> open
-```
-
-### Worked example
-
-The primary provider returns five overload failures in 30 seconds.
-
-Without a circuit:
-
-- Every interactive request waits through timeout and retry.
-- The gateway increases load on the failing provider.
-- User latency and cost rise.
-
-With a circuit:
-
-1. Qualifying failures increment shared state.
-2. The circuit opens for a short cooldown.
-3. New eligible draft requests route to the approved fallback.
-4. Fallback is recorded as degraded operation.
-5. A bounded probe later tests the primary.
-6. Success closes the circuit; failure reopens it.
-
-Authentication and invalid-request errors do not prove provider unavailability and should not
-open the provider-wide circuit.
-
-### Guided practice
-
-Choose whether each error contributes to a provider circuit:
-
-- Rate limit
-- 503 or 529 overload
-- Invalid API key
-- Invalid request schema
-- Connection failure
-- Model refusal
-
-Hint: separate provider health from your configuration and content policy.
-
-### Independent practice
-
-Design fallback for a tenant whose data may use provider A but not provider B. Include the
-behavior when A is unavailable.
-
-### Retrieval checkpoint
-
-1. Name the three circuit states.
-2. Which failures should not open a provider-wide circuit?
-3. What is degraded mode?
-4. Why must fallback be observable?
-5. What does semantic parity require?
-
-### Misconception check
-
-**Misconception:** Fallback guarantees availability.
-
-Correct model: fallback helps only when the alternate provider is approved, healthy, capable,
-within budget, and semantically acceptable. Correlated cloud, network, prompt, or data failures
-can affect both providers.
-
-Test case: both providers reject the same invalid schema. Fallback adds latency but cannot solve
-the defect.
-
-### Connection
-
-Fallback handles generation providers. The next module addresses tool actions and media inputs,
-where provider capability and authority differ more sharply.
-
-## Cumulative retrieval: Reliability policy
-
-1. Build a retry table from memory.
-2. Explain ambiguous completion using a tool write.
-3. Draw circuit states and transitions.
-4. Give one case where fallback is prohibited by data policy.
-5. Predict the result of SDK retries set to two plus gateway attempts set to three.
-
-## Learning module: Tool calls and multimodal inputs
-
-### Module question
-
-What does a model tool call authorize?
-
-### Essential concepts
-
-- A **tool call** is a model-generated proposal containing a tool name and arguments.
-- A **tool registry** is an application-owned allowlist of callable tools and schemas.
-- **Least privilege** grants only the permissions required for the current task.
-- **Idempotency** ensures repeated requests produce one intended side effect.
-- **Multimodal input** contains more than text, such as images, audio, or documents.
-- A **capability check** rejects a request when the selected provider cannot satisfy the required
-  modality or control.
-
-### Mental model
-
-```text
-model proposes
-→ gateway validates name and arguments
-→ application authorizes user and resource
-→ approval policy runs
-→ tool executes with bounded credentials
-→ result is returned to model or workflow
-```
-
-The model has no authority merely because it emitted a valid tool call.
-
-### Worked example
-
-Allowed tool:
-
-```text
-lookup_policy(policy_id)
-```
-
-The model proposes:
-
-```json
-{"policy_id": "refund-duplicate-charge"}
-```
-
-The gateway:
-
-1. Confirms `lookup_policy` is enabled for the operation.
-2. Validates arguments.
-3. Uses the authenticated tenant context.
-4. Enforces document permission before retrieval.
-5. Limits result size.
-6. Records tool name, duration, and outcome.
-7. Returns content as untrusted evidence.
-
-The model is not allowed to choose a different tenant or bypass policy filters.
-
-### Guided practice
-
-For a `create_refund` tool, add:
-
-- Required arguments
-- User permission
-- Maximum amount
-- Idempotency key
-- Human approval
-- Audit event
-- Retry rule
-
-### Independent practice
-
-Design input controls for a customer-uploaded PDF:
-
-- File size
-- Media type
-- Malware scanning
-- Tenant ownership
-- Retention
-- Provider capability
-- Prompt-injection treatment
-
-### Retrieval checkpoint
-
-1. What does a tool call authorize?
-2. Where are tool names and arguments validated?
-3. Why must tenant permission be checked before tool execution?
-4. What makes a write tool safely retryable?
-5. Why is a PDF still untrusted after malware scanning?
-
-### Misconception check
-
-**Misconception:** Strict tool schemas make tool execution safe.
-
-Correct model: schemas constrain shape. Authorization, business limits, approval, idempotency,
-network egress, and auditability control effects.
-
-Test case: a perfectly valid `create_refund` call requests another tenant's order.
-
-### Connection
-
-Tool and media controls create events that must be attributable. The final module connects
-requests, attempts, usage, and cost.
-
-## Learning module: Tracing, token usage, and cost attribution
-
-### Module question
-
-How can the team diagnose and charge back a model request without storing sensitive prompts in
-telemetry?
-
-### Essential concepts
-
-- A **correlation ID** links records belonging to one application operation.
-- A **trace** represents a distributed request as related spans.
-- A **span** represents one timed operation within a trace.
-- A **usage ledger** is a durable record of measured provider usage and attribution.
-- A **price catalog** is dated configuration used to estimate cost from usage.
-- **Cost per successful task** divides total cost by accepted business outcomes, not raw calls.
-
-### Mental model
-
-```text
-gateway request
-  ├─ attempt 1: primary provider
-  ├─ retry wait
-  ├─ attempt 2: fallback provider
-  ├─ optional tool spans
-  └─ usage records for every billable attempt
-```
-
-### Worked example
-
-One user request causes:
-
-- Primary attempt: timeout after provider work may have started
-- Fallback attempt: successful
-- One policy lookup tool
-
-Required records:
-
-| Record | Outcome |
+| Source requirement | Where it is handled |
 |---|---|
-| Gateway operation | Completed in degraded mode |
-| Primary attempt | Timeout, ambiguous provider completion |
-| Fallback attempt | Success |
-| Tool call | Success |
-| Usage ledger | One record for each provider usage object received |
-| Cost estimate | Based on model-specific, effective-dated catalog |
+| Provider authentication | Business target, contracts, adapter config, security section. |
+| Messages and responses | Module 1 and `schemas.py`. |
+| Structured output | Module 4 and validation tests. |
+| Function/tool calling | Module 4 and `tools.py`. |
+| Streaming | Module 5 and stream tests. |
+| Image, audio, document input | Module 5 as typed multimodal parts; adapter support is capability-gated. |
+| Conversation state | Module 1 as explicit request state and next-lesson bridge. |
+| Token accounting | Modules 2 and 7; usage ledger. |
+| Rate limits, timeouts, retries | Module 6. |
+| Provider error classification | Module 6 and `errors.py`. |
+| Fallback models/providers | Modules 3 and 6. |
+| Request tracing | Module 7 and OpenTelemetry hooks. |
+| Usage and cost attribution | Module 7, evaluation, checklist. |
+| Cost tracking | Module 7 records token usage and computes configurable estimated cost. |
+| Provider-independent adapters | Modules 2 and 3 isolate provider-specific code behind the gateway interface. |
+| Multi-provider model gateway | The project builds a gateway with primary and fallback provider adapters. |
+| Provider outages | Module 6 and the failure-mode table cover outages, circuit breaking, and fallback. |
+| Native provider SDK | Accounted as optional adapter variant; required path uses HTTPX/mocked adapters for reproducibility. |
+| HTTPX | Core provider adapter transport. |
+| Pydantic | Core schemas and validation. |
+| OpenTelemetry | Tracing hooks. |
+| Redis | Production-ready shared usage/circuit state; local tests use in-memory substitute. |
 
-Do not log the ticket text. Record:
-
-- Hash or case identifier where approved
-- Tenant and user internal IDs
-- Operation
-- Provider and model
-- Attempt count
-- Token counts
-- Latency
-- Error category
-- Provider request ID
-- Prompt and schema versions later added in Lesson 10
-
-### Guided practice
-
-Choose which values belong in standard telemetry:
-
-- API key
-- Raw ticket body
-- Tenant ID
-- Provider request ID
-- Input tokens
-- Model name
-- Full generated draft
-- Error category
-
-Hint: content requires a separate, explicit retention and access policy.
-
-### Independent practice
-
-Define a daily report for:
-
-- Cost per tenant
-- Cost per successful draft
-- Fallback rate
-- Schema failure rate
-- P95 latency
-- Provider error rate
-
-Specify numerator and denominator for each metric.
-
-### Retrieval checkpoint
-
-1. Distinguish gateway request ID, trace ID, attempt ID, and provider request ID.
-2. Why is provider-reported usage preferable to a character estimate?
-3. Why should prices not be hard-coded in application logic?
-4. What should a fallback trace show?
-5. Why is cost per request weaker than cost per successful task?
-
-### Misconception check
-
-**Misconception:** Observability requires logging prompts and responses.
-
-Correct model: operational diagnosis begins with identity-safe metadata, request IDs, versions,
-usage, timings, errors, and sampled redacted content under separate access controls.
-
-Test case: diagnose a rate-limit spike using provider, model, tenant, token, status, and request-ID
-metadata without opening customer text.
-
-### Connection
-
-This module completes the gateway control loop. Lesson 10 will add prompt and schema versions to
-the same request, trace, evaluation, and cost records.
-
-## Final cumulative retrieval before the reference layer
-
-Close the lesson and reconstruct:
-
-1. The complete request flow from authenticated user to validated result.
-2. The boundary between application authority, gateway policy, and provider capability.
-3. The structured-output validation layers.
-4. The legal streaming event sequence.
-5. The three retry conditions.
-6. Circuit states and fallback prerequisites.
-7. The tool-call authorization flow.
-8. The relationship among trace, attempt, usage, and cost.
-
-If more than two parts are missing, repeat the relevant checkpoint before implementing.
-
-## Reference and production depth
-
-The remainder is the implementation and operational reference.
-
-## Reference glossary
-
-| Term | Definition |
-|---|---|
-| Adapter | Provider-specific translation behind an application-defined interface |
-| Ambiguous completion | State where the caller cannot prove whether remote work completed |
-| Backoff | Delay before another attempt |
-| Backpressure | Slow-consumer pressure on a producer or stream |
-| Canonical state | Application-owned state independent of a provider |
-| Capability matrix | Explicit record of supported provider capabilities |
-| Circuit breaker | State machine that blocks calls during sustained failure |
-| Constrained generation | Output generation restricted by a grammar or schema |
-| Correlation ID | Identifier connecting records for one operation |
-| Delta | Incremental streamed output |
-| Fallback | Approved alternate provider or model |
-| Gateway | Shared boundary for model call policy and normalization |
-| Idempotency | Property that repeated execution has one intended effect |
-| Jitter | Random variation added to retry delay |
-| Port | Application-defined interface implemented by adapters |
-| Provider request ID | Provider-generated identifier for one API request |
-| Retry budget | Bound on attempts, elapsed time, or added cost |
-| Semantic parity | Ability of an alternate route to satisfy the same business contract |
-| Span | Timed operation within a distributed trace |
-| Structured output | Model output constrained to a declared data structure |
-| Terminal event | Final stream event indicating completed, failed, or cancelled |
-| Tool call | Model-generated proposal to invoke a named capability with arguments |
-| Usage ledger | Durable attribution record for measured model use |
-| Validation gate | Boundary that rejects unvalidated output before business use |
-
-## Cumulative mental model
+### Concept map
 
 ```text
-TRUSTED APPLICATION CONTEXT
-user ─ tenant ─ permissions ─ business operation
-                    │
-                    ▼
-GATEWAY CONTROL PLANE
-validate request
-→ apply data and budget policy
-→ select approved route
-→ check circuit
-→ create trace and attempt
-                    │
-                    ▼
-PROVIDER ADAPTER
-translate request
-→ call with explicit timeout
-→ normalize result, usage, request ID, or error
-                    │
-                    ▼
-RESULT CONTROL
-schema + domain validation
-→ tool authorization if proposed
-→ usage and cost record
-→ completed, failed, or degraded outcome
-                    │
-                    ▼
-BUSINESS WORKFLOW
-agent review remains mandatory
+application request
+  -> identity and policy boundary
+  -> provider-neutral GatewayRequest
+  -> router selects provider/model
+  -> adapter maps neutral request to provider API
+  -> provider response or stream
+  -> error classifier / retry / circuit breaker / fallback
+  -> structured output validator and tool gate
+  -> usage ledger and trace
+  -> business logic receives only validated output
 ```
 
-## Architecture and data flow
+The key product rule:
 
 ```text
-┌───────────────────────────────────────────────────────────────┐
-│ Support application trust boundary                            │
-│ authn → tenant resolution → authz → request construction      │
-└───────────────────────────────┬───────────────────────────────┘
-                                │ trusted identity context
-                                ▼
-┌───────────────────────────────────────────────────────────────┐
-│ Model gateway                                                  │
-│ request validation                                             │
-│ data/model/budget policy                                       │
-│ routing → retry → circuit → fallback                           │
-│ tool registry and approval boundary                            │
-│ tracing → usage → cost                                         │
-└──────────────┬──────────────────────────────┬─────────────────┘
-               │                              │
-               ▼                              ▼
-┌──────────────────────────┐      ┌──────────────────────────┐
-│ OpenAI adapter           │      │ Anthropic adapter        │
-│ Responses API            │      │ Messages API             │
-│ SDK types and errors     │      │ SDK types and errors     │
-└──────────────┬───────────┘      └─────────────┬────────────┘
-               │ external provider trust boundary│
-               └──────────────────┬───────────────┘
-                                  ▼
-                        Hosted model providers
-
-Shared state:
-- SQL: canonical conversations, usage ledger, route decisions
-- Redis: circuit and short-lived coordination state
-- Telemetry backend: traces, metrics, redacted logs
-- Secret manager: provider credentials
+The model provider returns text/events.
+The gateway decides whether those results are safe, valid, attributable, and usable.
 ```
 
-### Request flow
+### Project architecture
 
-1. The application authenticates the user.
-2. Authorization resolves tenant, ticket, and operation permission.
-3. The handler creates a provider-neutral request.
-4. The gateway validates limits and data policy.
-5. The router selects an approved provider/model route.
-6. The circuit breaker allows, blocks, or probes the route.
-7. The adapter translates canonical messages into the provider API.
-8. The provider returns output, usage, and a provider request ID or an error.
-9. The adapter normalizes the result.
-10. The gateway validates schema and domain invariants.
-11. Tool proposals pass through registry, authorization, and approval.
-12. Usage, estimated cost, trace, and outcome are persisted.
-13. The application receives a typed result or normalized failure.
+```text
+FastAPI endpoint
+  -> GatewayService
+      -> Router
+          -> FakeProviderAdapter
+          -> HTTPXProviderAdapter
+      -> StructuredOutputValidator
+      -> ToolRegistry
+      -> RetryPolicy + CircuitBreaker
+      -> UsageLedger
+      -> OpenTelemetry tracing
+  -> DraftResponse or StreamEvent
+```
 
 ### Trust boundaries
 
-| Boundary | Untrusted input | Enforcement |
-|---|---|---|
-| Client to application | Claimed identity, tenant, ticket, media | Authentication, authorization, upload validation |
-| Application to gateway | Messages, limits, operation | Pydantic contract, policy engine |
-| Gateway to provider | Sensitive content, schemas, tools | Provider allowlist, data policy, secret manager |
-| Provider to gateway | Text, JSON, tool arguments, usage metadata | Adapter normalization, schema validation |
-| Gateway to tools | Tool name and arguments | Registry, authz, approval, idempotency |
-| Telemetry boundary | Metadata and optional content | Redaction, sampling, access control, retention |
+| Boundary | Rule |
+|---|---|
+| External caller | Must supply tenant/user/feature identity; never trust caller-provided cost or provider metadata. |
+| Secrets | API keys come from environment/secret manager; never from request body. |
+| Provider output | Untrusted until schema-validated and policy-checked. |
+| Tool calls | Tool name and arguments are validated against an allowlist before execution. |
+| Streaming | Partial chunks are not final validated business output. |
+| Fallback | Must be logged and traced; hidden fallback makes debugging and cost attribution unreliable. |
+| Usage ledger | Records metadata and token/cost estimates; it must not store raw sensitive customer text. |
 
 ### State ownership
 
-| State | Owner |
-|---|---|
-| User session and tenant membership | Application identity system |
-| Ticket and approval status | Support application database |
-| Canonical conversation messages | Application database |
-| Provider continuation ID | Optional gateway metadata |
-| Circuit state | Redis |
-| Retry attempt state | Gateway request context and trace |
-| Usage and cost records | Durable usage ledger |
-| Provider secrets | Secret manager |
+| State | Owner | Persistence rule |
+|---|---|---|
+| Gateway request | Application caller | Immutable after accepted. |
+| Provider credentials | Deployment environment/secret manager | Never committed. |
+| Route policy | Gateway config | Version when changed. |
+| Circuit state | In-memory for lesson, Redis in production | Shared state needed across replicas. |
+| Usage/cost records | Usage ledger | Usage and cost attribution by tenant, user, feature, provider, model. |
+| Conversation state | Application layer | Gateway accepts state but does not own long-term memory in this lesson. |
+| Trace IDs | Observability stack | Propagate through logs and provider metadata when possible. |
 
 ### Failure boundaries
 
-- Application auth failure: provider is never called.
-- Contract failure: request is rejected before routing.
-- Provider failure: normalized by adapter.
-- Schema failure: raw output is quarantined or redacted; business code receives no typed result.
-- Tool failure: tool result is explicit; no hidden replay of consequential writes.
-- Telemetry failure: request policy decides whether to continue; usage must be recoverable.
-- Database failure: avoid returning a completed consequential workflow without required audit
-  persistence.
+| Failure | Boundary | Expected containment |
+|---|---|---|
+| Missing API key | Adapter initialization/config | Gateway refuses provider route before request execution. |
+| Provider timeout | Adapter/retry layer | Retry only if policy says safe; then fallback if configured. |
+| Rate limit | Error classifier | Backoff, circuit signal, observable fallback. |
+| Invalid structured output | Validation gate | Rejected before business logic receives it. |
+| Tool hallucination | Tool registry | Unknown tool rejected; arguments schema-validated. |
+| Stream cancellation | Stream event boundary | Caller receives terminal error/cancel event; usage marked partial. |
+| Duplicate write risk | Retry policy | Non-idempotent requests are not retried automatically. |
 
-## Design decisions
+### Tool choices
 
-### Selected approach
-
-- Async Python gateway library inside the existing service first
-- OpenAI Responses API adapter
-- Anthropic Messages API adapter
-- Pydantic models as the common contract
-- Gateway-owned retry policy with provider SDK retries disabled
-- Redis-backed shared circuit breaker
-- Application-owned conversation history
-- SQL usage ledger
-- OpenTelemetry spans and structured logs
-- Configuration-owned model IDs and prices
-
-### Deterministic baseline
-
-The baseline is a fake provider implementing the same port:
-
-- Returns fixed outputs
-- Emits deterministic stream events
-- Injects selected failures
-- Reports fixed usage
-
-This proves gateway behavior without depending on model quality or network availability.
-
-### Alternatives
-
-| Approach | Strength | Limitation | Use when |
-|---|---|---|---|
-| Direct SDK calls | Lowest initial complexity | Duplicated policy and provider leakage | One bounded experiment |
-| In-process gateway library | No extra network hop | Shared release cycle with application | One product and one owning team |
-| Dedicated gateway service | Central policy and independent scaling | Added hop and operational ownership | Several products share controls |
-| Third-party gateway | Fast provider coverage | External dependency and policy fit | Vendor passes security and reliability review |
-| OpenAI-compatible common protocol | Broad ecosystem support | Compatibility may be partial or semantic only | Tested subset is sufficient |
-| Agent framework abstraction | Integrated tools and orchestration | More behavior than required here | Agent workflow is already justified |
-
-### Rejected decisions
-
-- Do not expose raw provider clients to handlers.
-- Do not hard-code one "latest" model alias as permanent policy.
-- Do not retry at both SDK and gateway layers.
-- Do not parse arbitrary JSON with `json.loads` and trust it.
-- Do not use provider conversation state as the only source of history.
-- Do not route solely by lowest token price.
-- Do not automatically replay write-capable tools after ambiguous failure.
-- Do not hide fallback from traces or business metrics.
-
-## Tooling
-
-| Tool | Purpose | Why selected | Limitation | Alternative |
+| Capability | Default tool | Why selected | Limitation | Alternative / switching point |
 |---|---|---|---|---|
-| OpenAI Python SDK | OpenAI Responses API | Typed async client, streaming, structured output, request IDs | Provider-specific | Direct HTTPX for unsupported SDK needs |
-| Anthropic Python SDK | Anthropic Messages API | Typed async client, streaming, token counting, structured output | Provider-specific | Direct HTTPX |
-| HTTPX | Explicit timeout model and SDK transport | Connect/read/write/pool controls | Does not define business retry safety | aiohttp |
-| Pydantic | Contracts and validation | Typed schemas and JSON Schema generation | Shape validation is not authorization | Dataclasses plus JSON Schema library |
-| Redis | Shared circuit state | Low-latency atomic state across instances | Requires availability and expiry design | Managed key-value store |
-| OpenTelemetry | Traces and attributes | Vendor-neutral telemetry model | Requires collector and backend | Cloud-native tracing SDK |
-| pytest | Unit and integration tests | Existing project standard | Real provider tests still cost money | unittest |
+| HTTP transport | HTTPX | Explicit timeout, async client, mockable transport | You must map provider APIs yourself | Native SDK when it reduces boilerplate and still stays isolated |
+| Native SDK | Optional adapter variant | Useful for provider-specific streaming/tool helpers | Can spread provider coupling if used directly in business code | Keep inside adapter package only |
+| Schema validation | Pydantic | Strict request/response contracts | Validation is not semantic truth | JSON Schema for cross-language contracts |
+| API surface | FastAPI | Clear typed local service boundary | Not a complete API platform | API Gateway, Cloud Run, ECS, Kubernetes |
+| Tests | pytest | Fast unit/contract/failure tests | Not a load-testing tool | Locust/k6 for load tests |
+| Shared circuit/usage state | Redis | Common low-latency shared state | Needs operational ownership | Managed Redis/Memorystore/ElastiCache |
+| Tracing | OpenTelemetry | Provider-neutral traces | Backend setup still required | Cloud-native tracing SDKs |
+| Packaging | Docker | Reproducible deployment artifact | Image/model cache size concerns | Native venv for local-only workflows |
 
-## Provider capability matrix
-
-Verify this matrix against approved models, regions, and current provider documentation before
-deployment.
-
-| Capability | OpenAI adapter | Anthropic adapter | Gateway behavior |
-|---|---|---|---|
-| Text | Responses API | Messages API | Normalize text |
-| Typed structured output | `responses.parse` with Pydantic | `messages.parse` with Pydantic | Revalidate and apply domain rules |
-| Streaming | Typed response events | Message stream and text stream | Normalize event sequence |
-| Client tools | Function calling | Tool use | Normalize proposals; execute outside model |
-| Image input | Provider content part | Provider image content | Validate and map |
-| Document input | File or input-file capability | File/PDF capability | Validate capability and retention |
-| Audio input | Model/API dependent | Not assumed in common contract | Reject or use explicit extension |
-| Conversation continuation | Provider response/conversation state available | Canonical messages commonly resent | Application history remains canonical |
-| Token usage | Response usage metadata | Message usage metadata | Normalize usage |
-| Provider request ID | `x-request-id` exposed as `_request_id` | `request-id` exposed as `_request_id` | Persist on attempt |
-
-## Project structure
-
-Add:
+### Project structure
 
 ```text
-ai-industry-labs/
-├── model-gateway/
-│   ├── price-catalog.yaml
-│   ├── provider-routes.yaml
-│   └── evaluation-cases.yaml
-├── src/
-│   └── ai_industry_labs/
-│       └── model_gateway/
-│           ├── __init__.py
-│           ├── adapters/
-│           │   ├── __init__.py
-│           │   ├── anthropic_adapter.py
-│           │   └── openai_adapter.py
-│           ├── circuit.py
-│           ├── config.py
-│           ├── errors.py
-│           ├── gateway.py
-│           ├── models.py
-│           ├── pricing.py
-│           ├── provider.py
-│           ├── retry.py
-│           ├── routing.py
-│           ├── telemetry.py
-│           ├── tools.py
-│           └── usage.py
+model-api-gateway/
+├── pyproject.toml
+├── .env.example
+├── Dockerfile
+├── model_gateway/
+│   ├── __init__.py
+│   ├── schemas.py
+│   ├── errors.py
+│   ├── validation.py
+│   ├── tools.py
+│   ├── reliability.py
+│   ├── usage.py
+│   ├── tracing.py
+│   ├── streaming.py
+│   ├── gateway.py
+│   ├── api.py
+│   └── providers/
+│       ├── __init__.py
+│       ├── base.py
+│       ├── fake.py
+│       └── httpx_provider.py
 └── tests/
-    └── model_gateway/
-        ├── fakes.py
-        ├── test_adapters.py
-        ├── test_circuit.py
-        ├── test_gateway.py
-        ├── test_models.py
-        ├── test_retry.py
-        ├── test_streaming.py
-        └── test_tools.py
+    ├── test_schemas.py
+    ├── test_provider_adapter.py
+    ├── test_validation.py
+    ├── test_tools.py
+    ├── test_reliability.py
+    ├── test_gateway.py
+    ├── test_streaming.py
+    ├── test_usage.py
+    └── test_api.py
 ```
 
-## Environment setup
+### Environment setup
 
-### Dependencies
+```toml
+# pyproject.toml
+[project]
+name = "model-api-gateway"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111,<1.0",
+  "httpx>=0.27,<1.0",
+  "opentelemetry-api>=1.25,<2.0",
+  "opentelemetry-sdk>=1.25,<2.0",
+  "pydantic>=2.7,<3.0",
+  "redis>=5.0,<7.0",
+  "uvicorn>=0.30,<1.0"
+]
 
-As verified on June 25, 2026, PyPI listed OpenAI Python SDK `2.44.0` and Anthropic Python SDK
-`0.112.0`. Use compatible ranges and commit the exact lockfile:
+[project.optional-dependencies]
+dev = ["pytest>=8.0,<9.0", "pytest-asyncio>=0.23,<1.0"]
+provider-sdk = ["openai>=1.0", "anthropic>=0.25"]
 
-```powershell
-uv add "openai>=2.44,<3" "anthropic>=0.112,<1" "httpx>=0.28,<1" `
-    "redis>=6,<7" "opentelemetry-api>=1.38,<2" `
-    "opentelemetry-sdk>=1.38,<2"
-uv lock
-uv sync --locked
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
 ```
 
-Do not assume these versions remain current. Recheck official SDK release notes when rebuilding.
-
-### Environment variables
-
-**`.env.example`**
-
-```dotenv
-OPENAI_API_KEY=
-OPENAI_MODEL=
-ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=
+```text
+# .env.example
+GATEWAY_ENV=local
+DEFAULT_PROVIDER=fake-primary
+FALLBACK_PROVIDER=fake-fallback
+OPENAI_API_KEY=replace-in-secret-manager-not-here
+ANTHROPIC_API_KEY=replace-in-secret-manager-not-here
 REDIS_URL=redis://localhost:6379/0
-MODEL_GATEWAY_ENV=development
-MODEL_GATEWAY_MAX_ATTEMPTS=3
-MODEL_GATEWAY_TOTAL_TIMEOUT_SECONDS=30
-MODEL_GATEWAY_MAX_COST_USD=0.10
-OTEL_SERVICE_NAME=ai-industry-model-gateway
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```
 
-Never commit `.env`. Production secrets must come from the deployment secret manager or an
-approved workload-identity mechanism.
+Run after creating files:
 
-### Local Redis
-
-**`compose.yaml`**
-
-```yaml
-services:
-  redis:
-    image: redis:8-alpine
-    command: ["redis-server", "--appendonly", "no"]
-    ports:
-      - "127.0.0.1:6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 2s
-      retries: 10
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[dev]"
+pytest
 ```
 
-The local instance holds disposable circuit state only. Production Redis requires authentication,
-encryption, network restriction, monitoring, and an availability decision.
+### Data/API contract
 
-### Verification
+The gateway contract is provider-neutral. It does not expose provider-specific SDK objects to product code.
 
-```powershell
-uv run python -c "import openai, anthropic, httpx, redis; print('imports ok')"
-uv run pytest tests/model_gateway -q
-```
-
-Do not run live-provider tests in ordinary CI. Use a separately approved, budget-limited job.
-
-## Data and API contract
-
-### Gateway request
-
-| Field | Rule |
-|---|---|
-| `request_id` | Application-generated UUID |
-| `tenant_id` | Trusted server context; never accepted from model output |
-| `user_id` | Trusted server context |
-| `operation` | Allowlisted feature name |
-| `messages` | Canonical role/content sequence |
-| `model_tier` | Policy name, not provider model ID |
-| `max_output_tokens` | Positive and bounded |
-| `temperature` | Optional and policy-bounded |
-| `data_class` | Drives provider and logging policy |
-| `retry_safe` | Derived from operation, not client-controlled |
-| `required_capabilities` | Structured, stream, tools, image, document, or audio |
-| `metadata` | Non-sensitive attribution tags |
-
-### Valid request
+Valid request example:
 
 ```json
 {
-  "request_id": "4cae529f-b63f-4dca-8f70-13b7be240c36",
+  "request_id": "req_001",
   "tenant_id": "northstar-demo",
-  "user_id": "agent-104",
-  "operation": "issue-extraction",
+  "user_id": "agent-42",
+  "feature": "support_draft",
   "messages": [
-    {
-      "role": "user",
-      "content": "I was charged twice for order DEMO-42."
-    }
+    {"role": "system", "content": "Draft cautious support replies."},
+    {"role": "user", "content": "Customer asks for refund but no order date is available."}
   ],
-  "model_tier": "interactive-standard",
-  "max_output_tokens": 200,
-  "data_class": "synthetic",
-  "retry_safe": true,
-  "required_capabilities": ["structured"],
-  "metadata": {
-    "case_id": "duplicate-charge-01"
-  }
+  "response_schema": "draft_response",
+  "allowed_tools": ["lookup_order_status"],
+  "idempotency_key": "tenant-demo:req_001"
 }
 ```
 
-### Invalid request
+Invalid request examples:
 
-```json
-{
-  "tenant_id": "",
-  "user_id": "agent-104",
-  "operation": "anything-the-client-wants",
-  "messages": [],
-  "max_output_tokens": 1000000,
-  "retry_safe": true,
-  "metadata": {
-    "api_key": "secret"
-  }
-}
+- missing `tenant_id`;
+- no user message;
+- unknown tool name;
+- non-idempotent request marked retryable;
+- request asks the model to perform a customer-facing write action.
+
+Boundary example:
+
+- streaming can emit partial text chunks, but only the terminal validated response may reach downstream business logic.
+
+### Baseline
+
+The baseline is a deterministic fake provider. It proves the gateway contract, validation, retry, fallback, usage, and tracing behavior before any real provider credentials are used. It does not prove model quality.
+
+### Build milestones
+
+| Module | Type | Concept focus | Implementation artifact | Tests |
+|---|---|---|---|---|
+| 1 | Concept-build | Provider boundary, messages, conversation state | request/response schemas | schema tests |
+| 2 | Hybrid | Provider interface and adapters | base adapter, fake adapter, HTTPX adapter | adapter contract tests |
+| 3 | Hybrid | Routing and fallback | gateway service and router | fallback tests |
+| 4 | Hybrid | Structured output and tools | validator and tool registry | validation/tool tests |
+| 5 | Hybrid | Streaming and multimodal requests | stream event model and capability checks | streaming tests |
+| 6 | Hybrid | Errors, timeouts, retries, circuit breaker | error classifier and reliability policy | retry/circuit tests |
+| 7 | Implementation | Usage, cost, tracing, Redis | usage ledger and trace hooks | usage tests |
+| 8 | Implementation | API, deployment, operations | FastAPI app, Dockerfile, runbook | API/health tests |
+
+### Implementation assembly checklist
+
+At the end of this lesson, your project should contain:
+
+- `model_gateway/schemas.py`
+- `model_gateway/errors.py`
+- `model_gateway/providers/base.py`
+- `model_gateway/providers/fake.py`
+- `model_gateway/providers/httpx_provider.py`
+- `model_gateway/validation.py`
+- `model_gateway/tools.py`
+- `model_gateway/reliability.py`
+- `model_gateway/usage.py`
+- `model_gateway/tracing.py`
+- `model_gateway/streaming.py`
+- `model_gateway/gateway.py`
+- `model_gateway/api.py`
+- tests for schemas, validation, tools, reliability, gateway, streaming, and usage
+
+After each module, run:
+
+```bash
+pytest
 ```
 
-It fails because identity, operation, message, limit, and metadata rules are violated. In a real
-API, `retry_safe` is derived after authorization and is not exposed as a writable client field.
+Final verification:
 
-### Boundary examples
+```bash
+pytest
+uvicorn model_gateway.api:app --reload
+```
 
-- Empty assistant history with one valid user message: allowed.
-- Maximum approved message length: allowed after token preflight.
-- One byte over upload limit: rejected before provider upload.
-- Unknown structured field: rejected because schemas use `extra="forbid"`.
-- Stream cancelled before first delta: stored as cancelled with zero or unknown usage.
-- Provider returns usage but no text because of refusal: normalized as refusal, not success.
+Expected final artifact: a local gateway that accepts a support-draft request, returns only validated structured output, records usage by tenant/user, and can fall back from one provider adapter to another.
 
-### Output contract
+## Concept-build module 1: API boundary, messages, and conversation state
 
-Every completed result contains:
+### Core question
 
-- Gateway request and attempt IDs
-- Provider and model
-- Provider request ID when available
-- Normalized finish status
-- Typed data or text
-- Tool-call proposals
-- Measured token usage
-- Latency
-- Fallback and degraded-mode indicators
+What contract should product code depend on so provider APIs can change without breaking the application?
 
-### Application endpoint contracts
+### Key concepts
 
-The gateway is internal. The support API exposes business endpoints rather than a public
-provider-shaped proxy:
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| API boundary | The API boundary is the stable contract your product code depends on. It keeps provider changes from spreading through the application. | Product code sends `GatewayRequest` instead of calling one provider SDK directly. |
+| Provider authentication | Provider authentication proves your gateway is allowed to call a hosted model. It must be handled as secret infrastructure, not normal request data. | An API key lives in environment configuration, not inside a support ticket payload. |
+| Message format | A message format describes roles and content sent to a model. A neutral internal format prevents provider-specific quirks from leaking outward. | `role="user"` with text content can later be translated into Provider A or Provider B's format. |
+| Response format | A response format is the gateway's validated output contract. Downstream services should not depend on raw provider JSON. | The UI receives `draft`, `category`, and `needs_human_review`, not a provider-specific JSON blob. |
+| Conversation state | Conversation state is the prior context needed for this request. It must have a clear owner because state can contain sensitive data and cost tokens. | The caller sends the ticket and prior messages explicitly instead of assuming the gateway remembers them. |
+| Idempotency key | An idempotency key identifies a logical request so retries do not accidentally duplicate side effects. | Retrying `draft-req-123` should not create two usage records or two external tool actions. |
+
+### Connected dry run
+
+Northstar wants one cautious support draft, but it does not want product code tied to a single provider's SDK.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | Product code creates one internal request. | API boundary, `GatewayRequest` |
+| 2 | The request carries role-based messages and explicit context. | Message format, conversation state |
+| 3 | The gateway adds provider credentials outside the request body. | Provider authentication, secret handling |
+| 4 | The provider returns raw output in its own shape. | Provider response, adapter boundary |
+| 5 | The gateway validates and normalizes the output. | Response format, schema validation |
+| 6 | Retries use a stable request identity. | Idempotency key |
+| 7 | Product code receives only the stable gateway response. | `GatewayResponse`, API boundary |
+
+Input situation:
 
 ```text
-POST /v1/support/tickets/{ticket_id}/issue-extraction
-GET  /v1/support/tickets/{ticket_id}/draft-stream
+Product workflow:
+Agent asks for a support draft for ticket T-1001.
 ```
 
-For both endpoints:
+Step 1: product code creates one internal request.
 
-- Authentication middleware supplies the actor.
-- The ticket lookup supplies the tenant and verifies access.
-- The server selects operation, model tier, retry safety, and capabilities.
-- Client input may select an approved user preference, but cannot select an arbitrary provider.
-- The response exposes gateway status and trace correlation, not provider credentials.
-
-The extraction endpoint returns typed issue data. The stream endpoint uses SSE and forwards
-normalized `started`, `text_delta`, and terminal events. Map failures deliberately:
-
-| Gateway outcome | Application behavior |
-|---|---|
-| Invalid request or unsupported capability | `422` |
-| Unauthenticated or unauthorized | `401` or `403` before gateway call |
-| All approved routes unavailable | `503` with correlation ID |
-| Request deadline exceeded | `504` |
-| Structured output rejected | Controlled `502` or domain-specific failure response |
-| Stream failure after headers | SSE `failed` terminal event |
-| User cancellation | Close upstream stream and persist `cancelled` |
-
-### Privacy and retention
-
-- Canonical support data follows the application's retention policy.
-- Gateway logs omit prompt and response bodies by default.
-- Usage records retain identifiers and counts needed for audit and billing.
-- Provider-side storage settings and retention are reviewed per route.
-- Deletion workflows include provider files and stored response objects when those features are
-  used.
-- Evaluation datasets use synthetic or approved redacted data.
-
-### Versioning
-
-Version:
-
-- Request contract
-- Output schemas
-- Route configuration
-- Model identifiers
-- Provider SDK lockfile
-- Price catalog
-- Tool schemas
-- Prompt versions beginning in Lesson 10
-
-## Establish the baseline
-
-### Baseline implementation
-
-The prototype calls one provider directly, accepts raw text, and logs latency:
+The product should not start by asking, "Which provider SDK method do I call?" It should build a gateway request:
 
 ```text
-handler → provider SDK → raw text
+tenant_id = northstar-demo
+user_id = agent-42
+feature = support_draft
 ```
 
-### Baseline measurements
+This is the API boundary. Product services depend on this boundary because it is owned by Northstar's application, not by any model provider.
 
-Run the fixed cases and record:
+Step 2: the request carries role-based messages and explicit context.
 
-| Metric | Baseline result |
-|---|---|
-| Schema-valid rate | |
-| Provider-specific imports outside integration module | |
-| Timeout configured | |
-| Hidden SDK retry count | |
-| Error categories distinguished | |
-| Fallback tested | |
-| Tenant/user usage attribution | |
-| Provider request ID captured | |
-| Stream terminal-state correctness | |
+The request includes messages:
 
-Do not fill values until the baseline is executed.
-
-### Baseline failure injection
-
-Simulate:
-
-- Invalid JSON-like output
-- 429 rate limit
-- Connect timeout
-- Read timeout
-- 503 or 529 overload
-- Invalid API key
-- Client cancellation
-
-The baseline is expected to expose missing controls. Keep the results as evidence for the gateway
-change.
-
-## Minimal working implementation
-
-The vertical slice implements:
-
-- Typed provider-neutral contracts
-- OpenAI and Anthropic structured calls
-- Normalized provider errors
-- Gateway-owned retries
-- Provider fallback
-- Usage and trace metadata
-
-Streaming, circuits, tools, and durable accounting are added immediately afterward.
-
-### Package initialization
-
-**`src/ai_industry_labs/model_gateway/__init__.py`**
-
-```python
-"""Provider-neutral model access with explicit reliability and policy."""
+```text
+system: Draft cautious replies for support agents.
+user: Customer says order A-1049 was charged twice.
 ```
 
-### Core models
+If previous ticket history matters, the caller includes it explicitly. The gateway does not silently remember private conversation state. That prevents hidden cost, hidden privacy risk, and hard-to-debug behavior.
 
-**`src/ai_industry_labs/model_gateway/models.py`**
+Step 3: the gateway adds provider authentication outside the request body.
+
+The provider key is not part of the support ticket. It comes from environment configuration or a secret manager. This keeps credentials out of logs, test fixtures, and user-controlled input.
+
+Step 4: the provider returns raw output in its own shape.
+
+Provider A might return `output_text`. Provider B might return `content[0].text`. The raw response is not the product contract. It belongs inside the adapter.
+
+Step 5: the gateway validates and normalizes the output.
+
+The gateway converts provider output into a validated `GatewayResponse`. If the provider returns malformed JSON or an unsafe draft, the gateway rejects it before business logic receives it.
+
+Step 6: retries use a stable request identity.
+
+If a timeout occurs before a response arrives, the gateway may retry. The idempotency key tells the system, "this is still the same logical request." Without it, retries can double-count usage or duplicate side effects.
+
+Step 7: product code receives only the stable gateway response.
+
+The UI or workflow service receives:
+
+```text
+draft
+category
+needs_human_review
+usage metadata
+provider/model metadata
+```
+
+The product does not need to know which provider field contained the text. That is the core value of the boundary.
+
+### Mental model
+
+Do not make the provider SDK your product boundary. The product should depend on a stable internal contract:
+
+```text
+Product code -> GatewayRequest -> GatewayResponse
+Provider SDK/API -> hidden inside adapter
+```
+
+A message is one turn or instruction in a conversation-like model request. A response is what the gateway returns after provider output is validated and attributed. Conversation state is prior context, but this lesson keeps state explicit in each request rather than storing long-term memory inside the gateway.
+
+### Worked example
+
+Northstar wants a support draft. Product code should not decide whether the request goes to Provider A or Provider B. It should send:
+
+```text
+tenant_id = northstar-demo
+user_id = agent-42
+feature = support_draft
+messages = system + user ticket
+response_schema = draft_response
+allowed_tools = lookup_order_status
+```
+
+The gateway decides:
+
+- which provider/model is allowed for that tenant;
+- whether the request may be retried;
+- whether fallback is allowed;
+- whether the output matches `DraftResponse`;
+- how usage is recorded.
+
+### Mini-implementation
 
 ```python
-from enum import StrEnum
-from typing import Any, Generic, Literal, TypeVar
-from uuid import UUID
+# model_gateway/__init__.py
+__all__ = []
+```
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+```python
+# model_gateway/schemas.py
+from __future__ import annotations
 
-T = TypeVar("T")
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class StrictModel(BaseModel):
+Role = Literal["system", "user", "assistant", "tool"]
+Modality = Literal["text", "image", "audio", "document"]
+
+
+class MessagePart(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-
-class ProviderName(StrEnum):
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-
-
-class Capability(StrEnum):
-    TEXT = "text"
-    STRUCTURED = "structured"
-    STREAM = "stream"
-    TOOLS = "tools"
-    IMAGE = "image"
-    DOCUMENT = "document"
-    AUDIO = "audio"
-
-
-class Message(StrictModel):
-    role: Literal["system", "user", "assistant"]
-    content: str = Field(min_length=1, max_length=100_000)
-
-
-class GatewayRequest(StrictModel):
-    request_id: UUID
-    tenant_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,62}$")
-    user_id: str = Field(min_length=1, max_length=128)
-    operation: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
-    messages: list[Message] = Field(min_length=1, max_length=100)
-    model_tier: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
-    max_output_tokens: int = Field(ge=1, le=4096)
-    temperature: float | None = Field(default=None, ge=0, le=2)
-    data_class: Literal["synthetic", "internal", "confidential"]
-    retry_safe: bool
-    required_capabilities: set[Capability] = Field(
-        default_factory=lambda: {Capability.TEXT}
-    )
-    metadata: dict[str, str] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def validate_metadata(self) -> "GatewayRequest":
-        prohibited = {"api_key", "authorization", "prompt", "response"}
-        if prohibited.intersection(key.casefold() for key in self.metadata):
-            raise ValueError("metadata contains a prohibited key")
-        if len(self.metadata) > 20:
-            raise ValueError("metadata may contain at most 20 entries")
-        return self
-
-
-class Usage(StrictModel):
-    input_tokens: int = Field(ge=0)
-    output_tokens: int = Field(ge=0)
-    cached_input_tokens: int = Field(default=0, ge=0)
-
-
-class ToolCall(StrictModel):
-    call_id: str = Field(min_length=1, max_length=256)
-    name: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$")
-    arguments: dict[str, Any]
-
-
-class ModelResult(StrictModel, Generic[T]):
-    request_id: UUID
-    attempt_id: UUID
-    provider: ProviderName
-    model: str
-    provider_request_id: str | None
-    status: Literal["completed", "refused"]
+    type: Modality
     text: str | None = None
-    data: T | None = None
-    tool_calls: list[ToolCall] = Field(default_factory=list)
-    usage: Usage
-    latency_ms: float = Field(ge=0)
-    degraded: bool = False
+    media_url: str | None = None
+    mime_type: str | None = None
+
+    @field_validator("media_url")
+    @classmethod
+    def reject_local_file_urls(cls, value: str | None) -> str | None:
+        if value and value.startswith("file:"):
+            raise ValueError("local file URLs are not allowed in provider requests")
+        return value
 
 
-class StreamEvent(StrictModel):
-    request_id: UUID
-    attempt_id: UUID
-    provider: ProviderName
+class Message(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: Role
+    content: str | list[MessagePart]
+
+    def plain_text(self) -> str:
+        if isinstance(self.content, str):
+            return self.content
+        return "\n".join(part.text or "" for part in self.content if part.type == "text")
+
+
+class DraftResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: Literal["refund", "shipping", "account", "technical", "other"]
+    urgency: Literal["low", "medium", "high"]
+    draft: str = Field(min_length=1, max_length=2_000)
+    needs_human_review: bool = True
+    missing_information: list[str] = Field(default_factory=list)
+    unsupported_claims: list[str] = Field(default_factory=list)
+
+
+class ToolCall(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class GatewayRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str = Field(min_length=1)
+    tenant_id: str = Field(min_length=1)
+    user_id: str = Field(min_length=1)
+    feature: str = Field(min_length=1)
+    messages: list[Message] = Field(min_length=1)
+    response_schema: Literal["draft_response"] = "draft_response"
+    allowed_tools: list[str] = Field(default_factory=list)
+    requested_provider: str | None = None
+    idempotency_key: str | None = None
+    stream: bool = False
+    retry_safe: bool = True
+    max_output_tokens: int = Field(default=400, ge=1, le=4_000)
+
+    @field_validator("messages")
+    @classmethod
+    def require_user_message(cls, value: list[Message]) -> list[Message]:
+        if not any(message.role == "user" for message in value):
+            raise ValueError("at least one user message is required")
+        return value
+
+
+class ProviderUsage(BaseModel):
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+    estimated_cost_usd: float = Field(default=0.0, ge=0)
+
+
+class ProviderResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
     model: str
-    sequence: int = Field(ge=0)
-    type: Literal["started", "text_delta", "completed", "failed", "cancelled"]
-    delta: str | None = None
-    usage: Usage | None = None
-    error_kind: str | None = None
+    text: str
+    usage: ProviderUsage = Field(default_factory=ProviderUsage)
+    provider_request_id: str | None = None
+    finish_reason: str | None = None
+    tool_calls: list[ToolCall] = Field(default_factory=list)
+    raw_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class StreamEventType(str, Enum):
+    START = "start"
+    DELTA = "delta"
+    TOOL_CALL = "tool_call"
+    ERROR = "error"
+    DONE = "done"
+
+
+class StreamEvent(BaseModel):
+    event: StreamEventType
+    request_id: str
+    text_delta: str = ""
+    tool_call: ToolCall | None = None
+    error_type: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    usage: ProviderUsage | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class GatewayResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str
+    tenant_id: str
+    user_id: str
+    feature: str
+    provider: str
+    model: str
+    validated: DraftResponse
+    usage: ProviderUsage
+    fallback_used: bool = False
+    provider_request_id: str | None = None
+    trace_id: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 ```
 
-Verification:
-
-```powershell
-uv run python -c "from ai_industry_labs.model_gateway.models import GatewayRequest; print(GatewayRequest.model_json_schema()['title'])"
-```
-
-Expected result: `GatewayRequest`.
-
-### Domain schema
-
-**`src/ai_industry_labs/model_gateway/schemas.py`**
+### Tests
 
 ```python
-from typing import Literal
+# tests/test_schemas.py
+from __future__ import annotations
 
-from pydantic import Field, model_validator
+import pytest
+from pydantic import ValidationError
 
-from ai_industry_labs.model_gateway.models import StrictModel
+from model_gateway.schemas import GatewayRequest, Message, MessagePart
 
 
-class IssueExtraction(StrictModel):
-    category: Literal["billing", "account", "technical", "security"]
-    requires_approval: bool
-    requested_action: Literal[
-        "information", "refund", "account_change", "security_review", "none"
-    ]
-    summary: str = Field(min_length=1, max_length=240)
+def test_gateway_request_requires_user_message() -> None:
+    with pytest.raises(ValidationError):
+        GatewayRequest(
+            request_id="r1",
+            tenant_id="t1",
+            user_id="u1",
+            feature="support_draft",
+            messages=[Message(role="system", content="Only system text.")],
+        )
 
-    @model_validator(mode="after")
-    def require_approval_for_consequential_action(self) -> "IssueExtraction":
-        if (
-            self.requested_action in {"refund", "account_change"}
-            and not self.requires_approval
-        ):
-            raise ValueError("consequential actions require approval")
-        return self
+
+def test_multimodal_part_rejects_local_file_url() -> None:
+    with pytest.raises(ValidationError):
+        MessagePart(type="image", media_url="file:///secret.png", mime_type="image/png")
+
+
+def test_gateway_request_accepts_valid_message() -> None:
+    request = GatewayRequest(
+        request_id="r1",
+        tenant_id="northstar-demo",
+        user_id="agent-42",
+        feature="support_draft",
+        messages=[Message(role="user", content="Draft a cautious reply.")],
+        allowed_tools=["lookup_order_status"],
+        idempotency_key="northstar-demo:r1",
+    )
+    assert request.messages[0].plain_text() == "Draft a cautious reply."
 ```
 
-This validator is deterministic policy. Do not replace it with a prompt instruction.
+### Verify
 
-### Normalized errors
+```bash
+pytest tests/test_schemas.py
+```
 
-**`src/ai_industry_labs/model_gateway/errors.py`**
+Expected result: all schema tests pass; invalid conversation and local file URL are rejected.
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- contain `model_gateway/schemas.py`;
+- define provider-neutral requests, responses, messages, multimodal parts, tool calls, stream events, and usage metadata;
+- reject malformed request state before provider execution.
+
+### Common misconception
+
+Misconception: "A gateway is just a thin wrapper around an SDK."
+
+Why it seems plausible: Early prototypes often call one SDK and return the result.
+
+Correct model: A production gateway is a policy boundary. It owns validation, routing, retries, fallback, usage, tracing, and security controls.
+
+Test case: Ask where structured output validation happens. If the answer is "after business logic receives it," the boundary is wrong.
+
+### Guided practice and independent transfer
+
+- Guided: Add a `feature="ticket_classification"` request and explain which fields should stay identical across providers.
+- Independent transfer: Design a provider-neutral request for a summarization feature without adding provider-specific fields.
+
+### Recall
+
+- Why should provider SDK objects not leak into business code?
+- What is an idempotency key?
+- Why is a stream delta not a validated business response?
+- Who owns conversation state in this lesson?
+
+## Hybrid module 2: Provider interface and adapters
+
+### Core question
+
+How do you isolate provider-specific request and response shapes while keeping the gateway contract stable?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Provider adapter | A provider adapter translates between the gateway contract and one provider's API. It keeps provider details isolated. | `OpenAIAdapter` and `FakeAdapter` both return `ProviderResponse`. |
+| Provider request shape | Each provider expects its own payload format. The adapter owns that translation. | One provider uses `messages`; another may use `input` or `contents`. |
+| Provider response shape | Each provider returns output, usage, and request IDs differently. The adapter normalizes them. | `id`, `request_id`, and `trace_id` may all represent provider request identity. |
+| Fake adapter | A fake adapter gives deterministic local behavior for tests. It lets the gateway be tested without credentials or network calls. | A fake provider always returns a known support draft. |
+| HTTP client adapter | An HTTP client adapter makes explicit network calls with timeouts and mockable transports. It exposes real API failure behavior. | `httpx` can simulate a 429 or timeout in tests. |
+| Native SDK adapter | A native SDK adapter wraps a provider SDK behind the same interface. It can be useful, but it should not become the product boundary. | A provider SDK call still returns a normalized `ProviderResponse`. |
+
+### Connected dry run
+
+Trace one request through two different providers while product code sees one stable contract.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | Product code sends a gateway request. | API boundary |
+| 2 | The gateway chooses an adapter. | Provider adapter |
+| 3 | The adapter converts the request to provider-specific JSON or SDK input. | Provider request shape |
+| 4 | The provider returns raw provider-specific output. | Provider response shape |
+| 5 | The adapter normalizes the raw output. | `ProviderResponse` |
+| 6 | Tests use a fake adapter to prove gateway behavior without network calls. | Fake adapter |
+| 7 | Integration tests use an HTTP adapter with a mock transport. | HTTP client adapter |
+
+Step 1: product code sends a gateway request.
+
+The caller sends a `GatewayRequest` with messages, tenant, feature, response schema, and tool permissions. It does not construct Provider A's exact JSON payload.
+
+Step 2: the gateway chooses an adapter.
+
+Routing may select `fake-primary` for local tests or `provider-a` for a real environment. Both must satisfy the same adapter interface.
+
+Step 3: the adapter converts the request.
+
+Provider A might need:
+
+```json
+{"messages":[{"role":"user","content":"..."}]}
+```
+
+Provider B might need:
+
+```json
+{"input":[{"speaker":"user","parts":[{"text":"..."}]}]}
+```
+
+The adapter owns this difference. If provider formatting changes, the adapter and its tests change, not the product workflow.
+
+Step 4: the provider returns raw output.
+
+Provider output may contain text, usage, safety metadata, request IDs, or error details in provider-specific fields. Raw output is useful for debugging but unsafe as a product contract.
+
+Step 5: the adapter normalizes the response.
+
+The adapter returns:
+
+```text
+ProviderResponse(provider, model, text, usage, provider_request_id)
+```
+
+Now the rest of the gateway can validate structured output, record usage, and apply fallback without knowing the provider's field names.
+
+Step 6: tests use a fake adapter.
+
+The fake adapter makes behavior deterministic. It proves routing, validation, usage recording, and error handling without a network dependency.
+
+Step 7: HTTP adapter tests simulate real provider behavior.
+
+The HTTPX adapter can be tested with mock transports for timeouts, rate limits, invalid JSON, and changed response fields. This catches provider-integration failures before production traffic sees them.
+
+### Concept model
+
+An adapter translates between the gateway contract and one provider's API. The adapter is the only place where provider-specific endpoints, headers, payloads, SDK calls, response fields, and request IDs should appear.
+
+Two adapter types are useful:
+
+- **Fake adapter:** deterministic local behavior for tests and baseline.
+- **HTTPX adapter:** explicit provider HTTP calls with timeout and mockable transport.
+
+Native SDKs are also valid, but they should live behind the same adapter interface. This lesson keeps the required path runnable without credentials by implementing fake and HTTPX adapters; native SDK adapters are a production variant, not the boundary itself.
+
+### Product consequence
+
+If provider-specific code spreads into product services, fallback becomes expensive, testing becomes brittle, and model deprecation becomes a product outage. If it is isolated, changing provider request format means changing one adapter and its contract tests.
+
+### Worked example
+
+Provider A might return:
+
+```json
+{"id":"a-123","output_text":"...","usage":{"input_tokens":100}}
+```
+
+Provider B might return:
+
+```json
+{"request_id":"b-123","content":[{"text":"..."}],"usage":{"input_tokens":100}}
+```
+
+The gateway should normalize both into:
+
+```text
+ProviderResponse(provider, model, text, usage, provider_request_id)
+```
+
+### Build
 
 ```python
-from enum import StrEnum
+# model_gateway/errors.py
+from __future__ import annotations
+
+from enum import Enum
 
 
-class ErrorKind(StrEnum):
+class ProviderErrorKind(str, Enum):
     AUTHENTICATION = "authentication"
-    PERMISSION = "permission"
-    INVALID_REQUEST = "invalid_request"
+    AUTHORIZATION = "authorization"
     RATE_LIMIT = "rate_limit"
     TIMEOUT = "timeout"
-    CONNECTION = "connection"
-    PROVIDER_OVERLOAD = "provider_overload"
-    PROVIDER_INTERNAL = "provider_internal"
-    REFUSAL = "refusal"
-    INVALID_OUTPUT = "invalid_output"
-    CIRCUIT_OPEN = "circuit_open"
-    BUDGET_EXCEEDED = "budget_exceeded"
-    CANCELLED = "cancelled"
+    TRANSIENT = "transient"
+    INVALID_REQUEST = "invalid_request"
+    SERVER_ERROR = "server_error"
+    CONTENT_FILTER = "content_filter"
     UNKNOWN = "unknown"
 
 
-class GatewayError(RuntimeError):
+class GatewayError(Exception):
+    pass
+
+
+class ProviderError(GatewayError):
     def __init__(
         self,
         message: str,
         *,
-        kind: ErrorKind,
-        retryable: bool,
-        ambiguous_completion: bool = False,
-        provider_request_id: str | None = None,
-        retry_after_seconds: float | None = None,
+        kind: ProviderErrorKind,
+        provider: str,
+        retryable: bool = False,
+        status_code: int | None = None,
     ) -> None:
         super().__init__(message)
         self.kind = kind
+        self.provider = provider
         self.retryable = retryable
-        self.ambiguous_completion = ambiguous_completion
-        self.provider_request_id = provider_request_id
-        self.retry_after_seconds = retry_after_seconds
+        self.status_code = status_code
+
+
+class StructuredOutputError(GatewayError):
+    pass
+
+
+class ToolPolicyError(GatewayError):
+    pass
+
+
+class CircuitOpenError(GatewayError):
+    pass
 ```
 
-### Provider port
-
-**`src/ai_industry_labs/model_gateway/provider.py`**
-
 ```python
+# model_gateway/providers/base.py
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from typing import Protocol, TypeVar
 
-from pydantic import BaseModel
-
-from ai_industry_labs.model_gateway.models import (
-    Capability,
-    GatewayRequest,
-    ModelResult,
-    ProviderName,
-    StreamEvent,
-)
-
-T = TypeVar("T", bound=BaseModel)
+from model_gateway.schemas import GatewayRequest, ProviderResponse, StreamEvent
 
 
-class ModelProvider(Protocol):
-    @property
-    def name(self) -> ProviderName: ...
+class ProviderAdapter(ABC):
+    provider_name: str
+    model_name: str
 
-    @property
-    def model(self) -> str: ...
+    @abstractmethod
+    async def complete(self, request: GatewayRequest) -> ProviderResponse:
+        raise NotImplementedError
 
-    @property
-    def capabilities(self) -> set[Capability]: ...
-
-    async def generate_text(self, request: GatewayRequest) -> ModelResult[str]: ...
-
-    async def generate_structured(
-        self,
-        request: GatewayRequest,
-        schema: type[T],
-    ) -> ModelResult[T]: ...
-
-    def stream_text(
-        self,
-        request: GatewayRequest,
-    ) -> AsyncIterator[StreamEvent]: ...
+    @abstractmethod
+    async def stream(self, request: GatewayRequest) -> AsyncIterator[StreamEvent]:
+        raise NotImplementedError
 ```
 
-The port does not expose provider response classes.
+```python
+# model_gateway/providers/fake.py
+from __future__ import annotations
 
-## Production implementation
+from collections.abc import AsyncIterator
 
-The production-learning implementation adds provider adapters, centralized retries, shared
-circuit state, controlled fallback, tool enforcement, durable usage records, and telemetry.
+from model_gateway.errors import ProviderError, ProviderErrorKind
+from model_gateway.providers.base import ProviderAdapter
+from model_gateway.schemas import GatewayRequest, ProviderResponse, ProviderUsage, StreamEvent, StreamEventType
 
-### OpenAI adapter
 
-OpenAI's current Python SDK recommends the Responses API as its primary model interface. The
-official SDK supports async calls, SSE streaming, typed structured parsing, explicit timeouts,
-typed errors, and provider request IDs.
+class FakeProviderAdapter(ProviderAdapter):
+    def __init__(
+        self,
+        provider_name: str = "fake-primary",
+        model_name: str = "fake-support-model",
+        *,
+        fail_with: ProviderErrorKind | None = None,
+        malformed: bool = False,
+    ) -> None:
+        self.provider_name = provider_name
+        self.model_name = model_name
+        self.fail_with = fail_with
+        self.malformed = malformed
 
-**`src/ai_industry_labs/model_gateway/adapters/openai_adapter.py`**
+    async def complete(self, request: GatewayRequest) -> ProviderResponse:
+        if self.fail_with is not None:
+            raise ProviderError(
+                f"{self.provider_name} failed with {self.fail_with.value}",
+                kind=self.fail_with,
+                provider=self.provider_name,
+                retryable=self.fail_with in {
+                    ProviderErrorKind.RATE_LIMIT,
+                    ProviderErrorKind.TIMEOUT,
+                    ProviderErrorKind.TRANSIENT,
+                    ProviderErrorKind.SERVER_ERROR,
+                },
+            )
+
+        if self.malformed:
+            text = '{"category": "refund", "urgency": "medium", "draft": ""}'
+        else:
+            text = (
+                '{"category":"refund","urgency":"medium",'
+                '"draft":"I can help draft a cautious reply. Please verify the order date and policy before approving any refund.",'
+                '"needs_human_review":true,'
+                '"missing_information":["order date","policy evidence"],'
+                '"unsupported_claims":[]}'
+            )
+
+        input_tokens = sum(len(message.plain_text().split()) for message in request.messages)
+        output_tokens = max(1, len(text.split()))
+        return ProviderResponse(
+            provider=self.provider_name,
+            model=self.model_name,
+            text=text,
+            usage=ProviderUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            ),
+            provider_request_id=f"{self.provider_name}-{request.request_id}",
+            finish_reason="stop",
+        )
+
+    async def stream(self, request: GatewayRequest) -> AsyncIterator[StreamEvent]:
+        yield StreamEvent(
+            event=StreamEventType.START,
+            request_id=request.request_id,
+            provider=self.provider_name,
+            model=self.model_name,
+        )
+        response = await self.complete(request)
+        for token in response.text.split():
+            yield StreamEvent(
+                event=StreamEventType.DELTA,
+                request_id=request.request_id,
+                text_delta=token + " ",
+                provider=self.provider_name,
+                model=self.model_name,
+            )
+        yield StreamEvent(
+            event=StreamEventType.DONE,
+            request_id=request.request_id,
+            provider=self.provider_name,
+            model=self.model_name,
+            usage=response.usage,
+        )
+```
 
 ```python
-import asyncio
+# model_gateway/providers/httpx_provider.py
+from __future__ import annotations
+
 from collections.abc import AsyncIterator
-from time import perf_counter
-from typing import Any, TypeVar
-from uuid import uuid4
+from typing import Any
 
 import httpx
-import openai
-from openai import AsyncOpenAI
-from pydantic import BaseModel, ValidationError
 
-from ai_industry_labs.model_gateway.errors import ErrorKind, GatewayError
-from ai_industry_labs.model_gateway.models import (
-    Capability,
-    GatewayRequest,
-    ModelResult,
-    ProviderName,
-    StreamEvent,
-    Usage,
-)
-
-T = TypeVar("T", bound=BaseModel)
+from model_gateway.errors import ProviderError, ProviderErrorKind
+from model_gateway.providers.base import ProviderAdapter
+from model_gateway.schemas import DraftResponse, GatewayRequest, Message, ProviderResponse, ProviderUsage, StreamEvent, StreamEventType
 
 
-class OpenAIAdapter:
-    def __init__(self, *, api_key: str, model: str) -> None:
-        self._model = model
-        self._client = AsyncOpenAI(
-            api_key=api_key,
-            max_retries=0,
-            timeout=httpx.Timeout(
-                timeout=30.0,
-                connect=3.0,
-                read=25.0,
-                write=10.0,
-                pool=3.0,
-            ),
-        )
+def classify_http_error(status_code: int) -> tuple[ProviderErrorKind, bool]:
+    if status_code == 401:
+        return ProviderErrorKind.AUTHENTICATION, False
+    if status_code == 403:
+        return ProviderErrorKind.AUTHORIZATION, False
+    if status_code == 408:
+        return ProviderErrorKind.TIMEOUT, True
+    if status_code == 429:
+        return ProviderErrorKind.RATE_LIMIT, True
+    if 400 <= status_code < 500:
+        return ProviderErrorKind.INVALID_REQUEST, False
+    if status_code >= 500:
+        return ProviderErrorKind.SERVER_ERROR, True
+    return ProviderErrorKind.UNKNOWN, False
 
-    @property
-    def name(self) -> ProviderName:
-        return ProviderName.OPENAI
 
-    @property
-    def model(self) -> str:
-        return self._model
+class HTTPXProviderAdapter(ProviderAdapter):
+    def __init__(
+        self,
+        *,
+        provider_name: str,
+        model_name: str,
+        endpoint: str,
+        api_key: str,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = 20.0,
+        supports_multimodal: bool = False,
+    ) -> None:
+        if not api_key:
+            raise ValueError("api_key is required")
+        self.provider_name = provider_name
+        self.model_name = model_name
+        self.endpoint = endpoint
+        self.api_key = api_key
+        self._client = client
+        self.timeout = httpx.Timeout(timeout_seconds)
+        self.supports_multimodal = supports_multimodal
 
-    @property
-    def capabilities(self) -> set[Capability]:
+    def _content_payload(self, message: Message) -> str | list[dict[str, Any]]:
+        if isinstance(message.content, str):
+            return message.content
+        if not self.supports_multimodal and any(part.type != "text" for part in message.content):
+            raise ProviderError(
+                f"{self.provider_name} route does not support multimodal input",
+                kind=ProviderErrorKind.INVALID_REQUEST,
+                provider=self.provider_name,
+                retryable=False,
+            )
+        return [part.model_dump(exclude_none=True) for part in message.content]
+
+    def _messages_payload(self, messages: list[Message]) -> list[dict[str, Any]]:
+        payload: list[dict[str, Any]] = []
+        for message in messages:
+            payload.append({"role": message.role, "content": self._content_payload(message)})
+        return payload
+
+    def _headers(self) -> dict[str, str]:
         return {
-            Capability.TEXT,
-            Capability.STRUCTURED,
-            Capability.STREAM,
-            Capability.TOOLS,
-            Capability.IMAGE,
-            Capability.DOCUMENT,
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
         }
 
-    @staticmethod
-    def _input(request: GatewayRequest) -> list[dict[str, str]]:
-        return [
-            {"role": message.role, "content": message.content}
-            for message in request.messages
-        ]
-
-    @staticmethod
-    def _usage(value: Any) -> Usage:
-        return Usage(
-            input_tokens=int(getattr(value, "input_tokens", 0)),
-            output_tokens=int(getattr(value, "output_tokens", 0)),
-            cached_input_tokens=int(
-                getattr(
-                    getattr(value, "input_tokens_details", None),
-                    "cached_tokens",
-                    0,
-                )
-            ),
-        )
-
-    def _request_options(self, request: GatewayRequest) -> dict[str, Any]:
-        options: dict[str, Any] = {
-            "model": self._model,
-            "input": self._input(request),
+    def _payload(self, request: GatewayRequest) -> dict[str, Any]:
+        return {
+            "model": self.model_name,
+            "messages": self._messages_payload(request.messages),
             "max_output_tokens": request.max_output_tokens,
-            "store": False,
+            "response_format": {
+                "type": "json_schema",
+                "name": request.response_schema,
+                "schema": DraftResponse.model_json_schema(),
+            },
+            "metadata": {
+                "request_id": request.request_id,
+                "tenant_id": request.tenant_id,
+                "feature": request.feature,
+            },
         }
-        if request.temperature is not None:
-            options["temperature"] = request.temperature
-        return options
 
-    async def generate_text(self, request: GatewayRequest) -> ModelResult[str]:
-        attempt_id = uuid4()
-        started = perf_counter()
+    async def complete(self, request: GatewayRequest) -> ProviderResponse:
+        owns_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=self.timeout)
         try:
-            response = await self._client.responses.create(
-                **self._request_options(request),
-            )
-            return ModelResult[str](
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                provider_request_id=response._request_id,
-                status="completed",
-                text=response.output_text,
-                data=response.output_text,
-                usage=self._usage(response.usage),
-                latency_ms=(perf_counter() - started) * 1000,
-            )
-        except Exception as exc:
-            raise self._map_error(exc) from exc
-
-    async def generate_structured(
-        self,
-        request: GatewayRequest,
-        schema: type[T],
-    ) -> ModelResult[T]:
-        attempt_id = uuid4()
-        started = perf_counter()
-        try:
-            options = self._request_options(request)
-            options["text_format"] = schema
-            response = await self._client.responses.parse(
-                **options,
-            )
-            if response.output_parsed is None:
-                raise GatewayError(
-                    "provider returned no parsed output",
-                    kind=ErrorKind.INVALID_OUTPUT,
-                    retryable=False,
-                    provider_request_id=response._request_id,
+            response = await client.post(self.endpoint, headers=self._headers(), json=self._payload(request))
+            if response.status_code >= 400:
+                kind, retryable = classify_http_error(response.status_code)
+                raise ProviderError(
+                    f"{self.provider_name} returned HTTP {response.status_code}",
+                    kind=kind,
+                    provider=self.provider_name,
+                    retryable=retryable,
+                    status_code=response.status_code,
                 )
-            data = schema.model_validate(response.output_parsed)
-            return ModelResult[T](
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                provider_request_id=response._request_id,
-                status="completed",
-                data=data,
-                usage=self._usage(response.usage),
-                latency_ms=(perf_counter() - started) * 1000,
-            )
-        except ValidationError as exc:
-            raise GatewayError(
-                "structured output failed application validation",
-                kind=ErrorKind.INVALID_OUTPUT,
-                retryable=False,
+            data = response.json()
+        except httpx.TimeoutException as exc:
+            raise ProviderError(
+                f"{self.provider_name} timed out",
+                kind=ProviderErrorKind.TIMEOUT,
+                provider=self.provider_name,
+                retryable=True,
             ) from exc
-        except GatewayError:
-            raise
-        except Exception as exc:
-            raise self._map_error(exc) from exc
+        finally:
+            if owns_client:
+                await client.aclose()
 
-    async def stream_text(
-        self,
-        request: GatewayRequest,
-    ) -> AsyncIterator[StreamEvent]:
-        attempt_id = uuid4()
-        sequence = 0
-        yield StreamEvent(
-            request_id=request.request_id,
-            attempt_id=attempt_id,
-            provider=self.name,
-            model=self.model,
-            sequence=sequence,
-            type="started",
+        usage_data = data.get("usage", {})
+        input_tokens = int(usage_data.get("input_tokens", usage_data.get("prompt_tokens", 0)) or 0)
+        output_tokens = int(usage_data.get("output_tokens", usage_data.get("completion_tokens", 0)) or 0)
+        text = str(data.get("output_text") or data.get("text") or "")
+        return ProviderResponse(
+            provider=self.provider_name,
+            model=str(data.get("model") or self.model_name),
+            text=text,
+            usage=ProviderUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            ),
+            provider_request_id=str(data.get("id") or data.get("request_id") or ""),
+            finish_reason=data.get("finish_reason"),
+            raw_metadata={"status_code": response.status_code},
         )
-        try:
-            options = self._request_options(request)
-            options["stream"] = True
-            stream = await self._client.responses.create(
-                **options,
-            )
-            async for event in stream:
-                if event.type == "response.output_text.delta":
-                    sequence += 1
-                    yield StreamEvent(
-                        request_id=request.request_id,
-                        attempt_id=attempt_id,
-                        provider=self.name,
-                        model=self.model,
-                        sequence=sequence,
-                        type="text_delta",
-                        delta=event.delta,
-                    )
-                elif event.type == "response.completed":
-                    sequence += 1
-                    yield StreamEvent(
-                        request_id=request.request_id,
-                        attempt_id=attempt_id,
-                        provider=self.name,
-                        model=self.model,
-                        sequence=sequence,
-                        type="completed",
-                        usage=self._usage(event.response.usage),
-                    )
-                    return
-            sequence += 1
-            yield StreamEvent(
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                sequence=sequence,
-                type="failed",
-                error_kind=ErrorKind.UNKNOWN,
-            )
-        except asyncio.CancelledError:
-            sequence += 1
-            yield StreamEvent(
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                sequence=sequence,
-                type="cancelled",
-                error_kind=ErrorKind.CANCELLED,
-            )
-            raise
-        except Exception as exc:
-            error = self._map_error(exc)
-            sequence += 1
-            yield StreamEvent(
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                sequence=sequence,
-                type="failed",
-                error_kind=error.kind,
-            )
 
-    @staticmethod
-    def _map_error(exc: Exception) -> GatewayError:
-        if isinstance(exc, openai.AuthenticationError):
-            return GatewayError(
-                "OpenAI authentication failed",
-                kind=ErrorKind.AUTHENTICATION,
-                retryable=False,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, openai.PermissionDeniedError):
-            return GatewayError(
-                "OpenAI permission denied",
-                kind=ErrorKind.PERMISSION,
-                retryable=False,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, openai.RateLimitError):
-            return GatewayError(
-                "OpenAI rate limit",
-                kind=ErrorKind.RATE_LIMIT,
-                retryable=True,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, openai.APITimeoutError):
-            return GatewayError(
-                "OpenAI request timed out",
-                kind=ErrorKind.TIMEOUT,
-                retryable=True,
-                ambiguous_completion=True,
-            )
-        if isinstance(exc, openai.APIConnectionError):
-            return GatewayError(
-                "OpenAI connection failed",
-                kind=ErrorKind.CONNECTION,
-                retryable=True,
-            )
-        if isinstance(exc, openai.BadRequestError):
-            return GatewayError(
-                "OpenAI rejected the request",
-                kind=ErrorKind.INVALID_REQUEST,
-                retryable=False,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, openai.APIStatusError):
-            retryable = exc.status_code >= 500
-            return GatewayError(
-                f"OpenAI status {exc.status_code}",
-                kind=(
-                    ErrorKind.PROVIDER_INTERNAL
-                    if retryable
-                    else ErrorKind.UNKNOWN
-                ),
-                retryable=retryable,
-                provider_request_id=exc.request_id,
-            )
-        return GatewayError(
-            "unexpected OpenAI adapter failure",
-            kind=ErrorKind.UNKNOWN,
-            retryable=False,
+    async def stream(self, request: GatewayRequest) -> AsyncIterator[StreamEvent]:
+        response = await self.complete(request)
+        yield StreamEvent(
+            event=StreamEventType.START,
+            request_id=request.request_id,
+            provider=self.provider_name,
+            model=response.model,
+        )
+        yield StreamEvent(
+            event=StreamEventType.DELTA,
+            request_id=request.request_id,
+            text_delta=response.text,
+            provider=self.provider_name,
+            model=response.model,
+        )
+        yield StreamEvent(
+            event=StreamEventType.DONE,
+            request_id=request.request_id,
+            provider=self.provider_name,
+            model=response.model,
+            usage=response.usage,
         )
 ```
 
-The SDK has its own default retries. `max_retries=0` prevents hidden multiplication because this
-gateway implements and records retries centrally.
-
-### Anthropic adapter
-
-Anthropic's current Python SDK supports async Messages API calls, streaming helpers, token
-usage, typed exceptions, request IDs, and Pydantic structured parsing.
-
-**`src/ai_industry_labs/model_gateway/adapters/anthropic_adapter.py`**
+### Tests
 
 ```python
-import asyncio
-from collections.abc import AsyncIterator
-from time import perf_counter
-from typing import Any, TypeVar
-from uuid import uuid4
+# tests/test_provider_adapter.py
+from __future__ import annotations
 
-import anthropic
+import json
+
 import httpx
-from anthropic import AsyncAnthropic
-from pydantic import BaseModel, ValidationError
+import pytest
 
-from ai_industry_labs.model_gateway.errors import ErrorKind, GatewayError
-from ai_industry_labs.model_gateway.models import (
-    Capability,
-    GatewayRequest,
-    ModelResult,
-    ProviderName,
-    StreamEvent,
-    Usage,
-)
-
-T = TypeVar("T", bound=BaseModel)
+from model_gateway.providers.fake import FakeProviderAdapter
+from model_gateway.providers.httpx_provider import HTTPXProviderAdapter
+from model_gateway.schemas import GatewayRequest, Message, MessagePart
 
 
-class AnthropicAdapter:
-    def __init__(self, *, api_key: str, model: str) -> None:
-        self._model = model
-        self._client = AsyncAnthropic(
-            api_key=api_key,
-            max_retries=0,
-            timeout=httpx.Timeout(
-                timeout=30.0,
-                connect=3.0,
-                read=25.0,
-                write=10.0,
-                pool=3.0,
-            ),
+def make_request() -> GatewayRequest:
+    return GatewayRequest(
+        request_id="r1",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[Message(role="user", content="Customer asks for a refund without evidence.")],
+        idempotency_key="tenant-a:r1",
+    )
+
+
+@pytest.mark.asyncio
+async def test_fake_provider_returns_normalized_response() -> None:
+    provider = FakeProviderAdapter()
+    response = await provider.complete(make_request())
+    assert response.provider == "fake-primary"
+    assert response.usage.total_tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_httpx_provider_normalizes_response() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["response_format"]["type"] == "json_schema"
+        assert payload["response_format"]["name"] == "draft_response"
+        return httpx.Response(
+            200,
+            json={
+                "id": "provider-123",
+                "model": "test-model",
+                "output_text": '{"category":"refund","urgency":"medium","draft":"Verify policy.","needs_human_review":true}',
+                "usage": {"input_tokens": 10, "output_tokens": 20},
+            },
         )
 
-    @property
-    def name(self) -> ProviderName:
-        return ProviderName.ANTHROPIC
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = HTTPXProviderAdapter(
+        provider_name="mock-http",
+        model_name="test-model",
+        endpoint="https://provider.example.test/responses",
+        api_key="test-key",
+        client=client,
+    )
+    response = await provider.complete(make_request())
+    await client.aclose()
 
-    @property
-    def model(self) -> str:
-        return self._model
+    assert response.provider_request_id == "provider-123"
+    assert response.usage.total_tokens == 30
 
-    @property
-    def capabilities(self) -> set[Capability]:
-        return {
-            Capability.TEXT,
-            Capability.STRUCTURED,
-            Capability.STREAM,
-            Capability.TOOLS,
-            Capability.IMAGE,
-            Capability.DOCUMENT,
-        }
 
-    @staticmethod
-    def _parts(
-        request: GatewayRequest,
-    ) -> tuple[str | None, list[dict[str, str]]]:
-        system = "\n\n".join(
-            message.content
-            for message in request.messages
-            if message.role == "system"
-        ) or None
-        messages = [
-            {"role": message.role, "content": message.content}
-            for message in request.messages
-            if message.role != "system"
-        ]
-        return system, messages
-
-    @staticmethod
-    def _usage(value: Any) -> Usage:
-        return Usage(
-            input_tokens=int(getattr(value, "input_tokens", 0)),
-            output_tokens=int(getattr(value, "output_tokens", 0)),
-            cached_input_tokens=int(
-                getattr(value, "cache_read_input_tokens", 0) or 0
-            ),
+@pytest.mark.asyncio
+async def test_httpx_provider_serializes_multimodal_parts_when_supported() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        content = payload["messages"][0]["content"]
+        assert content[1]["type"] == "image"
+        assert content[1]["media_url"] == "https://example.test/screenshot.png"
+        return httpx.Response(
+            200,
+            json={
+                "id": "provider-456",
+                "model": "test-model",
+                "output_text": '{"category":"technical","urgency":"low","draft":"Screenshot noted.","needs_human_review":true}',
+                "usage": {"input_tokens": 12, "output_tokens": 8},
+            },
         )
 
-    def _request_options(self, request: GatewayRequest) -> dict[str, Any]:
-        system, messages = self._parts(request)
-        options: dict[str, Any] = {
-            "model": self._model,
-            "messages": messages,
-            "max_tokens": request.max_output_tokens,
-        }
-        if system is not None:
-            options["system"] = system
-        if request.temperature is not None:
-            options["temperature"] = request.temperature
-        return options
+    request = GatewayRequest(
+        request_id="r2",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[
+            Message(
+                role="user",
+                content=[
+                    MessagePart(type="text", text="Inspect this screenshot."),
+                    MessagePart(type="image", media_url="https://example.test/screenshot.png", mime_type="image/png"),
+                ],
+            )
+        ],
+    )
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    provider = HTTPXProviderAdapter(
+        provider_name="mock-http",
+        model_name="test-model",
+        endpoint="https://provider.example.test/responses",
+        api_key="test-key",
+        client=client,
+        supports_multimodal=True,
+    )
+    response = await provider.complete(request)
+    await client.aclose()
 
-    async def generate_text(self, request: GatewayRequest) -> ModelResult[str]:
-        attempt_id = uuid4()
-        started = perf_counter()
-        try:
-            response = await self._client.messages.create(
-                **self._request_options(request),
-            )
-            text = "".join(
-                block.text
-                for block in response.content
-                if block.type == "text"
-            )
-            return ModelResult[str](
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                provider_request_id=response._request_id,
-                status="completed",
-                text=text,
-                data=text,
-                usage=self._usage(response.usage),
-                latency_ms=(perf_counter() - started) * 1000,
-            )
-        except Exception as exc:
-            raise self._map_error(exc) from exc
-
-    async def generate_structured(
-        self,
-        request: GatewayRequest,
-        schema: type[T],
-    ) -> ModelResult[T]:
-        attempt_id = uuid4()
-        started = perf_counter()
-        try:
-            options = self._request_options(request)
-            options["output_format"] = schema
-            response = await self._client.messages.parse(
-                **options,
-            )
-            data = schema.model_validate(response.parsed_output)
-            return ModelResult[T](
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                provider_request_id=response._request_id,
-                status="completed",
-                data=data,
-                usage=self._usage(response.usage),
-                latency_ms=(perf_counter() - started) * 1000,
-            )
-        except ValidationError as exc:
-            raise GatewayError(
-                "structured output failed application validation",
-                kind=ErrorKind.INVALID_OUTPUT,
-                retryable=False,
-            ) from exc
-        except Exception as exc:
-            raise self._map_error(exc) from exc
-
-    async def stream_text(
-        self,
-        request: GatewayRequest,
-    ) -> AsyncIterator[StreamEvent]:
-        attempt_id = uuid4()
-        sequence = 0
-        yield StreamEvent(
-            request_id=request.request_id,
-            attempt_id=attempt_id,
-            provider=self.name,
-            model=self.model,
-            sequence=sequence,
-            type="started",
-        )
-        try:
-            async with self._client.messages.stream(
-                **self._request_options(request),
-            ) as stream:
-                async for text in stream.text_stream:
-                    sequence += 1
-                    yield StreamEvent(
-                        request_id=request.request_id,
-                        attempt_id=attempt_id,
-                        provider=self.name,
-                        model=self.model,
-                        sequence=sequence,
-                        type="text_delta",
-                        delta=text,
-                    )
-                final = await stream.get_final_message()
-            sequence += 1
-            yield StreamEvent(
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                sequence=sequence,
-                type="completed",
-                usage=self._usage(final.usage),
-            )
-        except asyncio.CancelledError:
-            sequence += 1
-            yield StreamEvent(
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                sequence=sequence,
-                type="cancelled",
-                error_kind=ErrorKind.CANCELLED,
-            )
-            raise
-        except Exception as exc:
-            error = self._map_error(exc)
-            sequence += 1
-            yield StreamEvent(
-                request_id=request.request_id,
-                attempt_id=attempt_id,
-                provider=self.name,
-                model=self.model,
-                sequence=sequence,
-                type="failed",
-                error_kind=error.kind,
-            )
-
-    @staticmethod
-    def _map_error(exc: Exception) -> GatewayError:
-        if isinstance(exc, anthropic.AuthenticationError):
-            return GatewayError(
-                "Anthropic authentication failed",
-                kind=ErrorKind.AUTHENTICATION,
-                retryable=False,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, anthropic.PermissionDeniedError):
-            return GatewayError(
-                "Anthropic permission denied",
-                kind=ErrorKind.PERMISSION,
-                retryable=False,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, anthropic.RateLimitError):
-            return GatewayError(
-                "Anthropic rate limit",
-                kind=ErrorKind.RATE_LIMIT,
-                retryable=True,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, anthropic.APITimeoutError):
-            return GatewayError(
-                "Anthropic request timed out",
-                kind=ErrorKind.TIMEOUT,
-                retryable=True,
-                ambiguous_completion=True,
-            )
-        if isinstance(exc, anthropic.APIConnectionError):
-            return GatewayError(
-                "Anthropic connection failed",
-                kind=ErrorKind.CONNECTION,
-                retryable=True,
-            )
-        if isinstance(exc, anthropic.BadRequestError):
-            return GatewayError(
-                "Anthropic rejected the request",
-                kind=ErrorKind.INVALID_REQUEST,
-                retryable=False,
-                provider_request_id=exc.request_id,
-            )
-        if isinstance(exc, anthropic.APIStatusError):
-            retryable = exc.status_code >= 500
-            return GatewayError(
-                f"Anthropic status {exc.status_code}",
-                kind=(
-                    ErrorKind.PROVIDER_OVERLOAD
-                    if exc.status_code == 529
-                    else ErrorKind.PROVIDER_INTERNAL
-                ),
-                retryable=retryable,
-                provider_request_id=exc.request_id,
-            )
-        return GatewayError(
-            "unexpected Anthropic adapter failure",
-            kind=ErrorKind.UNKNOWN,
-            retryable=False,
-        )
+    assert response.provider_request_id == "provider-456"
 ```
 
-### Adapter verification
+### Experiment
 
-Before real calls:
+Input: same support-draft request.
 
-- Type-check both adapters.
-- Mock the SDK clients.
-- Assert provider objects never escape.
-- Assert `max_retries=0`.
-- Assert explicit timeout values.
-- Assert output is revalidated.
-- Assert request IDs and usage are normalized.
+Settings: fake adapter and mocked HTTPX adapter.
 
-## Reliability implementation
+Metric: both return `ProviderResponse` with provider, model, text, usage, and provider request ID.
 
-### Bounded retry
+Expected evidence: product code can switch adapters without changing request schema.
 
-**`src/ai_industry_labs/model_gateway/retry.py`**
+Failure signal: business code imports provider SDKs or parses raw provider JSON.
+
+### Verify
+
+```bash
+pytest tests/test_provider_adapter.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- contain provider base, fake, and HTTPX adapter files;
+- normalize provider response shapes;
+- keep provider-specific details inside adapter code;
+- pass adapter tests without real API credentials.
+
+### Failure drill
+
+Failure: a provider returns HTTP 429.
+
+Evidence: adapter raises `ProviderError(kind=RATE_LIMIT, retryable=True)`.
+
+Fix: route through the gateway reliability policy that applies retries, circuit checks, and fallback.
+
+Prevention: contract tests for every adapter error class.
+
+### Common misconception
+
+Misconception: "Native SDKs make provider abstraction unnecessary."
+
+Why it seems plausible: SDKs hide raw HTTP details.
+
+Correct model: SDKs simplify one provider; they do not define your product's reliability, validation, fallback, cost, or tracing contract.
+
+### Guided practice and independent transfer
+
+- Guided: Add a provider metadata field to `ProviderResponse` without changing `GatewayRequest`.
+- Independent transfer: Sketch how an Anthropic-style or OpenAI-style native SDK adapter would map into the same `ProviderResponse`.
+
+### Recall
+
+- What belongs inside an adapter?
+- Why is a fake adapter valuable?
+- What should happen if a provider changes its response field names?
+- Why is HTTPX useful even if native SDKs exist?
+
+## Hybrid module 3: Routing and fallback
+
+### Core question
+
+How do you choose a provider and recover from provider failure without hiding risk?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Routing | Routing chooses which approved provider/model handles a request. It enforces tenant, feature, policy, and availability rules. | Northstar's support drafts use `provider-a` unless it is unhealthy. |
+| Fallback | Fallback tries another approved provider after an allowed failure. It improves availability but can change behavior, cost, and policy exposure. | If Provider A times out, Provider B may generate the draft. |
+| Retry safety | Retry safety asks whether repeating the request can duplicate side effects. It controls when fallback is allowed. | Retrying a pure draft is safer than retrying a tool call that refunds money. |
+| Provider policy | Provider policy defines which provider/model is allowed for a tenant, data type, and feature. | Sensitive enterprise data may be restricted to an approved region/provider. |
+| Validation gate | A validation gate checks the fallback output against the same schema and business rules as the primary output. | Provider B's output still must pass `DraftResponse`. |
+| Fallback observability | Fallback observability records that a secondary path was used. It is required for debugging, cost analysis, and incident review. | A trace shows `provider-a timeout -> provider-b success`. |
+
+### Connected dry run
+
+Follow one support draft request when the primary provider fails.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The gateway receives a request with tenant and feature metadata. | Routing context |
+| 2 | Policy selects the first approved provider. | Provider policy, routing |
+| 3 | The primary provider fails before a usable response. | Provider error |
+| 4 | The gateway checks whether fallback is allowed. | Retry safety, idempotency |
+| 5 | A secondary provider is selected. | Fallback |
+| 6 | The fallback response is validated exactly like the primary response. | Validation gate |
+| 7 | Usage and traces record the fallback path. | Fallback observability |
+
+Step 1: the gateway receives routing context.
+
+The request includes tenant, feature, risk level, idempotency key, and allowed tools. Routing decisions should use this metadata, not only a hard-coded provider name.
+
+Step 2: policy selects the first approved provider.
+
+For example:
+
+```text
+tenant = northstar-demo
+feature = support_draft
+primary = provider-a
+fallback = provider-b
+```
+
+This selection is a product and governance decision, not just a load-balancing decision.
+
+Step 3: the primary provider fails.
+
+Provider A times out before returning a response body. This is different from a completed unsafe response or a content-policy rejection.
+
+Step 4: the gateway checks fallback safety.
+
+The gateway asks:
+
+```text
+Was the request idempotent?
+Was there any external side effect?
+Is the failure type allowed for fallback?
+Is the fallback provider approved for this tenant/data?
+```
+
+If the answer is no, fallback stops.
+
+Step 5: the gateway tries the secondary provider.
+
+Fallback improves availability, but Provider B may have different latency, model behavior, context limits, cost, and data policy. The gateway treats it as a controlled alternate path, not as an invisible equivalent.
+
+Step 6: fallback output passes through the same validation gate.
+
+Provider B's response must still produce valid structured output and respect business policy. Fallback is not allowed to bypass schema validation just because the primary failed.
+
+Step 7: the gateway records what happened.
+
+Usage records and traces should show:
+
+```text
+primary_provider = provider-a
+primary_error = timeout
+fallback_provider = provider-b
+final_status = success
+```
+
+This makes fallback auditable instead of invisible.
+
+### Concept model
+
+Routing selects the first approved provider. Fallback selects a secondary provider after an allowed failure. Fallback is not a quality guarantee; it is an availability strategy. It must be observable because a fallback response may have different latency, cost, model behavior, region, data policy, or schema reliability.
+
+### Product consequence
+
+For Northstar, fallback is acceptable only if:
+
+- the provider is approved for the tenant and data type;
+- the failure is safe to retry or reroute;
+- the output still passes the same schema and policy gate;
+- usage and traces show fallback occurred.
+
+### Worked example
+
+If Provider A times out before any response body is received, fallback may be safe. If Provider A accepted a tool call that may create an external action, fallback could duplicate the action unless an idempotency key and tool-level safeguards exist.
+
+### Build
 
 ```python
-import asyncio
-import random
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from time import monotonic
-from typing import Any, TypeVar
+# model_gateway/validation.py
+from __future__ import annotations
 
-from ai_industry_labs.model_gateway.errors import GatewayError
+import json
+
+from pydantic import ValidationError
+
+from model_gateway.errors import StructuredOutputError
+from model_gateway.schemas import DraftResponse, ProviderResponse
+
+
+def extract_json_object(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("{") and stripped.endswith("}"):
+        return stripped
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start >= 0 and end > start:
+        return stripped[start : end + 1]
+    raise StructuredOutputError("provider output did not contain a JSON object")
+
+
+def validate_draft_response(response: ProviderResponse) -> DraftResponse:
+    try:
+        data = json.loads(extract_json_object(response.text))
+        draft = DraftResponse.model_validate(data)
+    except (json.JSONDecodeError, ValidationError, StructuredOutputError) as exc:
+        raise StructuredOutputError(f"invalid draft response from {response.provider}") from exc
+
+    if draft.unsupported_claims:
+        raise StructuredOutputError("draft contains unsupported claims")
+    if not draft.needs_human_review:
+        raise StructuredOutputError("support drafts must require human review")
+    return draft
+```
+
+```python
+# model_gateway/reliability.py
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass
+from enum import Enum
+from time import monotonic
+from typing import Awaitable, Callable, TypeVar
+
+from model_gateway.errors import CircuitOpenError, ProviderError
 
 T = TypeVar("T")
 
@@ -2610,1519 +1482,2322 @@ T = TypeVar("T")
 @dataclass(frozen=True)
 class RetryPolicy:
     max_attempts: int = 3
-    base_delay_seconds: float = 0.25
-    max_delay_seconds: float = 4.0
-    total_timeout_seconds: float = 30.0
+    base_delay_seconds: float = 0.05
+    max_delay_seconds: float = 1.0
+
+    def delay_for_attempt(self, attempt: int) -> float:
+        return min(self.max_delay_seconds, self.base_delay_seconds * (2 ** max(0, attempt - 1)))
 
 
-async def call_with_retry(
+class CircuitState(str, Enum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+
+class InMemoryCircuitBreaker:
+    def __init__(self, *, failure_threshold: int = 3, reset_after_seconds: float = 30.0) -> None:
+        self.failure_threshold = failure_threshold
+        self.reset_after_seconds = reset_after_seconds
+        self.failures: dict[str, int] = {}
+        self.opened_at: dict[str, float] = {}
+
+    def state(self, provider: str) -> CircuitState:
+        opened = self.opened_at.get(provider)
+        if opened is None:
+            return CircuitState.CLOSED
+        if monotonic() - opened >= self.reset_after_seconds:
+            return CircuitState.HALF_OPEN
+        return CircuitState.OPEN
+
+    def before_call(self, provider: str) -> None:
+        if self.state(provider) == CircuitState.OPEN:
+            raise CircuitOpenError(f"circuit open for {provider}")
+
+    def record_success(self, provider: str) -> None:
+        self.failures.pop(provider, None)
+        self.opened_at.pop(provider, None)
+
+    def record_failure(self, provider: str) -> None:
+        count = self.failures.get(provider, 0) + 1
+        self.failures[provider] = count
+        if count >= self.failure_threshold:
+            self.opened_at[provider] = monotonic()
+
+
+async def call_with_retries(
     operation: Callable[[], Awaitable[T]],
     *,
-    policy: RetryPolicy,
+    retry_policy: RetryPolicy,
     retry_safe: bool,
-    on_failure: Callable[[int, GatewayError], Awaitable[None]],
 ) -> T:
-    started = monotonic()
-    last_error: GatewayError | None = None
-
-    for attempt in range(1, policy.max_attempts + 1):
+    last_error: ProviderError | None = None
+    for attempt in range(1, retry_policy.max_attempts + 1):
         try:
-            remaining = policy.total_timeout_seconds - (monotonic() - started)
-            if remaining <= 0:
-                break
-            return await asyncio.wait_for(operation(), timeout=remaining)
-        except GatewayError as exc:
+            return await operation()
+        except ProviderError as exc:
             last_error = exc
-            await on_failure(attempt, exc)
-            if not retry_safe or not exc.retryable:
+            if not retry_safe or not exc.retryable or attempt >= retry_policy.max_attempts:
                 raise
-            if attempt >= policy.max_attempts:
-                raise
-
-            exponential = min(
-                policy.max_delay_seconds,
-                policy.base_delay_seconds * (2 ** (attempt - 1)),
-            )
-            jittered = random.uniform(0, exponential)
-            delay = max(jittered, exc.retry_after_seconds or 0)
-            remaining = policy.total_timeout_seconds - (monotonic() - started)
-            if delay >= remaining:
-                raise
-            await asyncio.sleep(delay)
-
-    if last_error is not None:
-        raise last_error
-    raise TimeoutError("retry budget expired")
+            await asyncio.sleep(retry_policy.delay_for_attempt(attempt))
+    assert last_error is not None
+    raise last_error
 ```
 
-`Retry-After` or provider-specific delay headers should be normalized by adapters where exposed.
-The delay is still bounded by the total request budget.
-
-### Redis-backed circuit
-
-**`src/ai_industry_labs/model_gateway/circuit.py`**
+Create the usage ledger now so Module 3 can run immediately. Module 7 returns to this file to explain Redis persistence and configurable cost tracking in more depth.
 
 ```python
-from dataclasses import dataclass
-from time import time
-
-from redis.asyncio import Redis
-
-from ai_industry_labs.model_gateway.models import ProviderName
-
-
-@dataclass(frozen=True)
-class CircuitPolicy:
-    failure_threshold: int = 5
-    failure_window_seconds: int = 30
-    open_seconds: int = 20
-    probe_seconds: int = 10
-
-
-class RedisCircuitBreaker:
-    def __init__(self, redis: Redis, policy: CircuitPolicy) -> None:
-        self._redis = redis
-        self._policy = policy
-
-    def _key(self, provider: ProviderName, suffix: str) -> str:
-        return f"model-gateway:circuit:{provider}:{suffix}"
-
-    async def allow(self, provider: ProviderName) -> bool:
-        open_key = self._key(provider, "open-until")
-        value = await self._redis.get(open_key)
-        if value is None:
-            return True
-
-        if float(value) > time():
-            return False
-
-        probe_key = self._key(provider, "probe")
-        acquired = await self._redis.set(
-            probe_key,
-            "1",
-            ex=self._policy.probe_seconds,
-            nx=True,
-        )
-        return bool(acquired)
-
-    async def record_success(self, provider: ProviderName) -> None:
-        await self._redis.delete(
-            self._key(provider, "failures"),
-            self._key(provider, "open-until"),
-            self._key(provider, "probe"),
-        )
-
-    async def record_failure(self, provider: ProviderName) -> None:
-        failures_key = self._key(provider, "failures")
-        failures = await self._redis.incr(failures_key)
-        if failures == 1:
-            await self._redis.expire(
-                failures_key,
-                self._policy.failure_window_seconds,
-            )
-        if failures >= self._policy.failure_threshold:
-            await self._redis.set(
-                self._key(provider, "open-until"),
-                str(time() + self._policy.open_seconds),
-                ex=self._policy.open_seconds + self._policy.probe_seconds,
-            )
-            await self._redis.delete(self._key(provider, "probe"))
-```
-
-This vertical slice uses atomic Redis commands but does not make threshold transition a single
-transaction. For very high concurrency, move failure transition to a Lua script or a managed
-circuit implementation and test race behavior.
-
-Only connection, timeout, rate-limit, overload, and provider-internal failures contribute.
-Authentication, invalid request, refusal, and schema failures do not indicate provider-wide
-unavailability.
-
-### Route configuration
-
-**`model-gateway/provider-routes.yaml`**
-
-```yaml
-routes:
-  interactive-standard:
-    synthetic:
-      - provider: openai
-        model_env: OPENAI_MODEL
-      - provider: anthropic
-        model_env: ANTHROPIC_MODEL
-    confidential:
-      - provider: openai
-        model_env: OPENAI_MODEL
-
-policies:
-  issue-extraction:
-    required_capabilities: [structured]
-    retry_safe: true
-    max_attempts: 3
-    total_timeout_seconds: 20
-  response-drafting:
-    required_capabilities: [text, stream]
-    retry_safe: true
-    max_attempts: 2
-    total_timeout_seconds: 30
-```
-
-Routes are policy, not user input. A missing approved fallback must produce a controlled
-unavailable outcome.
-
-### Gateway orchestration
-
-**`src/ai_industry_labs/model_gateway/gateway.py`**
-
-```python
-from collections.abc import Awaitable, Callable
-from typing import TypeVar
-
-from opentelemetry import trace
-from pydantic import BaseModel
-
-from ai_industry_labs.model_gateway.circuit import RedisCircuitBreaker
-from ai_industry_labs.model_gateway.errors import ErrorKind, GatewayError
-from ai_industry_labs.model_gateway.models import GatewayRequest, ModelResult
-from ai_industry_labs.model_gateway.provider import ModelProvider
-from ai_industry_labs.model_gateway.retry import RetryPolicy, call_with_retry
-
-T = TypeVar("T", bound=BaseModel)
-tracer = trace.get_tracer(__name__)
-
-
-class ModelGateway:
-    def __init__(
-        self,
-        *,
-        routes: dict[str, list[ModelProvider]],
-        circuit: RedisCircuitBreaker,
-        record_attempt: Callable[
-            [GatewayRequest, ModelProvider, ModelResult[Any] | None, GatewayError | None],
-            Awaitable[None],
-        ],
-    ) -> None:
-        self._routes = routes
-        self._circuit = circuit
-        self._record_attempt = record_attempt
-
-    async def generate_structured(
-        self,
-        request: GatewayRequest,
-        schema: type[T],
-        *,
-        retry_policy: RetryPolicy,
-    ) -> ModelResult[T]:
-        providers = self._routes.get(request.model_tier, [])
-        if not providers:
-            raise GatewayError(
-                "no approved provider route",
-                kind=ErrorKind.INVALID_REQUEST,
-                retryable=False,
-            )
-
-        last_error: GatewayError | None = None
-        for route_index, provider in enumerate(providers):
-            if not request.required_capabilities.issubset(provider.capabilities):
-                continue
-            if not await self._circuit.allow(provider.name):
-                last_error = GatewayError(
-                    f"circuit open for {provider.name}",
-                    kind=ErrorKind.CIRCUIT_OPEN,
-                    retryable=True,
-                )
-                continue
-
-            async def operation() -> ModelResult[T]:
-                result = await provider.generate_structured(request, schema)
-                await self._circuit.record_success(provider.name)
-                return result
-
-            async def on_failure(attempt: int, error: GatewayError) -> None:
-                del attempt
-                if error.kind in {
-                    ErrorKind.RATE_LIMIT,
-                    ErrorKind.TIMEOUT,
-                    ErrorKind.CONNECTION,
-                    ErrorKind.PROVIDER_OVERLOAD,
-                    ErrorKind.PROVIDER_INTERNAL,
-                }:
-                    await self._circuit.record_failure(provider.name)
-                await self._record_attempt(request, provider, None, error)
-
-            with tracer.start_as_current_span("model_gateway.request") as span:
-                span.set_attribute("gen_ai.operation.name", request.operation)
-                span.set_attribute("gen_ai.provider.name", provider.name)
-                span.set_attribute("gen_ai.request.model", provider.model)
-                span.set_attribute("app.tenant_id", request.tenant_id)
-                span.set_attribute("app.gateway_request_id", str(request.request_id))
-                try:
-                    result = await call_with_retry(
-                        operation,
-                        policy=retry_policy,
-                        retry_safe=request.retry_safe,
-                        on_failure=on_failure,
-                    )
-                    result.degraded = route_index > 0
-                    await self._record_attempt(request, provider, result, None)
-                    return result
-                except GatewayError as exc:
-                    last_error = exc
-                    span.record_exception(exc)
-                    if not request.retry_safe:
-                        raise
-
-        if last_error is not None:
-            raise last_error
-        raise GatewayError(
-            "no route satisfies required capabilities",
-            kind=ErrorKind.INVALID_REQUEST,
-            retryable=False,
-        )
-```
-
-Do not mutate a frozen result in production. Either make `ModelResult` mutable intentionally, as
-above, or use `result.model_copy(update={"degraded": route_index > 0})`.
-
-### Milestone verification
-
-Use fake providers to verify:
-
-1. Primary success returns without fallback.
-2. Retryable primary failure retries within the same route.
-3. Exhausted primary failure uses the approved fallback.
-4. Terminal primary failure is not retried.
-5. Unsafe request is not retried or routed after ambiguous failure.
-6. Open circuit skips the route.
-7. Missing capability rejects the route.
-8. Every attempt is recorded.
-
-## Tool calling and controlled execution
-
-### Provider-neutral tool definition
-
-**`src/ai_industry_labs/model_gateway/tools.py`**
-
-```python
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
-
-from pydantic import BaseModel
-
-from ai_industry_labs.model_gateway.errors import ErrorKind, GatewayError
-from ai_industry_labs.model_gateway.models import ToolCall
-
-ArgsT = TypeVar("ArgsT", bound=BaseModel)
-
-
-@dataclass(frozen=True)
-class ToolContext:
-    tenant_id: str
-    user_id: str
-    operation: str
-
-
-@dataclass(frozen=True)
-class RegisteredTool(Generic[ArgsT]):
-    name: str
-    arguments_model: type[ArgsT]
-    handler: Callable[[ToolContext, ArgsT], Awaitable[dict[str, Any]]]
-    read_only: bool
-    requires_human_approval: bool
-
-
-class ToolRegistry:
-    def __init__(self, tools: list[RegisteredTool[Any]]) -> None:
-        self._tools = {tool.name: tool for tool in tools}
-        if len(self._tools) != len(tools):
-            raise ValueError("duplicate tool names")
-
-    async def execute(
-        self,
-        call: ToolCall,
-        *,
-        context: ToolContext,
-        approved: bool,
-    ) -> dict[str, Any]:
-        tool = self._tools.get(call.name)
-        if tool is None:
-            raise GatewayError(
-                "tool is not allowed",
-                kind=ErrorKind.INVALID_REQUEST,
-                retryable=False,
-            )
-        if tool.requires_human_approval and not approved:
-            raise GatewayError(
-                "tool requires approval",
-                kind=ErrorKind.PERMISSION,
-                retryable=False,
-            )
-        arguments = tool.arguments_model.model_validate(call.arguments)
-        return await tool.handler(context, arguments)
-```
-
-Provider adapters translate their tool schema and call objects into `RegisteredTool` schemas and
-`ToolCall` records. The registry remains the execution authority.
-
-### Tool safety rules
-
-- Read and write tools use separate credentials.
-- Tenant and resource authorization use trusted context.
-- Write tools require idempotency keys.
-- Consequential writes require explicit approval.
-- Tool loops have step, time, and cost limits.
-- Unknown tools fail closed.
-- Tool results are size-bounded and treated as untrusted context.
-- Automatic provider fallback stops if a write may have executed.
-- Tool arguments and outcomes are audited without secrets.
-
-### Multimodal request policy
-
-Before sending image, document, or audio input:
-
-1. Validate the requested capability against the route.
-2. Verify tenant ownership and user permission.
-3. Validate media type and byte size.
-4. Scan files according to security policy.
-5. Remove unsupported metadata where required.
-6. Apply retention and deletion policy.
-7. Record file identifiers, not raw bytes, in telemetry.
-8. Treat document instructions as untrusted content.
-
-Do not silently convert unsupported modalities in the adapter. Use an explicit preprocessing
-service and record the transformation.
-
-## Conversation state
-
-Use application-owned canonical messages:
-
-```text
-conversation
-├── tenant_id
-├── participants and permissions
-├── ordered canonical messages
-├── attachments
-├── prompt version
-└── optional provider continuation metadata
-```
-
-OpenAI's Responses API supports chaining with `previous_response_id`, but prior input tokens in a
-chain are still relevant to billing and context management. Provider response storage and
-retention settings must be reviewed. A gateway may use provider continuation as an optimization,
-but fallback requires sufficient canonical state to reconstruct the request for another
-provider.
-
-Conversation controls:
-
-- Reauthorize ticket access on every request.
-- Bound history by token and policy budgets.
-- Summaries are derived state, not replacements for required audit history.
-- Delete provider files or stored objects where policy requires.
-- Never use a provider conversation ID as authorization.
-
-## Usage and cost accounting
-
-### Price catalog
-
-Do not hard-code prices in adapters.
-
-**`model-gateway/price-catalog.yaml`**
-
-```yaml
-catalog_version: "2026-06-25-example"
-currency: "USD"
-verified_at: "REPLACE_WITH_ACTUAL_VERIFICATION_TIME"
-prices:
-  - provider: "openai"
-    model: "REPLACE_WITH_APPROVED_MODEL"
-    effective_from: "REPLACE_WITH_PROVIDER_EFFECTIVE_DATE"
-    input_per_million: null
-    cached_input_per_million: null
-    output_per_million: null
-  - provider: "anthropic"
-    model: "REPLACE_WITH_APPROVED_MODEL"
-    effective_from: "REPLACE_WITH_PROVIDER_EFFECTIVE_DATE"
-    input_per_million: null
-    cached_input_per_million: null
-    output_per_million: null
-```
-
-`null` prevents fabricated cost. Deployment fails its cost-readiness gate until approved values
-are supplied from current provider pricing.
-
-### Cost calculation
-
-```text
-estimated cost =
-uncached input tokens × input rate
-+ cached input tokens × cached-input rate
-+ output tokens × output rate
-+ provider-specific tool or service charges
-```
-
-Use decimal arithmetic for currency.
-
-**`src/ai_industry_labs/model_gateway/pricing.py`**
-
-```python
-from decimal import Decimal
+# model_gateway/usage.py
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
-from ai_industry_labs.model_gateway.models import Usage
+from model_gateway.schemas import GatewayRequest, GatewayResponse
 
 
-class ModelPrice(BaseModel):
-    input_per_million: Decimal = Field(ge=0)
-    cached_input_per_million: Decimal = Field(ge=0)
-    output_per_million: Decimal = Field(ge=0)
+class TokenPrice(BaseModel):
+    input_per_1m_tokens_usd: float = Field(ge=0)
+    output_per_1m_tokens_usd: float = Field(ge=0)
+    verified_on: str = "example-not-provider-pricing"
 
 
-def estimate_cost(usage: Usage, price: ModelPrice) -> Decimal:
-    million = Decimal(1_000_000)
-    uncached = max(usage.input_tokens - usage.cached_input_tokens, 0)
-    return (
-        Decimal(uncached) * price.input_per_million
-        + Decimal(usage.cached_input_tokens) * price.cached_input_per_million
-        + Decimal(usage.output_tokens) * price.output_per_million
-    ) / million
+class PriceTable:
+    def __init__(self, prices: dict[tuple[str, str], TokenPrice] | None = None) -> None:
+        self.prices = prices or {}
+
+    def estimate(self, *, provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
+        price = self.prices.get((provider, model))
+        if price is None:
+            return 0.0
+        input_cost = (input_tokens / 1_000_000) * price.input_per_1m_tokens_usd
+        output_cost = (output_tokens / 1_000_000) * price.output_per_1m_tokens_usd
+        return round(input_cost + output_cost, 8)
+
+
+class UsageRecord(BaseModel):
+    request_id: str
+    tenant_id: str
+    user_id: str
+    feature: str
+    provider: str
+    model: str
+    input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    total_tokens: int = Field(ge=0)
+    estimated_cost_usd: float = Field(ge=0)
+    fallback_used: bool
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class UsageLedger(ABC):
+    @abstractmethod
+    async def record(self, request: GatewayRequest, response: GatewayResponse) -> None:
+        raise NotImplementedError
+
+
+class InMemoryUsageLedger(UsageLedger):
+    def __init__(self, price_table: PriceTable | None = None) -> None:
+        self.records: list[UsageRecord] = []
+        self.price_table = price_table or PriceTable()
+
+    async def record(self, request: GatewayRequest, response: GatewayResponse) -> None:
+        estimated_cost = response.usage.estimated_cost_usd or self.price_table.estimate(
+            provider=response.provider,
+            model=response.model,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+        self.records.append(
+            UsageRecord(
+                request_id=request.request_id,
+                tenant_id=request.tenant_id,
+                user_id=request.user_id,
+                feature=request.feature,
+                provider=response.provider,
+                model=response.model,
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+                total_tokens=response.usage.total_tokens,
+                estimated_cost_usd=estimated_cost,
+                fallback_used=response.fallback_used,
+            )
+        )
 ```
-
-### Usage ledger schema
-
-```sql
-CREATE TABLE model_usage (
-    usage_id UUID PRIMARY KEY,
-    gateway_request_id UUID NOT NULL,
-    attempt_id UUID NOT NULL,
-    tenant_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    operation TEXT NOT NULL,
-    provider TEXT NOT NULL,
-    model TEXT NOT NULL,
-    provider_request_id TEXT,
-    input_tokens INTEGER NOT NULL CHECK (input_tokens >= 0),
-    cached_input_tokens INTEGER NOT NULL CHECK (cached_input_tokens >= 0),
-    output_tokens INTEGER NOT NULL CHECK (output_tokens >= 0),
-    estimated_cost_usd NUMERIC(18, 8),
-    price_catalog_version TEXT,
-    status TEXT NOT NULL,
-    error_kind TEXT,
-    latency_ms DOUBLE PRECISION NOT NULL,
-    degraded BOOLEAN NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (gateway_request_id, attempt_id)
-);
-
-CREATE INDEX model_usage_tenant_created_idx
-ON model_usage (tenant_id, created_at);
-```
-
-Record failed attempts even when usage is unknown. Use `NULL`, not zero, when the provider did not
-report usage.
-
-## Testing
-
-### Fake provider
-
-**`tests/model_gateway/fakes.py`**
 
 ```python
-from collections.abc import AsyncIterator
-from typing import TypeVar
-from uuid import uuid4
+# model_gateway/gateway.py
+from __future__ import annotations
 
-from pydantic import BaseModel
+from collections.abc import AsyncIterator, Iterable
 
-from ai_industry_labs.model_gateway.errors import GatewayError
-from ai_industry_labs.model_gateway.models import (
-    Capability,
-    GatewayRequest,
-    ModelResult,
-    ProviderName,
-    StreamEvent,
-    Usage,
-)
-
-T = TypeVar("T", bound=BaseModel)
+from model_gateway.errors import CircuitOpenError, ProviderError, ProviderErrorKind
+from model_gateway.providers.base import ProviderAdapter
+from model_gateway.reliability import InMemoryCircuitBreaker, RetryPolicy, call_with_retries
+from model_gateway.schemas import GatewayRequest, GatewayResponse, StreamEvent, StreamEventType
+from model_gateway.usage import UsageLedger
+from model_gateway.validation import validate_draft_response
 
 
-class FakeProvider:
+class GatewayService:
     def __init__(
         self,
+        providers: Iterable[ProviderAdapter],
         *,
-        name: ProviderName,
-        structured_value: dict[str, object] | None = None,
-        failures: list[GatewayError] | None = None,
+        usage_ledger: UsageLedger,
+        fallback_order: list[str] | None = None,
+        retry_policy: RetryPolicy | None = None,
+        circuit_breaker: InMemoryCircuitBreaker | None = None,
     ) -> None:
-        self._name = name
-        self._value = structured_value or {}
-        self._failures = list(failures or [])
-        self.calls = 0
+        self.providers = {provider.provider_name: provider for provider in providers}
+        self.usage_ledger = usage_ledger
+        self.fallback_order = fallback_order or list(self.providers)
+        self.retry_policy = retry_policy or RetryPolicy()
+        self.circuit_breaker = circuit_breaker or InMemoryCircuitBreaker()
 
-    @property
-    def name(self) -> ProviderName:
-        return self._name
+    def _route_order(self, request: GatewayRequest) -> list[str]:
+        if request.requested_provider:
+            ordered = [request.requested_provider]
+            ordered.extend(name for name in self.fallback_order if name != request.requested_provider)
+            return ordered
+        return list(self.fallback_order)
 
-    @property
-    def model(self) -> str:
-        return "fake-model"
-
-    @property
-    def capabilities(self) -> set[Capability]:
-        return {Capability.TEXT, Capability.STRUCTURED, Capability.STREAM}
-
-    async def generate_structured(
-        self,
-        request: GatewayRequest,
-        schema: type[T],
-    ) -> ModelResult[T]:
-        self.calls += 1
-        if self._failures:
-            raise self._failures.pop(0)
-        value = schema.model_validate(self._value)
-        return ModelResult[T](
-            request_id=request.request_id,
-            attempt_id=uuid4(),
-            provider=self.name,
-            model=self.model,
-            provider_request_id="fake-request",
-            status="completed",
-            data=value,
-            usage=Usage(input_tokens=10, output_tokens=5),
-            latency_ms=1,
-        )
-
-    async def generate_text(self, request: GatewayRequest) -> ModelResult[str]:
-        raise NotImplementedError
-
-    async def stream_text(
-        self,
-        request: GatewayRequest,
-    ) -> AsyncIterator[StreamEvent]:
-        if False:
-            yield
-        raise NotImplementedError
-```
-
-### Required test categories
-
-| Category | Protects |
-|---|---|
-| Unit | Validation, pricing, error mapping, retry delay, route selection |
-| Adapter contract | Equivalent normalized output from mocked provider SDKs |
-| Integration | Redis circuit behavior and usage database writes |
-| End-to-end | Application request through fake provider to typed result |
-| Security | Secret redaction, tenant spoofing, unknown tools, oversized input |
-| Failure | Timeouts, 429, overload, invalid output, open circuit, cancellation |
-| Streaming | Sequence, exactly one terminal event, partial failure |
-| Live smoke | Current provider credentials, model, schema, and request ID |
-
-### Critical tests
-
-**`tests/model_gateway/test_retry.py`**
-
-```python
-import pytest
-
-from ai_industry_labs.model_gateway.errors import ErrorKind, GatewayError
-from ai_industry_labs.model_gateway.retry import RetryPolicy, call_with_retry
-
-
-@pytest.mark.asyncio
-async def test_terminal_error_is_not_retried() -> None:
-    calls = 0
-
-    async def operation() -> str:
-        nonlocal calls
-        calls += 1
-        raise GatewayError(
-            "bad request",
-            kind=ErrorKind.INVALID_REQUEST,
+    async def complete(self, request: GatewayRequest) -> GatewayResponse:
+        errors: list[ProviderError] = []
+        for index, provider_name in enumerate(self._route_order(request)):
+            provider = self.providers.get(provider_name)
+            if provider is None:
+                continue
+            try:
+                self.circuit_breaker.before_call(provider_name)
+                provider_response = await call_with_retries(
+                    lambda: provider.complete(request),
+                    retry_policy=self.retry_policy,
+                    retry_safe=request.retry_safe,
+                )
+                self.circuit_breaker.record_success(provider_name)
+                validated = validate_draft_response(provider_response)
+                gateway_response = GatewayResponse(
+                    request_id=request.request_id,
+                    tenant_id=request.tenant_id,
+                    user_id=request.user_id,
+                    feature=request.feature,
+                    provider=provider_response.provider,
+                    model=provider_response.model,
+                    validated=validated,
+                    usage=provider_response.usage,
+                    fallback_used=index > 0,
+                    provider_request_id=provider_response.provider_request_id,
+                )
+                await self.usage_ledger.record(request, gateway_response)
+                return gateway_response
+            except CircuitOpenError:
+                continue
+            except ProviderError as exc:
+                errors.append(exc)
+                self.circuit_breaker.record_failure(provider_name)
+                if not exc.retryable:
+                    break
+                continue
+        if errors:
+            raise errors[-1]
+        raise ProviderError(
+            "no provider route available",
+            kind=ProviderErrorKind.INVALID_REQUEST,
+            provider="gateway",
             retryable=False,
         )
 
-    async def observe(attempt: int, error: GatewayError) -> None:
-        assert attempt == 1
-        assert error.kind is ErrorKind.INVALID_REQUEST
-
-    with pytest.raises(GatewayError):
-        await call_with_retry(
-            operation,
-            policy=RetryPolicy(max_attempts=3),
-            retry_safe=True,
-            on_failure=observe,
+    async def stream(self, request: GatewayRequest) -> AsyncIterator[StreamEvent]:
+        for provider_name in self._route_order(request):
+            provider = self.providers.get(provider_name)
+            if provider is None:
+                continue
+            try:
+                self.circuit_breaker.before_call(provider_name)
+                async for event in provider.stream(request):
+                    yield event
+                self.circuit_breaker.record_success(provider_name)
+                return
+            except CircuitOpenError:
+                continue
+            except ProviderError as exc:
+                self.circuit_breaker.record_failure(provider_name)
+                yield StreamEvent(
+                    event=StreamEventType.ERROR,
+                    request_id=request.request_id,
+                    error_type=exc.kind.value,
+                    provider=provider_name,
+                )
+                return
+        yield StreamEvent(
+            event=StreamEventType.ERROR,
+            request_id=request.request_id,
+            error_type="no_provider_route_available",
         )
+```
 
-    assert calls == 1
+### Tests
+
+```python
+# tests/test_gateway.py
+from __future__ import annotations
+
+import pytest
+
+from model_gateway.errors import ProviderErrorKind
+from model_gateway.gateway import GatewayService
+from model_gateway.providers.fake import FakeProviderAdapter
+from model_gateway.reliability import InMemoryCircuitBreaker, RetryPolicy
+from model_gateway.schemas import GatewayRequest, Message
+from model_gateway.usage import InMemoryUsageLedger
+
+
+def make_request() -> GatewayRequest:
+    return GatewayRequest(
+        request_id="r1",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[Message(role="user", content="Refund request with missing evidence.")],
+        idempotency_key="tenant-a:r1",
+    )
 
 
 @pytest.mark.asyncio
-async def test_unsafe_operation_is_not_retried() -> None:
-    calls = 0
+async def test_gateway_falls_back_after_retryable_provider_failure() -> None:
+    primary = FakeProviderAdapter("primary", fail_with=ProviderErrorKind.RATE_LIMIT)
+    fallback = FakeProviderAdapter("fallback")
+    ledger = InMemoryUsageLedger()
+    gateway = GatewayService([primary, fallback], usage_ledger=ledger, fallback_order=["primary", "fallback"])
 
-    async def operation() -> str:
-        nonlocal calls
-        calls += 1
-        raise GatewayError(
-            "read timeout",
-            kind=ErrorKind.TIMEOUT,
-            retryable=True,
-            ambiguous_completion=True,
-        )
+    response = await gateway.complete(make_request())
 
-    async def observe(attempt: int, error: GatewayError) -> None:
-        assert attempt == 1
-        assert error.ambiguous_completion
+    assert response.provider == "fallback"
+    assert response.fallback_used is True
+    assert len(ledger.records) == 1
 
-    with pytest.raises(GatewayError):
-        await call_with_retry(
-            operation,
-            policy=RetryPolicy(max_attempts=3),
-            retry_safe=False,
-            on_failure=observe,
-        )
 
-    assert calls == 1
+@pytest.mark.asyncio
+async def test_gateway_opens_circuit_and_skips_failed_provider() -> None:
+    primary = FakeProviderAdapter("primary", fail_with=ProviderErrorKind.RATE_LIMIT)
+    fallback = FakeProviderAdapter("fallback")
+    breaker = InMemoryCircuitBreaker(failure_threshold=1)
+    gateway = GatewayService(
+        [primary, fallback],
+        usage_ledger=InMemoryUsageLedger(),
+        fallback_order=["primary", "fallback"],
+        retry_policy=RetryPolicy(max_attempts=1, base_delay_seconds=0),
+        circuit_breaker=breaker,
+    )
+
+    first = await gateway.complete(make_request())
+    second = await gateway.complete(make_request())
+
+    assert first.provider == "fallback"
+    assert second.provider == "fallback"
+    assert breaker.state("primary").value == "open"
+
+
+@pytest.mark.asyncio
+async def test_gateway_rejects_malformed_provider_output() -> None:
+    provider = FakeProviderAdapter("primary", malformed=True)
+    gateway = GatewayService([provider], usage_ledger=InMemoryUsageLedger())
+
+    with pytest.raises(Exception):
+        await gateway.complete(make_request())
 ```
 
-Additional assertions:
+### Experiment
 
-- Invalid provider output never returns a `ModelResult`.
-- A fallback result has `degraded=true`.
-- Fallback is blocked when the alternate route is not approved for the data class.
-- Authentication errors do not open the provider circuit.
-- A stream with a failure has one terminal event.
-- Cancellation closes the provider stream.
-- Unknown tool names fail before handler execution.
-- Tool arguments reject extra fields.
-- Usage rows are unique by gateway request and attempt.
-- Telemetry contains no API key, raw prompt, or full response.
+Input: same support-draft request.
 
-## Evaluation
+Settings: primary fails with rate limit, fallback succeeds.
 
-### Held-out evaluation set
+Metric: fallback flag and usage ledger record.
 
-Create at least:
+Expected evidence: fallback is visible in response and usage record.
 
-- 20 structured extraction cases
-- 10 streaming cases
-- 12 injected provider failures
-- 6 fallback-policy cases
-- 8 tool-call cases
-- 6 media-policy cases
-- 4 cancellation cases
-- 4 tenant-isolation attacks
+Failure signal: downstream code receives fallback output without knowing fallback occurred.
 
-Keep the fault set unchanged while comparing baseline and gateway.
+### Verify
 
-### Functional metrics
+```bash
+pytest tests/test_gateway.py
+```
 
-- Valid request success rate
-- Schema gate pass rate
-- Correct error classification
-- Correct retry decision
-- Correct fallback decision
-- Stream terminal-event validity
-- Tool argument validation rate
-- Usage attribution completeness
+### Module completion checkpoint
 
-### Reliability metrics
+At this point, your project should:
 
-- Requests by provider and outcome
-- Attempts per gateway request
-- Retry success rate
-- Circuit-open rate
-- Fallback rate
-- Degraded success rate
-- Cancellation rate
-- Unknown-outcome rate
+- route through approved adapters;
+- apply bounded retry policy before fallback;
+- skip providers with open circuits;
+- fallback only after retryable provider failures;
+- validate output after fallback;
+- record usage after successful validated completion.
 
-### Performance metrics
+### Failure drill
 
-- End-to-end P50, P95, and P99 latency
-- Time to first text delta
-- Inter-delta gap
-- Retry-added latency
-- Fallback-added latency
-- Gateway overhead with fake provider
-- Concurrent request throughput
-- Redis and database latency
+Failure: fallback silently changes model behavior.
 
-### Cost metrics
+Evidence: traces show a different provider/model, but product metrics were aggregated without provider dimension.
 
-- Cost per request
-- Cost per completed request
-- Cost per accepted agent draft
-- Duplicate-attempt cost
-- Fallback cost delta
-- Cost by tenant, operation, provider, and model
+Fix: include provider/model/fallback fields in usage and evaluation.
 
-### Security gates
+Prevention: make fallback observable in response, logs, traces, and reports.
 
-- No client-supplied tenant override
-- No secret in source, logs, spans, or exceptions
-- No unknown tool execution
-- No unapproved provider route
-- No raw customer content in default telemetry
-- No automatic replay of ambiguous consequential writes
+### Common misconception
 
-### Comparison table
+Misconception: "Fallback always improves reliability."
 
-Do not fill values until tests run.
+Why it seems plausible: another provider can respond when the first one fails.
 
-| Metric | Direct SDK baseline | Gateway primary only | Gateway with fallback | Acceptance |
-|---|---:|---:|---:|---|
-| Schema-valid downstream records | | | | 100% |
-| Correct fault classification | | | | 100% fixed set |
-| Unsafe automatic replays | | | | 0 |
-| Complete attribution | | | | 100% |
-| P95 gateway overhead with fake provider | | | | Team-defined |
-| Stream terminal validity | | | | 100% |
-| Fallback trace completeness | | | | 100% |
-| Cost per accepted draft | | | | Measure |
+Correct model: fallback improves availability only when the fallback provider is approved, compatible, safe, and observable. It can harm quality, cost, privacy, or latency.
 
-### Evaluation integrity
+### Guided practice and independent transfer
 
-- Provider quality is not the focus of this lesson.
-- Do not compare providers with different prompts and call it a gateway comparison.
-- Record all attempts, including failed and fallback calls.
-- Do not report unknown usage as zero.
-- Separate gateway overhead from provider latency.
-- Use dated price configuration.
-- Mark live smoke tests separately from mocked reliability tests.
+- Guided: Add a route order where `requested_provider="fallback"` starts with fallback.
+- Independent transfer: Design a policy where high-risk tenant data cannot fall back to providers outside an approved region.
+
+### Recall
+
+- Why must fallback be observable?
+- Which provider failures should stop fallback?
+- Why does fallback still need schema validation?
+- What extra dimensions should usage records include?
+
+## Hybrid module 4: Structured output and tool/function calling
+
+### Core question
+
+How do you prevent malformed structured output and unsafe tool calls from reaching business logic?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Structured output | Structured output is model output expected to match a schema. It is not safe until validated by application code. | The model returns JSON with `category`, `draft`, and `needs_human_review`. |
+| Schema validation | Schema validation checks that fields, types, enums, and required values match the contract. | `needs_human_review` must be a boolean, not `"maybe"`. |
+| Business validation | Business validation checks domain rules beyond syntax. | A draft that says "refund approved" is rejected if evidence is missing. |
+| Tool/function calling | Tool/function calling means the model proposes an action and arguments; the application decides whether to execute it. | The model proposes `lookup_order_status({"order_id":"A-1049"})`. |
+| Tool allowlist | A tool allowlist restricts which tools are available in this request. | Support drafts may call `lookup_order_status` but not `issue_refund`. |
+| Argument validation | Argument validation checks tool arguments before execution. | `order_id` must match `A-1049`, not arbitrary text. |
+| Authorization check | Authorization verifies the current user/tenant may use the tool on the requested resource. | Agent 42 may view Northstar order status but not another tenant's orders. |
+
+### Connected dry run
+
+Trace a model output that is valid JSON but still unsafe.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The provider returns text that appears to be JSON. | Structured output |
+| 2 | The gateway extracts and parses the JSON object. | JSON parsing |
+| 3 | The gateway validates field names, types, and enums. | Schema validation |
+| 4 | The gateway applies business policy. | Business validation |
+| 5 | The model proposes a tool call. | Tool/function calling |
+| 6 | The application checks allowed tools and argument shape. | Tool allowlist, argument validation |
+| 7 | The application checks identity and tenant permission. | Authorization check |
+| 8 | Only safe validated output reaches business logic. | Validation gate |
+
+Step 1: the provider returns JSON-looking text.
+
+The model returns:
+
+```json
+{"category":"refund","draft":"Your refund is approved.","needs_human_review":false}
+```
+
+This looks structured, but it is only model text until the application validates it.
+
+Step 2: the gateway parses the JSON.
+
+If the text has extra prose, missing braces, or invalid JSON, parsing fails before schema validation even begins.
+
+Step 3: schema validation checks the contract.
+
+The gateway checks that required fields exist and have correct types. If `needs_human_review` is a string instead of a boolean, the response is rejected.
+
+Step 4: business validation checks meaning.
+
+Even if the JSON is syntactically valid, "Your refund is approved" may violate policy if evidence is missing. Business validation rejects the draft because schema validity is not the same as business safety.
+
+Step 5: the model proposes a tool call.
+
+The model may propose:
+
+```text
+lookup_order_status(order_id="A-1049")
+```
+
+The model proposes the call; it does not get authority to execute it.
+
+Step 6: the application checks the allowlist and arguments.
+
+If `lookup_order_status` is allowed and `order_id` matches the schema, the request can proceed to authorization. If the model proposes `issue_refund`, the gateway blocks it if that tool is not allowed.
+
+Step 7: the application checks authorization.
+
+The current tenant and user must be allowed to access that order. This decision belongs to application security policy, not the LLM.
+
+Step 8: only safe validated output reaches business logic.
+
+The business service receives either validated output or a controlled error. It never receives raw provider text as truth.
+
+### Concept model
+
+Structured output is not trustworthy because a provider says "JSON." It is trustworthy only after your application validates it against a schema and business policy. Tool/function calling means the model proposes a tool name and arguments; the application decides whether that tool exists, whether the arguments are valid, and whether the current identity has permission.
+
+### Product consequence
+
+For support workflows, invalid structured output can misclassify tickets, hide missing information, or draft unsafe commitments. Unsafe tool calls can leak data or trigger actions under the wrong user identity.
+
+### Worked example
+
+Model output:
+
+```json
+{
+  "category": "refund",
+  "urgency": "medium",
+  "draft": "Your refund is approved.",
+  "needs_human_review": false,
+  "unsupported_claims": ["refund approved without evidence"]
+}
+```
+
+This is syntactically valid JSON but still rejected because it violates business policy.
+
+### Build
+
+```python
+# model_gateway/tools.py
+from __future__ import annotations
+
+from typing import Any, Callable
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from model_gateway.errors import ToolPolicyError
+from model_gateway.schemas import ToolCall
+
+
+class LookupOrderStatusArgs(BaseModel):
+    order_id: str = Field(pattern=r"^[A-Z]-\d{4,}$")
+
+
+class ToolSpec(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    name: str
+    description: str
+    args_model: type[BaseModel]
+    executor: Callable[[BaseModel], dict[str, Any]] | None = None
+    read_only: bool = True
+
+
+class ToolRegistry:
+    def __init__(self) -> None:
+        self._tools: dict[str, ToolSpec] = {}
+
+    def register(self, tool: ToolSpec) -> None:
+        self._tools[tool.name] = tool
+
+    def validate_call(self, call: ToolCall, *, allowed_tools: list[str]) -> BaseModel:
+        if call.name not in allowed_tools:
+            raise ToolPolicyError(f"tool {call.name!r} is not allowed for this request")
+        tool = self._tools.get(call.name)
+        if tool is None:
+            raise ToolPolicyError(f"tool {call.name!r} is not registered")
+        if not tool.read_only:
+            raise ToolPolicyError(f"tool {call.name!r} is not read-only")
+        try:
+            return tool.args_model.model_validate(call.arguments)
+        except ValidationError as exc:
+            raise ToolPolicyError(f"invalid arguments for tool {call.name!r}") from exc
+
+    def execute_call(self, call: ToolCall, *, allowed_tools: list[str]) -> dict[str, Any]:
+        args = self.validate_call(call, allowed_tools=allowed_tools)
+        tool = self._tools[call.name]
+        if tool.executor is None:
+            raise ToolPolicyError(f"tool {call.name!r} has no executor")
+        return tool.executor(args)
+
+
+def lookup_order_status(args: BaseModel) -> dict[str, Any]:
+    typed = LookupOrderStatusArgs.model_validate(args.model_dump())
+    return {
+        "order_id": typed.order_id,
+        "status": "requires_agent_verification",
+        "source": "synthetic_order_store",
+    }
+
+
+def default_tool_registry() -> ToolRegistry:
+    registry = ToolRegistry()
+    registry.register(
+        ToolSpec(
+            name="lookup_order_status",
+            description="Read-only lookup of order status for support drafting.",
+            args_model=LookupOrderStatusArgs,
+            executor=lookup_order_status,
+            read_only=True,
+        )
+    )
+    return registry
+```
+
+### Tests
+
+```python
+# tests/test_validation.py
+from __future__ import annotations
+
+import pytest
+
+from model_gateway.errors import StructuredOutputError
+from model_gateway.schemas import ProviderResponse
+from model_gateway.validation import validate_draft_response
+
+
+def test_valid_structured_output_passes() -> None:
+    response = ProviderResponse(
+        provider="fake",
+        model="fake",
+        text='{"category":"refund","urgency":"medium","draft":"Please verify policy first.","needs_human_review":true}',
+    )
+    assert validate_draft_response(response).category == "refund"
+
+
+def test_unsupported_claim_is_rejected() -> None:
+    response = ProviderResponse(
+        provider="fake",
+        model="fake",
+        text=(
+            '{"category":"refund","urgency":"medium","draft":"Approved.",'
+            '"needs_human_review":false,"unsupported_claims":["approved without evidence"]}'
+        ),
+    )
+    with pytest.raises(StructuredOutputError):
+        validate_draft_response(response)
+```
+
+```python
+# tests/test_tools.py
+from __future__ import annotations
+
+import pytest
+
+from model_gateway.errors import ToolPolicyError
+from model_gateway.schemas import ToolCall
+from model_gateway.tools import default_tool_registry
+
+
+def test_allowed_read_only_tool_call_passes() -> None:
+    registry = default_tool_registry()
+    args = registry.validate_call(
+        ToolCall(name="lookup_order_status", arguments={"order_id": "A-1049"}),
+        allowed_tools=["lookup_order_status"],
+    )
+    assert args.order_id == "A-1049"
+
+
+def test_allowed_read_only_tool_can_execute() -> None:
+    registry = default_tool_registry()
+    result = registry.execute_call(
+        ToolCall(name="lookup_order_status", arguments={"order_id": "A-1049"}),
+        allowed_tools=["lookup_order_status"],
+    )
+    assert result["status"] == "requires_agent_verification"
+    assert result["source"] == "synthetic_order_store"
+
+
+def test_unknown_tool_is_rejected() -> None:
+    registry = default_tool_registry()
+    with pytest.raises(ToolPolicyError):
+        registry.validate_call(
+            ToolCall(name="issue_refund", arguments={"order_id": "A-1049"}),
+            allowed_tools=["issue_refund"],
+        )
+
+
+def test_invalid_tool_arguments_are_rejected() -> None:
+    registry = default_tool_registry()
+    with pytest.raises(ToolPolicyError):
+        registry.validate_call(
+            ToolCall(name="lookup_order_status", arguments={"order_id": "../../../etc/passwd"}),
+            allowed_tools=["lookup_order_status"],
+        )
+```
+
+### Experiment
+
+Input: provider output with valid JSON but unsafe business content.
+
+Settings: same gateway, same schema.
+
+Metric: rejection before business logic.
+
+Expected evidence: `StructuredOutputError`.
+
+Failure signal: downstream code receives a refund approval without evidence.
+
+### Verify
+
+```bash
+pytest tests/test_validation.py tests/test_tools.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- validate provider JSON against `DraftResponse`;
+- reject syntactically valid but unsafe output;
+- allow only registered read-only tools;
+- validate tool arguments before execution.
+
+### Failure drill
+
+Failure: model proposes `issue_refund`.
+
+Evidence: tool call name is not registered or not read-only.
+
+Fix: reject and return a controlled error; do not execute.
+
+Prevention: tool registry allowlist and permission checks outside the model.
+
+### Common misconception
+
+Misconception: "Tool calling means the model executes tools."
+
+Why it seems plausible: provider APIs label the model's output as a tool call.
+
+Correct model: the model proposes a structured request. Your application validates and executes or rejects it under real identity and permissions.
+
+### Guided practice and independent transfer
+
+- Guided: Add `lookup_policy` as another read-only tool with a strict `policy_id`.
+- Independent transfer: Define why a write tool such as `issue_refund` requires human approval and idempotency.
+
+### Recall
+
+- Why can valid JSON still be unsafe?
+- What checks happen before executing a tool call?
+- Why should authorization not be delegated to the model?
+- What is the difference between schema validity and business validity?
+
+## Hybrid module 5: Streaming and multimodal requests
+
+### Core question
+
+How do you expose streaming and multimodal requests without confusing partial output with final validated output?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Streaming | Streaming emits model output as events over time. It improves perceived latency but creates partial, unvalidated states. | The UI receives `"Draft"` before the full draft is complete. |
+| Stream event | A stream event is one message in the stream lifecycle. It can be a text delta, error, tool request, or done signal. | `delta: "I can help"` arrives before `done`. |
+| Delta | A delta is a partial output chunk. It should not be treated as a final answer. | `"Your refund"` appears before the model later says `"requires review"`. |
+| Finalization | Finalization happens when the stream ends and the full output can be validated. | Only after `DONE` does the gateway validate the complete draft. |
+| Multimodal request | A multimodal request includes text plus image, audio, or document parts. It increases provider, privacy, and validation complexity. | A support ticket includes a screenshot of a billing page. |
+| Modality metadata | Modality metadata records file type, source, size, and policy decisions. It is needed for audit and safety. | A document part records `type=document`, `mime=application/pdf`, and source. |
+
+### Connected dry run
+
+Trace a streaming support draft that includes a screenshot reference.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The request includes text and an optional non-text part. | Multimodal request, modality metadata |
+| 2 | The provider begins returning events. | Streaming, stream event |
+| 3 | The UI receives partial text chunks. | Delta |
+| 4 | Partial chunks are marked provisional. | Partial output boundary |
+| 5 | The stream finishes or errors. | Finalization, stream lifecycle |
+| 6 | The gateway validates the complete output. | Structured output validation |
+| 7 | Only validated output becomes ready for agent review. | Final response boundary |
+
+Step 1: the request includes text and optional non-text content.
+
+The ticket may include:
+
+```text
+text: "I was charged twice."
+image: billing_screenshot.png
+```
+
+The gateway records modality metadata before sending anything to a provider. This matters because not every provider, region, or model is approved for every modality.
+
+Step 2: the provider starts returning stream events.
+
+Instead of waiting for the full response, the provider may emit events over time:
+
+```text
+START
+DELTA "I can"
+DELTA " help review"
+DONE
+```
+
+Each event is useful for user experience but not yet a validated business answer.
+
+Step 3: the UI receives deltas.
+
+The user might see partial text appear quickly. This reduces perceived latency, but a partial sentence can be misleading.
+
+Step 4: partial chunks are marked provisional.
+
+The UI should show streaming text as draft/provisional. It should not enable "send to customer" while the stream is incomplete.
+
+Step 5: the stream finishes or errors.
+
+If the stream errors, the gateway returns a controlled error. If the stream reaches `DONE`, the gateway can assemble the full text.
+
+Step 6: the gateway validates the complete output.
+
+Only the complete output can be checked against the response schema and business rules. A valid-looking early delta is not enough.
+
+Step 7: validated output becomes ready for review.
+
+After validation, the UI can mark the draft as ready for agent review. It is still not automatically sent to the customer.
+
+### Concept model
+
+Streaming returns events over time. A stream can begin, emit deltas, request a tool, fail, or finish. Multimodal requests include text plus image, audio, or document parts. Both features increase product complexity because intermediate events may not be valid final output.
+
+### Product consequence
+
+Streaming is useful for user experience, but Northstar must not show unreviewed claims as final decisions. Multimodal input is useful for screenshots or documents, but provider capability, data policy, file handling, and content safety must be checked before enabling it.
+
+### Worked example
+
+Safe streaming UI pattern:
+
+```text
+show "drafting..."
+show partial text as provisional
+on DONE -> validate full response
+only then mark "ready for agent review"
+```
+
+Unsafe pattern:
+
+```text
+stream partial model text directly into approved customer reply
+```
+
+### Build
+
+The fake adapter already implements `stream`. Add a stream collector helper for tests and callers.
+
+```python
+# model_gateway/streaming.py
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+
+from model_gateway.schemas import StreamEvent, StreamEventType
+
+
+async def collect_text(stream: AsyncIterator[StreamEvent]) -> str:
+    chunks: list[str] = []
+    async for event in stream:
+        if event.event == StreamEventType.ERROR:
+            raise RuntimeError(event.error_type or "stream failed")
+        if event.event == StreamEventType.DELTA:
+            chunks.append(event.text_delta)
+    return "".join(chunks)
+```
+
+### Tests
+
+```python
+# tests/test_streaming.py
+from __future__ import annotations
+
+import pytest
+
+from model_gateway.providers.fake import FakeProviderAdapter
+from model_gateway.schemas import GatewayRequest, Message, MessagePart, StreamEventType
+from model_gateway.streaming import collect_text
+
+
+@pytest.mark.asyncio
+async def test_fake_stream_emits_start_delta_done() -> None:
+    request = GatewayRequest(
+        request_id="r1",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[Message(role="user", content="Draft a reply.")],
+    )
+    provider = FakeProviderAdapter()
+    events = [event async for event in provider.stream(request)]
+    assert events[0].event == StreamEventType.START
+    assert events[-1].event == StreamEventType.DONE
+    assert any(event.event == StreamEventType.DELTA for event in events)
+
+
+@pytest.mark.asyncio
+async def test_collect_text_collects_stream_delta() -> None:
+    request = GatewayRequest(
+        request_id="r1",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[Message(role="user", content="Draft a reply.")],
+    )
+    provider = FakeProviderAdapter()
+    text = await collect_text(provider.stream(request))
+    assert "missing_information" in text
+
+
+def test_multimodal_request_uses_typed_parts() -> None:
+    request = GatewayRequest(
+        request_id="r2",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[
+            Message(
+                role="user",
+                content=[
+                    MessagePart(type="text", text="Read this screenshot if provider supports images."),
+                    MessagePart(type="image", media_url="https://example.test/screenshot.png", mime_type="image/png"),
+                ],
+            )
+        ],
+    )
+    assert isinstance(request.messages[0].content, list)
+```
+
+### Experiment
+
+Input: streaming support-draft request.
+
+Settings: fake stream adapter.
+
+Metric: event sequence and final collected text.
+
+Expected evidence: stream emits `START`, `DELTA`, and `DONE`.
+
+Failure signal: partial deltas are treated as validated final JSON.
+
+### Verify
+
+```bash
+pytest tests/test_streaming.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- define stream event types;
+- collect provisional stream text safely;
+- represent text, image, audio, and document input parts;
+- treat provider support for each modality as adapter capability, not as a universal guarantee.
+
+### Failure drill
+
+Failure: stream disconnects mid-response.
+
+Evidence: no `DONE` event and no validated final response.
+
+Fix: mark the attempt failed or partial; do not send downstream business output.
+
+Prevention: terminal stream events, timeout policy, and retry only when safe.
+
+### Common misconception
+
+Misconception: "Streaming is just faster non-streaming."
+
+Why it seems plausible: both produce text.
+
+Correct model: streaming exposes intermediate state. Intermediate text is not necessarily valid JSON, safe, complete, or policy-compliant.
+
+### Guided practice and independent transfer
+
+- Guided: Add a UI state table for `START`, `DELTA`, `ERROR`, and `DONE`.
+- Independent transfer: Decide whether an audio-input request should be allowed for a tenant with strict data residency constraints.
+
+### Recall
+
+- Why are stream deltas provisional?
+- What must happen before streamed output reaches business logic?
+- Why is multimodal support provider-specific?
+- What metadata should be recorded for document or image input?
+
+## Hybrid module 6: Errors, timeouts, retries, and circuit breakers
+
+### Core question
+
+Which failures should be retried, which should fail fast, and when should a provider be temporarily removed from routing?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Timeout | A timeout limits how long the gateway waits. It prevents one provider call from exhausting request workers. | Stop waiting after 20 seconds. |
+| Retry | A retry repeats a request after an allowed failure. It can improve reliability but can also multiply cost and side effects. | Retry once after a network timeout. |
+| Exponential backoff | Exponential backoff waits longer between retry attempts. It avoids hammering an unhealthy provider. | Wait 0.5s, then 1s, then 2s. |
+| Error classification | Error classification turns provider failures into policy decisions. | 429 may retry; authentication failure should fail fast. |
+| Circuit breaker | A circuit breaker stops sending traffic to an unhealthy provider temporarily. | After repeated timeouts, route away for 60 seconds. |
+| Half-open probe | A half-open probe tests whether a provider has recovered. | Send one cautious request before fully reopening traffic. |
+| Idempotency | Idempotency means repeating a logical request should not duplicate side effects. | A retried draft request keeps the same idempotency key. |
+
+### Connected dry run
+
+Follow one provider outage from first timeout to circuit-breaker recovery.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The gateway sends a provider request with a timeout. | Timeout |
+| 2 | The provider does not respond in time. | Provider timeout |
+| 3 | The gateway classifies the failure. | Error classification |
+| 4 | The gateway decides whether retry is safe. | Retry, idempotency |
+| 5 | The retry waits before trying again. | Exponential backoff |
+| 6 | Repeated failures open the circuit. | Circuit breaker |
+| 7 | A later probe tests recovery. | Half-open probe |
+| 8 | Routing either reopens the provider or keeps it isolated. | Recovery policy |
+
+Step 1: the gateway sends a bounded request.
+
+The request includes a timeout. Without a timeout, one provider call can hang long enough to tie up workers and degrade the whole application.
+
+Step 2: the provider times out.
+
+The gateway receives no usable response within the configured limit. This is usually different from a provider saying "your API key is invalid" or "content was blocked."
+
+Step 3: the gateway classifies the error.
+
+The timeout is classified as temporary and potentially retryable. An authentication failure would be non-retryable because repeating the same bad credential does not help.
+
+Step 4: the gateway checks retry safety.
+
+If the request is idempotent and no side effect occurred, retry may be allowed. If the model already triggered a non-idempotent tool action, retry may be unsafe.
+
+Step 5: exponential backoff spaces retry attempts.
+
+The gateway waits briefly before retrying. This protects the provider and the gateway from retry storms.
+
+Step 6: repeated failures open the circuit.
+
+If several calls fail, the circuit breaker temporarily blocks that provider. New requests route elsewhere or fail fast instead of repeatedly hitting a known-bad dependency.
+
+Step 7: a half-open probe tests recovery.
+
+After a cooldown, the gateway sends a limited probe. A success can close the circuit; another failure keeps it open.
+
+Step 8: routing follows recovery policy.
+
+The final routing decision is observable through logs, metrics, and traces. Operators can see whether failures are transient, provider-specific, or caused by the gateway.
+
+### Concept model
+
+Retries are safe only when repeating the request cannot create duplicate side effects and the failure is likely temporary. Timeouts prevent resource exhaustion. Exponential backoff spreads retry load. A circuit breaker stops sending traffic to a provider after repeated failures and later probes it cautiously.
+
+### Product consequence
+
+Retrying every failure can multiply cost, overload providers, duplicate tool actions, and hide incidents. Not retrying safe transient failures creates avoidable user-facing errors. The gateway must classify failures and apply bounded policy.
+
+### Worked example
+
+Safe to retry:
+
+- timeout before response;
+- HTTP 429;
+- HTTP 500/503;
+- connection reset before provider accepted work.
+
+Usually not safe to retry automatically:
+
+- authentication failure;
+- malformed request;
+- content policy rejection;
+- non-idempotent tool execution;
+- request without an idempotency key when side effects are possible.
+
+### Build
+
+```python
+# model_gateway/reliability.py
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass
+from enum import Enum
+from time import monotonic
+from typing import Awaitable, Callable, TypeVar
+
+from model_gateway.errors import CircuitOpenError, ProviderError
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class RetryPolicy:
+    max_attempts: int = 3
+    base_delay_seconds: float = 0.05
+    max_delay_seconds: float = 1.0
+
+    def delay_for_attempt(self, attempt: int) -> float:
+        return min(self.max_delay_seconds, self.base_delay_seconds * (2 ** max(0, attempt - 1)))
+
+
+class CircuitState(str, Enum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+
+class InMemoryCircuitBreaker:
+    def __init__(self, *, failure_threshold: int = 3, reset_after_seconds: float = 30.0) -> None:
+        self.failure_threshold = failure_threshold
+        self.reset_after_seconds = reset_after_seconds
+        self.failures: dict[str, int] = {}
+        self.opened_at: dict[str, float] = {}
+
+    def state(self, provider: str) -> CircuitState:
+        opened = self.opened_at.get(provider)
+        if opened is None:
+            return CircuitState.CLOSED
+        if monotonic() - opened >= self.reset_after_seconds:
+            return CircuitState.HALF_OPEN
+        return CircuitState.OPEN
+
+    def before_call(self, provider: str) -> None:
+        if self.state(provider) == CircuitState.OPEN:
+            raise CircuitOpenError(f"circuit open for {provider}")
+
+    def record_success(self, provider: str) -> None:
+        self.failures.pop(provider, None)
+        self.opened_at.pop(provider, None)
+
+    def record_failure(self, provider: str) -> None:
+        count = self.failures.get(provider, 0) + 1
+        self.failures[provider] = count
+        if count >= self.failure_threshold:
+            self.opened_at[provider] = monotonic()
+
+
+async def call_with_retries(
+    operation: Callable[[], Awaitable[T]],
+    *,
+    retry_policy: RetryPolicy,
+    retry_safe: bool,
+) -> T:
+    last_error: ProviderError | None = None
+    for attempt in range(1, retry_policy.max_attempts + 1):
+        try:
+            return await operation()
+        except ProviderError as exc:
+            last_error = exc
+            if not retry_safe or not exc.retryable or attempt >= retry_policy.max_attempts:
+                raise
+            await asyncio.sleep(retry_policy.delay_for_attempt(attempt))
+    assert last_error is not None
+    raise last_error
+```
+
+### Tests
+
+```python
+# tests/test_reliability.py
+from __future__ import annotations
+
+import pytest
+
+from model_gateway.errors import CircuitOpenError, ProviderError, ProviderErrorKind
+from model_gateway.reliability import InMemoryCircuitBreaker, RetryPolicy, call_with_retries
+
+
+@pytest.mark.asyncio
+async def test_retry_policy_retries_retryable_error() -> None:
+    attempts = 0
+
+    async def flaky() -> str:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 2:
+            raise ProviderError(
+                "rate limited",
+                kind=ProviderErrorKind.RATE_LIMIT,
+                provider="test",
+                retryable=True,
+            )
+        return "ok"
+
+    result = await call_with_retries(flaky, retry_policy=RetryPolicy(max_attempts=3, base_delay_seconds=0), retry_safe=True)
+    assert result == "ok"
+    assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_retry_policy_does_not_retry_unsafe_request() -> None:
+    attempts = 0
+
+    async def always_fails() -> str:
+        nonlocal attempts
+        attempts += 1
+        raise ProviderError(
+            "timeout",
+            kind=ProviderErrorKind.TIMEOUT,
+            provider="test",
+            retryable=True,
+        )
+
+    with pytest.raises(ProviderError):
+        await call_with_retries(always_fails, retry_policy=RetryPolicy(max_attempts=3), retry_safe=False)
+    assert attempts == 1
+
+
+def test_circuit_opens_after_threshold() -> None:
+    breaker = InMemoryCircuitBreaker(failure_threshold=2)
+    breaker.record_failure("provider-a")
+    breaker.record_failure("provider-a")
+    with pytest.raises(CircuitOpenError):
+        breaker.before_call("provider-a")
+```
+
+### Experiment
+
+Input: retryable timeout error.
+
+Settings: `max_attempts=3`, retry-safe request.
+
+Metric: attempts count and final result.
+
+Expected evidence: transient error is retried, unsafe request is not.
+
+Failure signal: authentication errors or invalid requests are retried repeatedly.
+
+### Verify
+
+```bash
+pytest tests/test_reliability.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- classify retryable and non-retryable provider errors;
+- use bounded exponential backoff;
+- avoid retrying unsafe requests;
+- open a circuit after repeated provider failures.
+
+### Failure drill
+
+Failure: duplicate write after retry.
+
+Evidence: the same tool action appears twice with different provider request IDs.
+
+Fix: require idempotency keys for side-effecting requests and do not auto-retry write tools.
+
+Prevention: separate read-only draft generation from write actions; keep customer-impacting writes outside model discretion.
+
+### Common misconception
+
+Misconception: "Retries make systems reliable."
+
+Why it seems plausible: retries often fix transient network failures.
+
+Correct model: retries improve reliability only when bounded, classified, idempotent, observable, and combined with timeouts and circuit breakers.
+
+### Guided practice and independent transfer
+
+- Guided: Add `CONTENT_FILTER` as non-retryable and explain why.
+- Independent transfer: Design a retry policy for a streaming request that disconnects after partial output.
+
+### Recall
+
+- When should a request not be retried?
+- What does a circuit breaker prevent?
+- Why do timeouts matter even when providers are reliable?
+- How does idempotency change retry safety?
+
+## Implementation module 7: Usage, cost attribution, tracing, and Redis
+
+### Purpose
+
+The gateway must know who used which provider/model for which feature and what it cost. This is required for customer billing, product economics, abuse detection, capacity planning, and incident response.
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Usage record | A usage record captures who used which model, for what feature, and with how many tokens. | Tenant `northstar-demo` used `provider-a/model-x` for one support draft. |
+| Cost attribution | Cost attribution assigns estimated spend to tenant, user, feature, provider, and model. | Support drafts cost more this week because fallback used a pricier model. |
+| Price table | A price table stores dated token pricing or internal cost assumptions. It must be versioned because prices change. | `input_per_1m_tokens_usd` is configured with a verified date. |
+| Trace | A trace follows one request across gateway components. | One trace links API request, provider call, validation, and usage write. |
+| Span | A span is one timed operation inside a trace. | `provider.generate` is a span inside the gateway request trace. |
+| Redis ledger | A Redis-backed ledger provides shared usage state across gateway replicas. | Two API containers write usage to the same Redis instance. |
+
+### Connected dry run
+
+Trace one successful support draft from response to cost and observability records.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The gateway receives a completed validated response. | Gateway response |
+| 2 | Token counts and model metadata are extracted. | Usage record |
+| 3 | The price table estimates cost. | Price table, cost attribution |
+| 4 | The usage ledger stores the event. | In-memory ledger or Redis ledger |
+| 5 | A trace links API, provider, validation, and usage write. | Trace, span |
+| 6 | Operators query usage by tenant, feature, provider, or model. | Cost attribution, auditability |
+
+Step 1: a validated response is ready.
+
+The gateway has a final `GatewayResponse` with provider, model, token usage, latency, and validation status.
+
+Step 2: usage metadata is extracted.
+
+The gateway records:
+
+```text
+tenant_id
+user_id
+feature
+provider
+model
+input_tokens
+output_tokens
+```
+
+This turns a model call into an accountable product event.
+
+Step 3: the price table estimates cost.
+
+The gateway uses configured pricing or internal cost assumptions. The lesson does not hard-code real provider prices because they change. The price table must carry a verification date or source.
+
+Step 4: the ledger stores the event.
+
+Local tests use an in-memory ledger. A production-like multi-replica deployment needs shared state such as Redis so all gateway replicas write to the same place.
+
+Step 5: tracing links the operation.
+
+The trace connects the incoming API request, selected provider, validation, and usage write. This lets engineers answer, "Where did time go?" and "Which step failed?"
+
+Step 6: operators query usage.
+
+Product and operations teams can review usage by tenant, feature, provider, and model. This supports billing, abuse detection, incident response, and model migration decisions.
+
+### Design decision
+
+Use an in-memory ledger for local tests and a Redis-backed ledger for shared production-like state. Do not hard-code pricing. The gateway records tokens and a configurable cost estimate; real prices must come from dated provider configuration.
+
+### Build
+
+```python
+# model_gateway/usage.py
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from datetime import UTC, datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from model_gateway.schemas import GatewayRequest, GatewayResponse
+
+
+class TokenPrice(BaseModel):
+    input_per_1m_tokens_usd: float = Field(ge=0)
+    output_per_1m_tokens_usd: float = Field(ge=0)
+    verified_on: str = "example-not-provider-pricing"
+
+
+class PriceTable:
+    def __init__(self, prices: dict[tuple[str, str], TokenPrice] | None = None) -> None:
+        self.prices = prices or {}
+
+    def estimate(self, *, provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
+        price = self.prices.get((provider, model))
+        if price is None:
+            return 0.0
+        input_cost = (input_tokens / 1_000_000) * price.input_per_1m_tokens_usd
+        output_cost = (output_tokens / 1_000_000) * price.output_per_1m_tokens_usd
+        return round(input_cost + output_cost, 8)
+
+
+class UsageRecord(BaseModel):
+    request_id: str
+    tenant_id: str
+    user_id: str
+    feature: str
+    provider: str
+    model: str
+    input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    total_tokens: int = Field(ge=0)
+    estimated_cost_usd: float = Field(ge=0)
+    fallback_used: bool
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class UsageLedger(ABC):
+    @abstractmethod
+    async def record(self, request: GatewayRequest, response: GatewayResponse) -> None:
+        raise NotImplementedError
+
+
+class InMemoryUsageLedger(UsageLedger):
+    def __init__(self, price_table: PriceTable | None = None) -> None:
+        self.records: list[UsageRecord] = []
+        self.price_table = price_table or PriceTable()
+
+    async def record(self, request: GatewayRequest, response: GatewayResponse) -> None:
+        estimated_cost = response.usage.estimated_cost_usd or self.price_table.estimate(
+            provider=response.provider,
+            model=response.model,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+        self.records.append(
+            UsageRecord(
+                request_id=request.request_id,
+                tenant_id=request.tenant_id,
+                user_id=request.user_id,
+                feature=request.feature,
+                provider=response.provider,
+                model=response.model,
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+                total_tokens=response.usage.total_tokens,
+                estimated_cost_usd=estimated_cost,
+                fallback_used=response.fallback_used,
+            )
+        )
+
+
+class RedisUsageLedger(UsageLedger):
+    def __init__(
+        self,
+        redis_client: Any,
+        *,
+        stream_name: str = "model_gateway_usage",
+        price_table: PriceTable | None = None,
+    ) -> None:
+        self.redis = redis_client
+        self.stream_name = stream_name
+        self.price_table = price_table or PriceTable()
+
+    async def record(self, request: GatewayRequest, response: GatewayResponse) -> None:
+        estimated_cost = response.usage.estimated_cost_usd or self.price_table.estimate(
+            provider=response.provider,
+            model=response.model,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+        record = UsageRecord(
+            request_id=request.request_id,
+            tenant_id=request.tenant_id,
+            user_id=request.user_id,
+            feature=request.feature,
+            provider=response.provider,
+            model=response.model,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            total_tokens=response.usage.total_tokens,
+            estimated_cost_usd=estimated_cost,
+            fallback_used=response.fallback_used,
+        )
+        await self.redis.xadd(
+            self.stream_name,
+            {key: str(value) for key, value in record.model_dump(mode="json").items()},
+        )
+```
+
+```python
+# model_gateway/tracing.py
+from __future__ import annotations
+
+from contextlib import contextmanager
+from collections.abc import Iterator
+
+from opentelemetry import trace
+
+
+@contextmanager
+def gateway_span(name: str, **attributes: object) -> Iterator[None]:
+    tracer = trace.get_tracer("model_gateway")
+    with tracer.start_as_current_span(name) as span:
+        for key, value in attributes.items():
+            if value is not None:
+                span.set_attribute(key, str(value))
+        yield
+```
+
+### Unit tests
+
+```python
+# tests/test_usage.py
+from __future__ import annotations
+
+import pytest
+
+from model_gateway.schemas import DraftResponse, GatewayRequest, GatewayResponse, Message, ProviderUsage
+from model_gateway.usage import InMemoryUsageLedger, PriceTable, TokenPrice
+
+
+@pytest.mark.asyncio
+async def test_usage_is_attributed_by_tenant_user_feature() -> None:
+    request = GatewayRequest(
+        request_id="r1",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[Message(role="user", content="Draft.")],
+    )
+    response = GatewayResponse(
+        request_id="r1",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        provider="fake",
+        model="fake-model",
+        validated=DraftResponse(category="refund", urgency="medium", draft="Verify first."),
+        usage=ProviderUsage(input_tokens=5, output_tokens=7, total_tokens=12),
+    )
+    ledger = InMemoryUsageLedger()
+    await ledger.record(request, response)
+
+    assert ledger.records[0].tenant_id == "tenant-a"
+    assert ledger.records[0].user_id == "user-a"
+    assert ledger.records[0].total_tokens == 12
+
+
+@pytest.mark.asyncio
+async def test_usage_estimates_cost_from_configurable_price_table() -> None:
+    request = GatewayRequest(
+        request_id="r-cost",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        messages=[Message(role="user", content="Draft.")],
+    )
+    response = GatewayResponse(
+        request_id="r-cost",
+        tenant_id="tenant-a",
+        user_id="user-a",
+        feature="support_draft",
+        provider="fake",
+        model="fake-model",
+        validated=DraftResponse(category="refund", urgency="medium", draft="Verify first."),
+        usage=ProviderUsage(input_tokens=500_000, output_tokens=250_000, total_tokens=750_000),
+    )
+    ledger = InMemoryUsageLedger(
+        price_table=PriceTable(
+            {
+                ("fake", "fake-model"): TokenPrice(
+                    input_per_1m_tokens_usd=1.0,
+                    output_per_1m_tokens_usd=2.0,
+                    verified_on="example-for-lesson-only",
+                )
+            }
+        )
+    )
+
+    await ledger.record(request, response)
+
+    assert ledger.records[0].estimated_cost_usd == 1.0
+```
+
+### Verify in runtime
+
+```bash
+pytest tests/test_usage.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- record usage by tenant, user, feature, provider, and model;
+- estimate cost from a configurable dated price table when a provider supplies token counts;
+- support Redis-backed usage records for production-like shared state;
+- avoid hard-coded provider pricing;
+- expose a trace span helper.
+
+### Failure drill
+
+Failure: cost spike cannot be attributed.
+
+Evidence: provider invoice rose, but usage records only contain aggregate provider totals.
+
+Fix: record tenant, user, feature, provider, model, token counts, and fallback usage.
+
+Prevention: make usage recording part of the gateway success path.
+
+### Production note
+
+Redis is not magic storage. Define retention, stream trimming, backup expectations, access controls, and PII policy. Usage records should carry metadata and counts, not raw ticket text.
+
+### Guided practice and independent transfer
+
+- Guided: Add `trace_id` to usage records.
+- Independent transfer: Design a per-tenant spending limit check that happens before provider execution.
+
+### Recall
+
+- Why is cost attribution a product requirement?
+- Why should pricing be configurable and dated?
+- What data should not be stored in usage records?
+- Why is Redis useful when multiple gateway replicas run?
+
+## Implementation module 8: FastAPI gateway, deployment path, and operations
+
+### Purpose
+
+Expose the gateway through a local HTTP API so application teams call one contract instead of provider-specific SDKs.
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| HTTP gateway | An HTTP gateway gives applications one stable network contract for model calls. | `POST /draft` calls the gateway instead of a provider SDK. |
+| FastAPI endpoint | A FastAPI endpoint validates requests and returns typed responses in the lesson app. | `/draft` accepts `GatewayRequest` and returns `GatewayResponse`. |
+| Health check | A health check proves the service is running and can be monitored by deployment platforms. | `GET /healthz` returns `ok`. |
+| Container image | A container image packages code and dependencies consistently. | Docker builds the gateway for local or cloud deployment. |
+| Configuration injection | Configuration injection supplies secrets and environment-specific settings at runtime. | API keys come from env vars or a secret manager. |
+| Rollout | A rollout moves a new gateway version into traffic gradually. | Send 10% of traffic to the new version first. |
+| Rollback | A rollback returns traffic to a previous known-good version. | Revert if structured output errors spike. |
+
+### Connected dry run
+
+Follow one request through the deployed gateway path.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | A client sends a request to the HTTP API. | HTTP gateway, FastAPI endpoint |
+| 2 | The API validates the request body. | Pydantic validation, API contract |
+| 3 | The service calls the gateway core. | Gateway service |
+| 4 | The gateway selects provider, validates output, and records usage. | Routing, validation, usage ledger |
+| 5 | The API returns a stable response or controlled error. | `GatewayResponse`, error mapping |
+| 6 | Deployment checks service health. | Health check |
+| 7 | The container runs with injected configuration. | Container image, configuration injection |
+| 8 | Operators roll forward or roll back based on metrics. | Rollout, rollback, observability |
+
+Step 1: a client calls the HTTP gateway.
+
+The client sends `POST /draft` with a `GatewayRequest`. It does not call Provider A or Provider B directly.
+
+Step 2: FastAPI validates the request body.
+
+Invalid request shapes fail at the API boundary before any provider call. This reduces provider spend and prevents ambiguous downstream errors.
+
+Step 3: the API calls the gateway core.
+
+The endpoint delegates to the same gateway service tested in earlier modules. The API layer is transport glue, not a separate business implementation.
+
+Step 4: the gateway runs the provider workflow.
+
+The core service routes to a provider, handles fallback if allowed, validates structured output, and records usage.
+
+Step 5: the API maps output or errors.
+
+Successful calls return the stable response contract. Provider and gateway errors become controlled HTTP errors instead of raw stack traces.
+
+Step 6: deployment checks health.
+
+A platform such as Cloud Run, ECS, Kubernetes, or a local smoke test can call `/healthz` to decide whether the service starts.
+
+Step 7: the container receives runtime configuration.
+
+Secrets and provider settings are injected at runtime. They are not baked into code or committed to the repository.
+
+Step 8: operators roll forward or roll back.
+
+If latency, error rate, or structured-output failures spike after rollout, operators can revert to the previous known-good image.
+
+### Design decision
+
+Use FastAPI for the lesson API, fake providers for local execution, and Docker for packaging. Real provider credentials should be injected by deployment environment or secret manager, not committed.
+
+### Build
+
+```python
+# model_gateway/api.py
+from __future__ import annotations
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+
+from model_gateway.errors import GatewayError, ProviderError
+from model_gateway.gateway import GatewayService
+from model_gateway.providers.fake import FakeProviderAdapter
+from model_gateway.schemas import GatewayRequest, GatewayResponse
+from model_gateway.usage import InMemoryUsageLedger
+
+
+def build_gateway() -> GatewayService:
+    return GatewayService(
+        providers=[
+            FakeProviderAdapter("fake-primary"),
+            FakeProviderAdapter("fake-fallback"),
+        ],
+        usage_ledger=InMemoryUsageLedger(),
+        fallback_order=["fake-primary", "fake-fallback"],
+    )
+
+
+app = FastAPI(title="Northstar Model API Gateway", version="0.1.0")
+gateway = build_gateway()
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/v1/draft", response_model=GatewayResponse)
+async def create_draft(request: GatewayRequest) -> GatewayResponse:
+    try:
+        return await gateway.complete(request)
+    except ProviderError as exc:
+        raise HTTPException(
+            status_code=503 if exc.retryable else 400,
+            detail={"kind": exc.kind.value, "provider": exc.provider, "retryable": exc.retryable},
+        ) from exc
+    except GatewayError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/v1/draft/stream")
+async def stream_draft(request: GatewayRequest) -> StreamingResponse:
+    async def event_source():
+        async for event in gateway.stream(request):
+            yield f"data: {event.model_dump_json()}\n\n"
+
+    return StreamingResponse(event_source(), media_type="text/event-stream")
+```
+
+```dockerfile
+# Dockerfile
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY pyproject.toml ./
+COPY model_gateway ./model_gateway
+
+RUN pip install --no-cache-dir .
+
+EXPOSE 8080
+
+CMD ["uvicorn", "model_gateway.api:app", "--host", "0.0.0.0", "--port", "8080"]
+```
+
+### Unit tests
+
+```python
+# tests/test_api.py
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+
+from model_gateway.api import app
+
+
+def test_health_endpoint() -> None:
+    client = TestClient(app)
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_draft_endpoint_returns_validated_response() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/draft",
+        json={
+            "request_id": "r1",
+            "tenant_id": "tenant-a",
+            "user_id": "user-a",
+            "feature": "support_draft",
+            "messages": [{"role": "user", "content": "Customer asks for refund without evidence."}],
+            "idempotency_key": "tenant-a:r1",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["validated"]["needs_human_review"] is True
+    assert body["tenant_id"] == "tenant-a"
+
+
+def test_stream_endpoint_returns_server_sent_events() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/draft/stream",
+        json={
+            "request_id": "r-stream",
+            "tenant_id": "tenant-a",
+            "user_id": "user-a",
+            "feature": "support_draft",
+            "messages": [{"role": "user", "content": "Draft cautiously."}],
+        },
+    )
+    assert response.status_code == 200
+    assert "data:" in response.text
+    assert '"event":"start"' in response.text
+```
+
+### Verify in runtime
+
+```bash
+pytest
+uvicorn model_gateway.api:app --reload
+```
+
+Manual request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/v1/draft \
+  -H "Content-Type: application/json" \
+  -d "{\"request_id\":\"r1\",\"tenant_id\":\"tenant-a\",\"user_id\":\"user-a\",\"feature\":\"support_draft\",\"messages\":[{\"role\":\"user\",\"content\":\"Customer asks for refund without evidence.\"}],\"idempotency_key\":\"tenant-a:r1\"}"
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- expose `/health`;
+- expose `/v1/draft`;
+- expose `/v1/draft/stream`;
+- return only validated `GatewayResponse`;
+- stream provisional server-sent events without treating them as final validated output;
+- package as a Docker image;
+- keep secrets out of source code.
+
+### Failure drill
+
+Failure: endpoint returns raw provider JSON.
+
+Evidence: API response contains unvalidated provider-specific fields and no `validated` object.
+
+Fix: return `GatewayResponse` only after validation.
+
+Prevention: response model and API tests.
+
+### Production note
+
+Deploy behind authentication, rate limits, request-size limits, and tenant policy enforcement. FastAPI is the application framework, not the entire production perimeter.
+
+### Guided practice and independent transfer
+
+- Guided: Add a heartbeat or cancellation event to `/v1/draft/stream` and describe how the UI should handle it.
+- Independent transfer: Design the gateway route for a classification feature with a different response schema.
+
+### Recall
+
+- Why should `/health` not call every provider?
+- Why should secrets not appear in `.env.example` values?
+- What should the API return when validation fails?
+- What must be added before real customer traffic?
+
+## Reference glossary
+
+| Term | Definition |
+|---|---|
+| Adapter | Code that maps gateway contracts to one provider API or SDK. |
+| Circuit breaker | Reliability control that temporarily stops traffic to a failing dependency. |
+| Conversation state | Prior context needed for a request; explicitly passed or owned by application state. |
+| Fallback | Switching to another approved provider/model after an allowed failure. |
+| Function/tool calling | Model-produced structured request for application-owned tool execution. |
+| Gateway | Internal service boundary for routing, validation, reliability, usage, and observability around model providers. |
+| Idempotency key | Stable identifier used to make retries safe or detect duplicate operations. |
+| Provider error classification | Mapping provider failures to retryable/non-retryable categories. |
+| Request tracing | Correlating gateway, provider, logs, usage, and errors through trace/span/request IDs. |
+| Schema-constrained output | A requested structured output shape; still must be validated. |
+| Streaming | Incremental event delivery before the final response is complete. |
+| Usage attribution | Assigning token/cost usage to tenant, user, feature, provider, and model. |
+
+## Full test suite
+
+Command:
+
+```bash
+pytest
+```
+
+Expected result:
+
+```text
+all tests pass
+```
+
+Test map:
+
+| Test file | What it proves |
+|---|---|
+| `test_schemas.py` | Gateway request and multimodal contracts reject invalid data. |
+| `test_provider_adapter.py` | Provider adapters normalize responses and are mockable. |
+| `test_gateway.py` | Fallback is observable and invalid output is rejected. |
+| `test_validation.py` | Structured JSON must pass schema and business gates. |
+| `test_tools.py` | Tool calls are allowlisted and argument-validated. |
+| `test_streaming.py` | Stream events are explicit and partial output is handled separately. |
+| `test_reliability.py` | Retries are bounded and circuits open after failures. |
+| `test_usage.py` | Usage is attributed by tenant, user, feature, provider, and model. |
+| `test_api.py` | FastAPI endpoints expose the gateway contract. |
+
+What this suite proves:
+
+- provider-specific code is isolated;
+- malformed structured output cannot reach successful gateway response;
+- retry/fallback behavior is testable;
+- usage records are attributed.
+
+What this suite does not prove:
+
+- real provider quality;
+- real provider uptime;
+- actual provider pricing;
+- production load capacity;
+- provider-specific SDK compatibility for every model.
+
+## Experiment playbook
+
+| Experiment | Input | Settings | Metric | Expected evidence | Failure signal |
+|---|---|---|---|---|---|
+| Adapter contract | Same request across fake and mocked HTTPX providers | fixed request, fixed model route | normalized fields | same `ProviderResponse` fields | business code parses raw provider JSON |
+| Structured output rejection | malformed JSON and unsafe valid JSON | same provider | rejection count | invalid output raises error | invalid output reaches API success |
+| Streaming lifecycle | `/v1/draft/stream` and fake stream | collect server-sent events | event sequence | `START`, `DELTA`, `DONE` | no terminal event |
+| Tool execution gate | `lookup_order_status` and rejected `issue_refund` | allowlist read-only tool only | validation and execution result | read-only tool executes; write tool rejected | model-named write tool executes |
+| Multimodal serialization | text plus image part | adapter with `supports_multimodal=True` | outbound payload shape | typed parts serialize as JSON objects | Pydantic objects leak into HTTP payload |
+| Retry policy | transient timeout | max attempts 3 | attempts and result | retry succeeds or bounded failure | unbounded retries |
+| Unsafe retry | retryable provider error but `retry_safe=false` | max attempts 3 | attempts | one attempt only | duplicate attempts |
+| Fallback | primary rate limited | fallback enabled | fallback flag | fallback used and recorded | fallback hidden |
+| Cost tracking | multiple tenants/users | same provider and example dated price table | ledger grouping and cost estimate | usage separated by tenant/user with estimated cost | only aggregate provider totals |
+| Provider deprecation drill | route points to disabled model | config update | failure handling | controlled error and rollback | silent production break |
+| Data residency check | tenant requires region | provider route metadata | policy result | only approved region selected | fallback violates region policy |
+
+## Evaluation and acceptance
+
+Use held-out request cases that do not change during a comparison:
+
+- normal support draft;
+- missing evidence;
+- adversarial user instruction;
+- malformed provider output;
+- retryable provider failure;
+- non-retryable provider failure;
+- streaming cancellation;
+- tenant requiring specific region/provider policy;
+- cost attribution by tenant/user.
+
+Acceptance thresholds:
+
+| Requirement | Acceptance gate |
+|---|---|
+| Provider isolation | Product code imports gateway contracts, not provider SDKs. |
+| Structured output | Invalid or unsafe output cannot reach business logic. |
+| Schema-constrained request | Adapter payload includes a response schema request and final output is validated locally. |
+| Streaming endpoint | `/v1/draft/stream` emits server-sent events with terminal state. |
+| Tool execution | Only registered read-only tools execute; unknown/write tools are rejected. |
+| Retry safety | Non-idempotent or unsafe requests are not retried automatically. |
+| Fallback | Fallback is visible in response, usage, logs, and traces. |
+| Usage attribution | Every successful request records tenant, user, feature, provider, model, token counts. |
+| Cost tracking | Cost estimate is derived from configurable dated price data or explicitly left as zero/not measured. |
+| Secret handling | No API keys in code, tests, Dockerfile, logs, or examples. |
+| Data residency | Provider route can be constrained by tenant policy before real deployment. |
+| Model deprecation | Provider/model ID is config-driven and rollback is documented. |
+
+Never fabricate provider uptime, price, or latency. Measure with your own runs or leave fields blank.
+
+## System-decision memo
+
+Use this memo before promoting the gateway from local prototype to pilot service.
+
+```text
+Decision:
+Candidate design:
+Evidence:
+Measured strengths:
+Measured failures:
+Blocked risks:
+Cost/latency notes:
+Privacy/security notes:
+Provider or serving location:
+Regional availability:
+Provider data policy:
+Operational notes:
+Decision:
+Next experiment:
+```
+
+Example:
+
+```text
+Decision: Do not promote until real provider adapter contract tests pass.
+Candidate design: Gateway with fake primary, mocked HTTPX adapter, Redis-ready usage ledger.
+Evidence: Local tests pass; fallback and invalid-output rejection verified.
+Measured strengths: Provider-specific code isolated; usage attribution exists.
+Measured failures: No real provider latency measurement yet.
+Blocked risks: Provider region/data policy not approved for real customer data.
+Cost/latency notes: Token counts recorded; no dated provider price config loaded.
+Privacy/security notes: No customer data used; secrets externalized.
+Decision: Continue to provider sandbox testing.
+Next experiment: Run fixed Lesson 08 cases through one real provider with synthetic data only.
+```
 
 ## Failure modes and debugging
 
 | Symptom | Likely causes | Diagnostic evidence | Corrective action | Prevention |
 |---|---|---|---|---|
-| Three configured attempts create nine calls | SDK and gateway both retry | Attempt trace versus provider request IDs | Disable one retry layer | Retry ownership test |
-| Invalid record reaches database | Raw text path bypassed schema gate | Trace lacks validation span | Require typed gateway method | Type and integration gates |
-| Fallback changes answer shape | Semantic mismatch or schema mapping defect | Adapter contract diff | Fix adapter or prohibit route | Capability and parity tests |
-| High latency during outage | Circuit never opens or wrong errors counted | Circuit keys and error histogram | Correct qualification and threshold | Failure injection |
-| Circuit opens on bad requests | 400 errors counted as health failures | Error-kind metrics | Exclude caller defects | Circuit unit tests |
-| Circuit never recovers | Probe lock or TTL defect | Redis key TTLs | Clear state and fix half-open logic | Recovery test |
-| Stream ends without status | Disconnect or unhandled event | Missing terminal event | Emit failed/cancelled in `finally` | Stream invariant test |
-| Two completed events | Provider completion plus wrapper completion | Sequence trace | Centralize terminal emission | Property test |
-| Usage is zero after fallback | Only final attempt recorded | Multiple provider request IDs | Record every attempt | Ledger completeness check |
-| Cost spikes without traffic growth | More retries, longer outputs, model route change | Attempts and token histograms | Roll back route; reduce budgets | Cost alerts |
-| Provider says request ID unknown | Wrong ID logged or content redacted incorrectly | Attempt record | Capture provider public request ID | Adapter contract test |
-| 429 retry storm | No jitter or ignored retry delay | Synchronized retry timestamps | Add full jitter and delay header | Load fault test |
-| Timeout repeats a write | Tool execution inside retryable provider loop | Tool audit and attempt trace | Separate generation from execution | Write-safety architecture |
-| Tenant data reaches wrong route | Client-controlled route or policy bug | Route decision audit | Derive route server-side | Tenant isolation tests |
-| Tool has valid shape but wrong resource | Authorization omitted | Tool context and target IDs | Enforce resource authz | Security test |
-| Redis unavailable blocks all requests | Fail policy undefined | Redis errors | Choose fail-open or fail-closed by operation | Dependency runbook |
-| Provider model changed silently | Floating alias | Model ID/version trace | Pin or detect change; reevaluate | Change-control gate |
-| Provider structured parser returns none | Refusal, unsupported model, or incomplete output | Raw status and request ID | Normalize refusal/failure | Provider-specific tests |
-| Logs contain ticket text | Broad object serialization | Log sample | Allowlist log fields and redact | Telemetry test |
+| 401 from provider | Missing/rotated API key | provider error kind authentication | refresh secret; verify env injection | secret manager and startup checks |
+| 429 spikes | Rate limit, traffic burst, retry storm | provider error kind rate limit; retry counts | backoff; open circuit; reduce concurrency | rate limits and per-tenant budgets |
+| Invalid JSON reaches app | Missing validation gate | API response lacks validated object | block release; add validation tests | response model and schema gate |
+| Duplicate writes after retry | unsafe retry after partial execution or write tool without idempotency | same idempotency key reused incorrectly or missing key | compensate; disable retry for writes | idempotency and read-only tools |
+| Fallback invisible | response/usage lacks fallback field | usage records aggregate provider only | add fallback metadata | fallback test and trace attributes |
+| Cost cannot be attributed | missing tenant/user/feature metadata | ledger lacks dimensions | update contract; reprocess logs if possible | reject requests missing attribution |
+| Streaming UI shows unsafe partial claim | stream delta treated as final | UI sends partial output | require terminal validation state | separate provisional and final UI states |
+| Circuit never closes | reset policy wrong or no probe path | circuit state remains open | tune reset and half-open behavior | circuit metrics and runbook |
+| Data residency violation | fallback route ignores tenant policy | trace shows provider/region mismatch | disable route; incident review | policy check before routing |
+| Model deprecation outage | hard-coded model ID | provider returns invalid model | config update and rollback | model registry and deprecation watch |
 
 ## Security, privacy, and governance
 
-### Authentication and authorization
-
-- The gateway accepts trusted service identity or verified application context.
-- Browser clients never receive provider keys.
-- Tenant and user IDs are resolved server-side.
-- Route and model tier are policy decisions.
-- Tool execution rechecks resource-level authorization.
-- Model output never grants permission.
-
-### Secret handling
-
-- Store provider keys in a secret manager.
-- Use separate development and production projects.
-- Restrict secret access to the gateway runtime identity.
-- Rotate and revoke keys.
-- Do not place keys in prompts, logs, traces, images, container layers, or exception messages.
-- Prefer approved short-lived workload identity where supported.
-
-### Tenant isolation
-
-- Query and tool filters include trusted tenant ID.
-- Usage rows include tenant ID.
-- Cache and circuit keys do not store customer content.
-- Provider route policy is evaluated by tenant and data class.
-- Fallback cannot widen data permissions.
-
-### Sensitive data
-
-- Classify content before routing.
-- Minimize what is sent.
-- Redact or tokenize identifiers when the task allows.
-- Review provider storage, training-use, region, subprocessors, and deletion terms.
-- Keep content telemetry disabled by default.
-- Apply access-controlled sampling only for approved debugging and evaluation.
-
-### Prompt injection
-
-Documents and tool results are untrusted content. The gateway:
-
-- Does not treat document text as authorization.
-- Does not permit documents to select tools or routes.
-- Restricts tools independently of model instructions.
-- Preserves source labels for Lesson 10 prompt separation.
-
-### Auditability
-
-Audit:
-
-- Identity and tenant
-- Operation and route decision
-- Provider and model
-- Schema and tool versions
-- Attempts, errors, and fallback
-- Tool approvals and outcomes
-- Usage and estimated cost
-- Deployment version
-
-Do not use audit logs as a raw prompt archive.
-
-### Governance decisions
-
-Maintain:
-
-- Approved provider/model registry
-- Data-class route matrix
-- Model and provider change review
-- Price catalog owner
-- Incident owner
-- Retention and deletion schedule
-- Live-test budget
-- Deprecation and exit plan
+| Area | Control |
+|---|---|
+| Authentication | API keys are injected from environment or secret manager; never passed by caller. |
+| Authorization | Tenant/user identity is checked before routing; model output cannot authorize actions. |
+| Tenant isolation | Usage, traces, route policy, and logs include tenant but avoid raw sensitive text. |
+| Secret handling | No secrets in code, Dockerfile, `.env.example`, tests, or traces. |
+| Data residency | Route policy must restrict providers/regions for regulated tenants before real data. |
+| Provider data policy | Review retention and training-on-input terms before sending production data. |
+| Tool permissions | Tool calls are allowlisted, argument-validated, read-only by default, and executed under application identity. |
+| Prompt injection | User/ticket text is untrusted; prompt-specific defenses continue in Lesson 10. |
+| Auditability | Record request ID, provider request ID, tenant, user, feature, model, fallback, and trace ID. |
+| Human approval | Drafts are suggestions for agents; no automatic customer-facing action. |
+| Retention | Usage metadata can be retained; raw customer content needs a separate retention policy. |
 
 ## Performance and cost
 
-### Latency budget
+Measure:
 
-```text
-end-to-end latency =
-queue
-+ gateway validation
-+ circuit and route lookup
-+ provider connection and generation
-+ retry delays
-+ fallback delay
-+ output validation
-+ usage persistence
-```
+- request latency by provider/model;
+- stream time-to-first-token and time-to-final-validation;
+- retry attempts;
+- fallback rate;
+- input, output, and total tokens;
+- estimated cost by tenant/user/feature;
+- Redis latency for usage/circuit state;
+- provider error rate and timeout rate.
 
-Set operation-specific deadlines. Interactive drafts and batch extraction should not share one
-timeout.
+Optimization options:
 
-### Connection management
+| Lever | Benefit | Risk |
+|---|---|---|
+| Shorter prompts | Lower input tokens and latency | Reduced instruction clarity |
+| Streaming | Better perceived latency | More UI/error-state complexity |
+| Smaller fallback model | Lower cost | Lower quality or schema reliability |
+| Circuit breaker | Avoids failing provider overload | Can over-block if thresholds wrong |
+| Request batching | Higher throughput for batch jobs | Not suitable for interactive support draft |
+| Redis shared state | Consistent multi-replica control | Adds dependency and ops cost |
 
-- Reuse async SDK clients.
-- Configure connect, read, write, and pool timeouts.
-- Bound connection pools.
-- Close clients during application shutdown.
-- Do not create one client per request.
-- Test proxy and DNS behavior in the deployment environment.
+Cost policy:
 
-### Concurrency
+- Prices must be loaded from dated config, not hard-coded in business logic.
+- If pricing is unknown, record tokens and set estimated cost to `0.0` or `not measured`.
+- Attribute cost before aggregating totals.
 
-- Bound concurrent provider calls per instance.
-- Apply tenant and operation quotas before provider calls.
-- Use provider rate-limit headers where available.
-- Avoid holding database transactions during generation.
-- Cancel abandoned streams.
-- Protect Redis and database pools from gateway fan-out.
+## Deployment and operations
 
-### Token and cost budgets
+Packaging:
 
-Before a request:
+- Build Docker image from the included `Dockerfile`.
+- Inject provider keys and Redis URL through deployment environment.
+- Do not bake credentials into image layers.
 
-- Bound message count and bytes.
-- Estimate or count tokens where supported.
-- Reserve output tokens.
-- Enforce per-request cost ceiling.
-- Apply tenant daily and monthly budgets.
+Simple deployment target:
 
-After a request:
+- Cloud Run or equivalent container service for low-ops HTTP deployment.
+- Managed Redis for shared usage/circuit state when running more than one replica.
+- OpenTelemetry exporter connected to the platform tracing backend.
 
-- Record provider-reported usage.
-- Reconcile provider billing exports.
-- Alert on token, retry, fallback, and cost drift.
+Health checks:
 
-### Measurement procedure
+- `/health` verifies the process is alive.
+- A deeper readiness check may verify config, Redis connectivity, and route policy.
+- Do not make every health check call external model providers; that can create cost and rate-limit noise.
 
-1. Run fake-provider tests to measure gateway overhead.
-2. Run controlled live calls with fixed input and output bounds.
-3. Separate cold and warm connections.
-4. Measure no-retry, retry, and fallback paths.
-5. Report time to first delta and total stream time.
-6. Measure database and Redis contribution.
-7. Calculate cost per accepted draft, not only per call.
+Rollout:
 
-## Deployment
+- Deploy with fake provider disabled only after sandbox provider tests pass.
+- Start with one tenant and synthetic/non-production data.
+- Shadow or compare before routing agent-visible traffic.
+- Roll back by restoring previous route config or container revision.
 
-### Packaging
+Alerts:
 
-- Build the existing service image from the locked environment.
-- Run as a non-root user.
-- Include no `.env` or credentials.
-- Scan dependencies and image.
-- Emit build and commit identifiers.
+- provider error rate high;
+- fallback rate high;
+- validation rejection rate changed;
+- p95 latency high;
+- cost per tenant/feature above budget;
+- Redis unavailable;
+- circuit open too long;
+- model deprecation or invalid model errors.
 
-### Configuration
+Runbook:
 
-Validate at startup:
+1. Identify request ID, trace ID, tenant, provider, model, and fallback flag.
+2. Classify the error: auth, rate limit, timeout, invalid request, server, validation, tool policy.
+3. Check whether retries were safe and bounded.
+4. Check whether fallback happened and whether the fallback provider is approved.
+5. Check usage ledger for token/cost spike.
+6. Roll back route or model config if provider/model behavior changed.
 
-- Required provider credentials for enabled routes
-- Non-empty approved model IDs
-- Route capability consistency
-- Retry and timeout bounds
-- Redis and database connectivity
-- Complete price entries for cost-enforced routes
-- OpenTelemetry exporter configuration
+## Bridge to the next lesson
 
-Do not expose secret values in readiness errors.
+Lesson 10 assumes you can:
 
-### Health endpoints
+- call a stable gateway contract instead of provider SDKs directly;
+- pass messages, schema requests, tool allowlists, and tenant/user metadata;
+- receive only validated structured output;
+- stream provisional events safely;
+- record prompt/model/version/usage metadata;
+- observe fallback, retries, and validation failures;
+- separate provider integration concerns from prompt design.
 
-- **Liveness:** process event loop is responsive.
-- **Readiness:** configuration is valid and required local dependencies are reachable.
-- **Dependency status:** provider state is reported separately; do not make liveness depend on an
-  external provider.
-
-### Release strategy
-
-```text
-unit and contract tests
-→ fake-provider end-to-end
-→ development live smoke
-→ shadow request metadata
-→ internal canary tenants
-→ bounded pilot
-```
-
-Do not send duplicate live shadow traffic with customer content unless privacy, cost, and provider
-policy explicitly approve it.
-
-### Migration
-
-1. Add gateway behind a feature flag.
-2. Keep direct integration available for rollback.
-3. Route synthetic and internal tests first.
-4. Compare output contracts and usage records.
-5. Canary a small eligible agent group.
-6. Remove direct provider imports from business handlers.
-
-### Rollback
-
-Rollback can restore:
-
-- Previous service image
-- Previous route configuration
-- Previous model identifier
-- Previous timeout and retry policy
-- Single-provider mode
-- Direct integration temporarily, if still maintained and safe
-
-Circuit and retry state may need clearing after a policy rollback. Preserve audit records.
-
-## Observability and operations
-
-### Structured logs
-
-Allowlisted fields:
-
-- Trace, gateway request, and attempt IDs
-- Tenant and user internal IDs
-- Operation
-- Provider and model
-- Status and error kind
-- Provider request ID
-- Latency and token counts
-- Retry and fallback indicators
-- Circuit decision
-
-Default-deny prompt, response, tool-result, secret, and raw file content.
-
-### Traces
-
-Suggested spans:
-
-```text
-support.request
-└── model_gateway.request
-    ├── route.select
-    ├── provider.attempt
-    ├── retry.wait
-    ├── fallback.select
-    ├── output.validate
-    ├── tool.execute
-    └── usage.persist
-```
-
-Do not attach high-cardinality raw content as attributes.
-
-### Metrics
-
-- `gateway_requests_total`
-- `provider_attempts_total`
-- `provider_errors_total`
-- `gateway_retries_total`
-- `gateway_fallbacks_total`
-- `circuit_open_total`
-- `gateway_latency_seconds`
-- `time_to_first_token_seconds`
-- `input_tokens_total`
-- `output_tokens_total`
-- `estimated_cost_usd_total`
-- `schema_validation_failures_total`
-- `tool_calls_total`
-- `streams_cancelled_total`
-
-Label cardinality must be bounded. Do not use raw request, user, or ticket IDs as metric labels.
-
-### Alerts
-
-- Provider error rate above threshold
-- P95 latency above SLO
-- Circuit remains open
-- Fallback rate rises materially
-- Schema validation failures appear
-- Usage ledger write failures
-- Token or cost spike
-- Unknown model identifier
-- Authentication failures after deployment
-- Stream terminal-state defects
-
-### SLO example
-
-For eligible interactive drafting during the pilot:
-
-- 99% gateway availability excluding rejected invalid requests
-- 95% of successful streams produce first text within the approved threshold
-- 100% typed outputs pass schema validation
-- 100% attempts have attribution records
-- 0 unauthorized tool executions
-
-Set numeric latency thresholds from measured pilot data, not invention.
-
-### Incident runbook
-
-1. Confirm affected operation, tenants, providers, and deployment.
-2. Check error kind, circuit state, rate-limit state, and provider status.
-3. Inspect provider request IDs and trace samples.
-4. Disable a failing route or model through configuration.
-5. Confirm fallback data policy and capacity before enabling it broadly.
-6. Reduce concurrency or output budget during rate pressure.
-7. Roll back if schema, authorization, or tool safety regressed.
-8. Reconcile usage and cost after recovery.
-9. Preserve redacted evidence and write a post-incident review.
+Prompt and context engineering will build on this by making instructions, output contracts, examples, untrusted content boundaries, and prompt versions testable.
 
 ## Practical assignment
 
 ### Scenario
 
-Northstar adds an internal security-ticket assistant. Security tickets are confidential, cannot
-use the general fallback provider, and may call a read-only account-risk tool. The output must be
-typed and the analyst must approve any escalation.
+Northstar wants the gateway to support two application features:
+
+- `support_draft`
+- `ticket_classification`
+
+Both must use the same provider boundary and usage ledger.
 
 ### Requirements
 
-Build a gateway extension that:
-
-- Adds a `security-triage` operation.
-- Defines a strict `SecurityTriage` schema.
-- Allows only approved confidential-data routes.
-- Uses a different timeout and retry policy from drafting.
-- Adds a read-only `lookup_account_risk` tool.
-- Validates tenant and account access before tool execution.
-- Emits normalized streaming progress or a typed final result.
-- Records all attempts and usage.
-- Rejects fallback to an unapproved provider.
-- Adds failure injection for rate limit, timeout, invalid output, and Redis unavailability.
+- Add a second response schema for ticket classification.
+- Add route policy by feature.
+- Add one fake provider and one mocked HTTPX provider contract test.
+- Add structured output validation for both schemas.
+- Add fallback test for rate limit.
+- Add cost/usage attribution by tenant, user, feature, provider, and model.
+- Add at least one streaming test.
 
 ### Constraints
 
-- No real customer or security incident data.
-- No write-capable security action.
-- No raw content in standard telemetry.
-- Maximum two provider attempts.
-- No fabricated price or measured result.
+- No real customer data.
+- No hard-coded API keys.
+- Invalid output must not reach business logic.
+- Write tools are forbidden.
+- Retry only safe failures.
 
 ### Required artifacts
 
-- Architecture decision record
-- Capability and route matrix
-- Pydantic request and output schemas
-- Provider adapter contract tests
-- Retry and circuit tests
-- Tool authorization tests
-- Usage schema and sample redacted record
-- Evaluation table
-- Deployment and rollback plan
-- Incident runbook
+- Updated schema file.
+- Updated gateway service.
+- Test suite.
+- System-decision memo.
+- Failure-mode table for your added feature.
+- Runbook update.
 
 ### Acceptance criteria
 
-- All downstream triage records are schema-valid.
-- No confidential request reaches an unapproved route.
-- No unsafe operation is automatically replayed.
-- Every stream has exactly one terminal event.
-- All attempts are attributable.
-- Unknown tools and extra arguments fail closed.
-- Failure and recovery paths are tested.
-- Conclusions distinguish measured results from design expectations.
+- `pytest` passes.
+- Provider-specific code remains isolated.
+- Fallback is observable.
+- Usage is attributable.
+- Invalid structured output is rejected.
 
 ### Stretch goals
 
-- Add a local OpenAI-compatible adapter and document tested compatibility.
-- Use a Lua script for atomic circuit transitions.
-- Add workload identity for a supported provider.
-- Reconcile the usage ledger with a provider usage export.
-- Implement per-tenant token-bucket admission control.
+- Add Redis-backed circuit breaker state.
+- Add server-sent events endpoint.
+- Add dated price config and cost calculation.
+- Add provider-region route policy.
+- Add native SDK adapter behind the same interface.
 
 ## Interview preparation
 
 ### Concept questions
 
-**Why use a provider adapter?**
+| Question | Strong answer expectation |
+|---|---|
+| Why build a gateway instead of calling one SDK directly? | Stable contract, provider isolation, validation, reliability, tracing, cost, governance. |
+| What is provider-independent design? | Product code depends on internal request/response contracts; adapters handle provider specifics. |
+| What does structured output solve and not solve? | Solves parse shape when validated; does not guarantee truth, safety, or business correctness. |
+| Why is streaming harder than non-streaming? | Partial output, terminal state, cancellation, validation timing, UI safety. |
 
-A strong answer explains isolation of API shapes, errors, usage, streaming, and capability
-differences while preserving explicit semantic differences.
+### Coding or implementation questions
 
-**What is the difference between structured output and validation?**
+| Question | Strong answer expectation |
+|---|---|
+| Implement a retry policy. | Bounded attempts, classified errors, backoff, idempotency awareness. |
+| Add a provider adapter. | Implement interface, map payload, normalize response, classify errors, test with mocked transport. |
+| Validate tool calls. | Allowlist name, validate args, enforce permissions, no model-owned authorization. |
 
-Structured output constrains generation. Validation checks the returned object. Domain rules and
-authorization remain application responsibilities.
+### Debugging questions
 
-**Why can a timeout be ambiguous?**
-
-The client may stop waiting after the provider accepted or completed work. This matters especially
-for tool side effects and cost.
-
-**Why disable SDK retries?**
-
-When the gateway owns retries, hidden SDK retries obscure attempts, multiply latency and cost,
-and complicate safety decisions.
-
-### Coding questions
-
-- Implement full-jitter exponential backoff with a deadline.
-- Normalize two provider error hierarchies.
-- Validate a generic Pydantic response type.
-- Enforce exactly one terminal stream event.
-- Calculate cost with decimal arithmetic.
-
-Strong solutions include bounds, cancellation, observability, and tests.
-
-### Debugging scenarios
-
-**Calls tripled after a release.**
-
-Check SDK retry defaults, gateway attempt count, queue redelivery, and duplicate client requests.
-Use provider request IDs and attempt traces.
-
-**Fallback succeeds but costs doubled.**
-
-Inspect primary ambiguous attempts, output lengths, fallback model rates, and whether every retry
-was necessary.
-
-**Circuit opens during a bad deployment.**
-
-Determine whether 400 or authentication errors were incorrectly counted as provider health
-failures.
-
-**Valid JSON caused an unauthorized action.**
-
-Identify missing domain authorization and approval controls. Schema compliance is not authority.
+| Question | Strong answer expectation |
+|---|---|
+| Requests suddenly cost 3x more. | Check token counts, prompt/context growth, fallback provider, model changes, usage by tenant/feature. |
+| Fallback seems to work but quality drops. | Inspect provider/model/fallback dimensions, run fixed eval set, gate promotion. |
+| Provider returns 429. | Backoff, circuit breaker, concurrency/rate limits, fallback if approved, alert if sustained. |
 
 ### System-design question
 
-Design a model gateway for:
+Design a multi-provider AI gateway for a support product serving multiple tenants.
 
-- 100 tenants
-- Two hosted providers
-- Interactive and batch workloads
-- Confidential-data route restrictions
-- Structured extraction and streaming drafts
-- Read and write tools
-- Tenant chargeback
-- Provider outages and deprecations
+Strong answer should include:
 
-A strong answer covers requirements, trust boundaries, canonical state, routing, rate limits,
-retry safety, circuits, tool controls, observability, usage reconciliation, rollout, and rollback.
+- provider-neutral contract;
+- adapter isolation;
+- schema validation;
+- stream event model;
+- tool-call allowlist;
+- retries, timeouts, circuit breaker;
+- fallback route policy;
+- tenant/user usage ledger;
+- OpenTelemetry traces;
+- secret management;
+- data residency/provider policy controls;
+- rollout and rollback.
 
 ### Tradeoff questions
 
-- In-process library versus dedicated gateway service
-- Provider-native state versus application-owned state
-- Primary retry versus immediate fallback
-- Shared abstraction versus provider-specific features
-- Fail-open versus fail-closed when Redis is unavailable
-- Content logging versus privacy
-
-## One-page memory sheet
-
-### Central model
-
-```text
-authenticate and authorize
-→ create canonical request
-→ validate policy and budget
-→ choose approved capable route
-→ check circuit
-→ call adapter with explicit timeout
-→ normalize result or error
-→ retry only if transient + safe + budgeted
-→ fallback only if approved + capable + observable
-→ validate schema and domain rules
-→ authorize tools outside model
-→ record trace, usage, cost, and outcome
-```
-
-### Decision table
-
-| Situation | Action |
+| Tradeoff | Strong answer expectation |
 |---|---|
-| Invalid key or request | Fail; do not retry |
-| Rate limit or overload | Bounded retry; respect delay; consider circuit/fallback |
-| Timeout during pure generation | Retry only within latency and cost policy |
-| Timeout after possible write | Do not replay automatically |
-| Invalid structured output | Reject; optional bounded repair policy |
-| Open circuit | Fail fast or use approved fallback |
-| Unsupported capability | Reject or select explicit capable route |
-| Unknown tool | Fail closed |
-| Missing usage | Store unknown, not zero |
-| Provider model changes | Rerun contract and quality evaluation |
+| Native SDK vs HTTPX | SDK convenience vs explicit portability/testability; either must stay inside adapters. |
+| Fallback vs fail fast | Availability vs quality/privacy/cost/regional differences. |
+| In-memory vs Redis circuit state | Simplicity vs multi-replica consistency. |
+| Streaming vs non-streaming | Perceived latency vs validation/UI complexity. |
 
-### Five common misconceptions
+## Mastery check
 
-1. Provider-neutral means providers are equivalent.
-2. Valid JSON means safe business data.
-3. Every timeout is safe to retry.
-4. Strict tool arguments authorize execution.
-5. Observability requires storing prompts and responses.
-
-### Essential constraints
+### One-page memory model
 
 ```text
-retry = transient ∧ repeat-safe ∧ within budget
-fallback = approved ∧ capable ∧ healthy ∧ semantically acceptable
-tool execution = allowlisted ∧ validated ∧ authorized ∧ approved when required
-cost = measured usage × dated price configuration
-stream = started → deltas* → exactly one terminal event
+product request
+  -> tenant/user/feature identity
+  -> GatewayRequest
+  -> route policy
+  -> provider adapter
+  -> timeout/error classification
+  -> retry if safe
+  -> fallback if approved
+  -> provider response/stream
+  -> schema + tool validation
+  -> usage ledger + trace
+  -> GatewayResponse to business logic
 ```
 
-### Essential commands
+Do not let raw provider output, hidden fallback, unvalidated tool calls, or unattributed cost cross the gateway boundary.
 
-```powershell
-docker compose up -d redis
-uv sync --locked
-uv run pytest tests/model_gateway -q
-uv run pytest tests/model_gateway/test_retry.py -q
-uv run pytest tests/model_gateway/test_streaming.py -q
-```
+### Retrieval bank
 
-## Retrieval bank
+- Explain why provider-specific code belongs in adapters.
+- Draw the request flow from product service to provider and back.
+- Predict what happens when a provider returns malformed JSON.
+- Diagnose a 429 spike with rising cost.
+- Compare native SDK and HTTPX adapters.
+- Explain why retries require idempotency.
+- Explain why fallback must be observable.
+- Predict what happens if a stream ends without `DONE`.
+- Diagnose a data-residency fallback violation.
+- Design a cost attribution record.
+- Explain why tool calling is not tool authorization.
+- Transfer the gateway design to a classification feature.
 
-Answer closed-book:
+### Self-assessment
 
-1. Draw the gateway request flow.
-2. Separate application, gateway, adapter, and provider responsibilities.
-3. Explain canonical conversation state.
-4. Define semantic parity.
-5. List structured-output validation layers.
-6. Draw a valid stream event sequence.
-7. State the three retry conditions.
-8. Explain ambiguous completion.
-9. Draw the circuit state machine.
-10. Give three fallback prerequisites.
-11. Explain why provider-wide circuits ignore bad requests.
-12. Describe tool-call authorization.
-13. Explain why a PDF remains untrusted.
-14. Distinguish four request identifiers.
-15. Explain why usage may be unknown rather than zero.
-16. Diagnose hidden retry multiplication.
-17. Compare an in-process gateway with a gateway service.
-18. Design a confidential-data route with no fallback.
-19. Predict how cancellation affects usage and status.
-20. Defend a policy for content-free telemetry.
+You are ready to continue if you can:
 
-## Spaced-review plan
+- implement a provider adapter without changing product contracts;
+- reject invalid structured output before business logic;
+- classify retryable and non-retryable provider errors;
+- explain when fallback is unsafe;
+- record usage by tenant/user/feature/provider/model;
+- keep secrets out of code and logs;
+- describe how Lesson 10 prompt versions will use gateway metadata.
 
-### One day later
+### Spaced-review plan
 
-- Draw the full request flow.
-- Recreate the retry decision table.
-- Explain schema validation versus authorization.
-- Write the legal stream-event sequence.
-
-### Three days later
-
-- Implement `call_with_retry` from memory.
-- Classify ten example failures.
-- Draw the circuit states.
-- Explain one unsafe tool replay.
-
-### One week later
-
-- Design a new provider adapter contract.
-- Create a route matrix for confidential data.
-- Diagnose a retry and cost spike.
-- Reconstruct the usage ledger fields.
-
-### Three to four weeks later
-
-- Complete the security-ticket transfer assignment without copying the worked example.
-- Run a failure-injection review.
-- Defend the architecture in a 30-minute system-design interview.
-- Add prompt and schema versions from Lesson 10 to traces and usage records.
-
-## Self-assessment
-
-Score each item:
-
-- `0`: cannot explain
-- `1`: recognize with notes
-- `2`: explain and implement with minor reference
-- `3`: implement, test, diagnose, and defend independently
-
-| Capability | Score |
-|---|---:|
-| Draw the gateway boundary | |
-| Design provider-neutral contracts | |
-| Implement an adapter | |
-| Enforce structured validation | |
-| Normalize streaming | |
-| Classify provider errors | |
-| Implement safe bounded retries | |
-| Operate a circuit breaker | |
-| Design observable fallback | |
-| Control tool execution | |
-| Attribute usage and cost | |
-| Deploy and debug the gateway | |
-
-Do not proceed to prompt engineering until contract, validation, retry safety, and tracing score
-at least `2`.
+| Time | Retrieval task |
+|---|---|
+| 1 day | Recreate the gateway request flow and error/fallback decision tree from memory. |
+| 3 days | Write a new adapter contract test for a hypothetical provider response shape. |
+| 1 week | Diagnose three failures: malformed JSON, hidden fallback, duplicate retry. |
+| 3-4 weeks | Design a gateway for a different domain with tenant policy, usage ledger, and streaming. |
 
 ## Production-readiness checklist
 
-- [ ] Identity and tenant come from trusted application context.
-- [ ] Operations, routes, providers, and models are allowlisted.
-- [ ] Provider SDK objects do not cross adapter boundaries.
-- [ ] Canonical conversation state is application-owned.
-- [ ] Provider secrets are server-side and externally managed.
-- [ ] Separate development and production credentials exist.
-- [ ] Provider data handling, region, retention, and deletion are approved.
-- [ ] Message, byte, token, output, time, attempt, and spending limits exist.
-- [ ] Connect, read, write, pool, and total deadlines are explicit.
-- [ ] Exactly one layer owns retries.
-- [ ] Retryable and terminal errors are tested.
-- [ ] Ambiguous completion is represented.
-- [ ] Unsafe or consequential writes are not automatically replayed.
-- [ ] Retry delay uses bounded backoff and jitter.
-- [ ] Circuit failures are qualified correctly.
-- [ ] Circuit recovery and Redis failure behavior are tested.
-- [ ] Fallback routes satisfy data policy and capabilities.
-- [ ] Fallback is visible in traces, metrics, records, and user behavior where relevant.
-- [ ] Structured output is revalidated.
-- [ ] Domain invariants are deterministic.
-- [ ] Refusal and invalid output are distinct outcomes.
-- [ ] Every stream has one terminal event.
-- [ ] Cancellation closes resources and records status.
-- [ ] Tool names and arguments are allowlisted and validated.
-- [ ] Resource authorization occurs before tool execution.
-- [ ] Consequential tools require approval and idempotency.
-- [ ] Multimodal uploads are validated, scanned, permissioned, and retained correctly.
-- [ ] Provider request IDs are captured.
-- [ ] Every attempt has tenant, user, operation, provider, and model attribution.
-- [ ] Unknown usage is not recorded as zero.
-- [ ] Prices are external, dated, and complete before cost enforcement.
-- [ ] Logs and spans exclude secrets and raw content by default.
-- [ ] Metric labels have bounded cardinality.
-- [ ] Contract, integration, security, streaming, and failure tests pass.
-- [ ] Live tests use synthetic data and a spending limit.
-- [ ] Canary and rollback procedures are documented.
-- [ ] Model and SDK changes trigger reevaluation.
-- [ ] Provider deprecation and exit plans exist.
-- [ ] Incident owner and runbook are assigned.
+- [ ] Provider-neutral request/response contract exists.
+- [ ] Provider-specific code is isolated in adapters.
+- [ ] Secrets are externalized.
+- [ ] Tenant/user/feature identity is required.
+- [ ] Structured output is schema-validated.
+- [ ] Unsafe valid JSON is policy-rejected.
+- [ ] Tool calls are allowlisted and argument-validated.
+- [ ] Write tools require external approval and idempotency.
+- [ ] Streaming has terminal states and partial-output handling.
+- [ ] Multimodal inputs are capability-gated.
+- [ ] Timeouts are configured.
+- [ ] Retry policy is bounded and safe.
+- [ ] Circuit breaker exists.
+- [ ] Fallback is approved by policy and observable.
+- [ ] Usage is attributed by tenant/user/feature/provider/model.
+- [ ] Cost uses dated configurable price data or is marked not measured.
+- [ ] Traces include request ID, provider, model, fallback, and error kind.
+- [ ] Redis or equivalent shared state is configured for multi-replica deployment.
+- [ ] Data residency and provider data policy are reviewed.
+- [ ] Rollback path is documented.
+- [ ] Lesson 10 handoff includes prompt/model/version metadata.
 
 ## Lesson summary
 
-You converted a hosted model from an SDK dependency into a controlled production capability.
+You learned and built the production boundary around hosted model APIs:
 
-You learned:
+- provider authentication and adapter isolation;
+- message and response contracts;
+- structured output validation;
+- tool/function-call control;
+- streaming and multimodal request modeling;
+- provider error classification;
+- timeouts, bounded retries, circuit breakers, and fallback;
+- request tracing, token accounting, and cost attribution;
+- Redis-ready shared state;
+- FastAPI and Docker deployment path.
 
-- The application owns identity, authorization, business state, and human approval.
-- The gateway owns routing, validation, reliability, tracing, and usage policy.
-- Adapters isolate provider API shapes, events, errors, and usage objects.
-- Provider neutrality normalizes contracts but does not erase semantic differences.
-- Structured generation still requires application and domain validation.
-- Streaming requires explicit event ordering, cancellation, and terminal status.
-- Retry is valid only for transient, repeat-safe work within a bounded budget.
-- Timeouts can create ambiguous completion.
-- Circuit breakers reduce repeated pressure during sustained failures.
-- Fallback must be approved, capable, observable, and semantically acceptable.
-- Tool calls are proposals; application controls authorize effects.
-- Canonical conversation state enables provider change and fallback.
-- Token usage comes from provider metadata.
-- Cost comes from measured usage and dated configuration.
-- Useful observability does not require default storage of sensitive content.
-
-The cumulative project now has a provider-independent gateway with structured output, streaming,
-timeouts, bounded retries, circuit state, fallback, tool controls, tracing, and cost attribution.
-
-The next lesson, **Prompt and Context Engineering**, will add versioned task instructions, output
-contracts, untrusted-content separation, prompt regression tests, and prompt identifiers to this
-gateway.
+The gateway now gives Northstar a controlled integration layer. Lesson 10 will use this layer to make prompts and context into versioned, testable application components.
 
 ## Official references
 
-Technical behavior was verified on June 25, 2026.
-
-### OpenAI
-
-- OpenAI Python SDK:
-  <https://github.com/openai/openai-python>
-- Responses API reference:
-  <https://developers.openai.com/api/reference/resources/responses/methods/create>
-- Structured model outputs:
-  <https://developers.openai.com/api/docs/guides/structured-outputs>
-- Streaming API responses:
-  <https://developers.openai.com/api/docs/guides/streaming-responses>
-- Function calling:
-  <https://developers.openai.com/api/docs/guides/function-calling>
-- Conversation state:
-  <https://developers.openai.com/api/docs/guides/conversation-state>
-- Images and vision:
-  <https://developers.openai.com/api/docs/guides/images-vision>
-- File inputs:
-  <https://developers.openai.com/api/docs/guides/file-inputs>
-- Rate limits:
-  <https://developers.openai.com/api/docs/guides/rate-limits>
-- Production best practices:
-  <https://developers.openai.com/api/docs/guides/production-best-practices>
-
-### Anthropic
-
-- Anthropic Python SDK:
-  <https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/python>
-- Messages API:
-  <https://platform.claude.com/docs/en/api/messages>
-- Streaming messages:
-  <https://platform.claude.com/docs/en/build-with-claude/streaming>
-- Structured outputs:
-  <https://platform.claude.com/docs/en/build-with-claude/structured-outputs>
-- Define tools:
-  <https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools>
-- API errors:
-  <https://platform.claude.com/docs/en/api/errors>
-- Rate limits:
-  <https://platform.claude.com/docs/en/api/rate-limits>
-
-### Supporting tools
-
-- HTTPX timeouts:
-  <https://www.python-httpx.org/advanced/timeouts/>
-- HTTPX exceptions:
-  <https://www.python-httpx.org/exceptions/>
-- Pydantic models:
-  <https://docs.pydantic.dev/latest/concepts/models/>
-- Redis Python client:
-  <https://redis.io/docs/latest/develop/clients/redis-py/>
-- OpenTelemetry Python instrumentation:
-  <https://opentelemetry.io/docs/languages/python/instrumentation/>
+- OpenAI Responses API reference: https://platform.openai.com/docs/api-reference/responses
+- OpenAI function calling guide: https://platform.openai.com/docs/guides/function-calling
+- OpenAI streaming guide: https://platform.openai.com/docs/guides/streaming-responses
+- Anthropic Messages API reference: https://docs.anthropic.com/en/api/messages
+- Anthropic tool use guide: https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview
+- HTTPX timeout documentation: https://www.python-httpx.org/advanced/timeouts/
+- Pydantic documentation: https://docs.pydantic.dev/
+- FastAPI documentation: https://fastapi.tiangolo.com/
+- pytest documentation: https://docs.pytest.org/
+- Redis Streams documentation: https://redis.io/docs/latest/develop/data-types/streams/
+- OpenTelemetry Python documentation: https://opentelemetry.io/docs/languages/python/
+- Dockerfile reference: https://docs.docker.com/reference/dockerfile/
+- Google Cloud Run documentation: https://cloud.google.com/run/docs

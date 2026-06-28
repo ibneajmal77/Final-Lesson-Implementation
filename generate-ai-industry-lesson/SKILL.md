@@ -109,12 +109,15 @@ Mandatory principles:
 - Begin with prior-knowledge activation and a lesson map.
 - Segment the essential path into five to nine learning modules.
 - Limit each module to one central question and a manageable concept set.
+- Put a Key concepts section before the Mental model/Concept model; define each term with why it matters and a very simple layman-friendly example.
+- Add a Connected dry run after Key concepts and before the Mental model/Concept model when a module has a process, pipeline, lifecycle, runtime flow, or several interacting definitions. Start it with a step table using `Step | What happens | Concepts being used`, then use matching numbered steps in the deeper walkthrough. The dry run must trace one simple example from start to finish and show where each key concept actually comes into play.
 - Use worked-example fading: worked example, guided completion, independent transfer.
 - Include closed-book retrieval every 20–30 minutes of expected study.
 - Add cumulative retrieval after every two or three modules.
 - Define terminology at first use; move the complete glossary to reference material.
 - Mark essential, production, specialist, and reference content.
 - Write full explanations, not bullet-only notes.
+- Teach non-trivial concepts in the order: plain idea → technical name → business example → production consequence → implementation/test.
 - Define every new technical term when first used.
 - Explain why a concept matters before showing how to configure it.
 - Connect every major concept to the business problem.

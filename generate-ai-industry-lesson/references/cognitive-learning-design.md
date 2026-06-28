@@ -67,6 +67,8 @@ Limit each module to:
 
 - One central question
 - Three to seven new concepts
+- A Key concepts section before the mental model
+- A connected dry run after Key concepts when several concepts interact
 - One primary mental model
 - One worked example
 - One guided task
@@ -81,6 +83,9 @@ Use this sequence:
 
 ```text
 Activate
+→ Key concepts
+→ Connected dry run when concepts interact
+→ Mental model
 → Explain
 → Demonstrate
 → Guide
@@ -97,6 +102,63 @@ knowledge gap without requiring the learner to already know the answer.
 ### Explain
 
 Introduce the smallest useful set of concepts. Define terms where they are used.
+
+Before the mental model, add a Key concepts section. For each important concept, include:
+
+```text
+Concept/term:
+Why it matters:
+Very simple example:
+```
+
+Write this section as if explaining definitions to a layperson. The learner should understand the
+terms before the lesson combines them into a larger mental model.
+
+After Key concepts, add a Connected dry run when the learner must understand how several definitions
+work together. Use one simple example and trace it from start to finish. Start with a compact table
+using `Step | What happens | Concepts being used`, then use matching numbered steps in the detailed
+walkthrough. Show the state before and after each major step, name the concept being used, and explain
+why the step matters. This dry run is especially important for tokenization, decoding, attention,
+context windows, retrieval, agents, evaluation, training pipelines, serving, observability, and
+security flows.
+
+The dry run should answer:
+
+```text
+What enters the system?
+What changes at each step?
+Which definition is active at that step?
+What does the system now know, store, score, route, or output?
+What has not been proven yet?
+```
+
+Use plain-language-first technical prose. For every non-trivial concept, teach in this order:
+
+```text
+plain idea
+  -> technical name
+  -> concrete example from the lesson's business workflow
+  -> production consequence
+  -> implementation or test that makes it visible
+```
+
+This does not mean avoiding technical language. It means delaying the technical label until the learner
+has a mental handle for what the label describes.
+
+Good pattern:
+
+```text
+The model scores possible next tokens. Those raw scores are called logits.
+```
+
+Weak pattern:
+
+```text
+Logits are unnormalized token scores.
+```
+
+The weak pattern is accurate, but many learners cannot use it yet. The good pattern gives the learner
+the observable behavior first and the term second.
 
 ### Demonstrate
 
@@ -206,6 +268,26 @@ Define a term immediately before or during first use.
 Keep the full glossary in the reference layer. Do not ask learners to memorize a glossary before
 using the concepts.
 
+Avoid term stacking. If more than three new technical terms appear in a paragraph, either split the
+paragraph, add a short example, or convert the passage into a step-by-step explanation.
+
+Use tables for comparison and review. Do not use a table as the only first explanation of a difficult
+concept. The first pass should usually include prose that answers:
+
+```text
+What is happening?
+Why does this concept exist?
+Where does it show up in the project?
+What can go wrong if misunderstood?
+```
+
+Before substantial code, add a bridge paragraph that says what the code makes observable. Example:
+
+```text
+This code does not build a full model. It makes tokenization visible so you can test token count,
+IDs, and context pressure before calling a model.
+```
+
 ## Misconceptions
 
 Every module should identify at least one likely misconception and correct it.
@@ -235,6 +317,10 @@ Reject or revise a lesson when:
 - Practice is delayed until the final third.
 - A learner reads more than approximately 20–30 minutes without retrieval.
 - Modules introduce more than seven tightly coupled new concepts.
+- Non-trivial concepts are introduced as terms before the plain idea is understandable.
+- A process-heavy or interaction-heavy module defines terms but lacks a connected dry run with a step table and matching numbered walkthrough showing how the terms work together from start to finish.
+- Tables replace first-pass explanation instead of supporting it.
+- Large code blocks appear without a short concept-to-code bridge.
 - The lesson lacks prediction, self-explanation, or recall.
 - The assignment merely copies the worked example.
 - Detailed reference content interrupts the essential learning sequence.

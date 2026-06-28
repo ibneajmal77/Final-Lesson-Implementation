@@ -395,162 +395,15 @@ The final expected artifacts are:
 - a model-selection memo;
 - optional Docker image and API smoke test.
 
-### How to read the foundation modules
-
-This lesson contains many technical terms because foundation-model work has a large vocabulary. Read each module in this order:
-
-```text
-plain idea
-  -> technical name
-  -> support-ticket example
-  -> small implementation
-  -> test or experiment
-  -> production consequence
-```
-
-Do not try to memorize every term first. Build the mental picture first, then attach the technical name. For example, learn the loop "the model scores possible next tokens" before worrying about logits, softmax, and decoding settings. Learn "the model mixes information between token positions" before worrying about query, key, value, and residual connections.
-
-The code in this lesson is not a full model implementation. It is a visibility layer. Each file makes one hidden model behavior observable enough that an applied engineer can test it, debug it, and explain it in a model-selection memo.
-
 ## Concept-build module 1: The language-model loop
 
 ### Core question
 
 What does a causal language model actually do when it generates text?
 
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| Token | The model does not read text exactly as humans see it; it reads small text units called tokens. | `Refund requests require` may become separate pieces such as `Refund`, ` requests`, and ` require`. |
-| Token ID | The model needs numbers, not raw text. A token ID is the number assigned to one token by a specific tokenizer. | The token ` refund` might map to ID `1234` in one tokenizer and a different ID in another. |
-| Parameter | Parameters are the learned numbers that shape the model's behavior. They are not rows of facts; they are weights used in calculations. | A parameter can help the model learn that `refund` and `policy` often matter together in support text. |
-| Hidden state | A hidden state is the model's working representation of a token after reading surrounding context. | `refund` has a different hidden state in "refund policy" than in "ignore policy and refund me." |
-| Logit | A logit is a raw score for a possible next token before it becomes a probability. | After `Refund requests require`, the model may score ` evidence` higher than ` banana`. |
-| Inference | Inference means running a trained model to produce an output. | Asking a model to draft a support reply is inference. |
-| Autoregressive generation | The model generates by choosing one next token, adding it, and repeating the loop. | It writes ` evidence`, then uses that new word to choose the next token. |
-
-### Connected dry run
-
-Use one very small request and follow it from the user's text to the model's first generated token.
-
-```text
-User request:
-Draft a cautious support reply: "Customer says order A-1049 was charged twice."
-```
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | The request starts as human-readable text. | Input text |
-| 2 | The text is split into model-readable pieces. | Token |
-| 3 | Tokens are converted into tokenizer-specific numbers. | Token ID |
-| 4 | The model transforms token IDs through learned weights. | Parameter, hidden state |
-| 5 | The model prepares to generate one next token. | Inference, autoregressive generation |
-| 6 | The model scores possible next tokens. | Logit |
-| 7 | A decoder selects one token and appends it. | Decoding choice, generated token |
-| 8 | The loop repeats for the next token. | Autoregressive generation |
-
-Step 1: the user request starts as human-readable text.
-
-At the start, this is only human-readable text. The model cannot work with the sentence as a sentence. The system first turns the text into tokens, then token IDs, then vectors. The important shift is this:
-
-```text
-human text
-  -> model-readable numbers
-  -> internal representations
-  -> next-token scores
-  -> one selected next token
-```
-
-Step 2: the text is split into tokens.
-
-Suppose the prompt begins with these token pieces:
-
-```text
-["Draft", " a", " cautious", " support", " reply", ":", " Customer", " says", " order", " A", "-", "1049", " was", " charged", " twice", "."]
-```
-
-Step 3: tokens become token IDs.
-
-Those pieces become token IDs. The exact IDs depend on the tokenizer, but conceptually the model now sees something like:
-
-```text
-[7201, 257, 17382, 1332, 6821, 25, 8753, 1139, 1502, 317, 12, 4312, 373, 8672, 3212, 13]
-```
-
-Step 4: token IDs become internal representations.
-
-A token ID is still not meaning. It is only an index. The model turns each token ID into a starting vector, then repeatedly transforms those vectors through its layers. After this, the token `charged` is no longer just a generic token. Its hidden state has absorbed surrounding context:
-
-```text
-support reply + order A-1049 + charged twice
-  -> likely billing or duplicate-charge situation
-```
-
-Step 5: the model prepares to generate the next token.
-
-Now the model must generate. It does not write the whole reply in one decision. It asks:
-
-```text
-Given the prompt so far, what token should come next?
-```
-
-Step 6: the model scores possible next tokens.
-
-It may assign raw next-token scores like this:
-
-| Candidate next token | Raw score/logit |
-|---|---:|
-| `I` | 6.8 |
-| `Please` | 5.9 |
-| `Refund` | 3.2 |
-| `Banana` | -4.5 |
-
-Step 7: the decoder selects one token and appends it.
-
-Those scores are logits. After softmax, they become probabilities. If the decoder chooses `I`, the output begins:
-
-```text
-I
-```
-
-Step 8: the model repeats the same generation loop.
-
-Then the model repeats the same loop. It appends `I` to the context and predicts the next token. The next likely token might be:
-
-```text
-` can`
-```
-
-Now the output is:
-
-```text
-I can
-```
-
-This is autoregressive generation: choose one token, append it, then choose the next token using the updated context.
-
-What each definition did in this dry run:
-
-| Definition | Where it came into play |
-|---|---|
-| Token | The sentence was split into model-readable pieces. |
-| Token ID | Each token became a number the model can index. |
-| Parameter | Learned weights transformed token vectors through the model. |
-| Hidden state | The model built context-aware meaning for tokens such as `charged`. |
-| Logit | The model scored possible next tokens such as `I` and `Please`. |
-| Inference | The trained model was run to produce output. |
-| Autoregressive generation | The model generated one token, appended it, and repeated. |
-
-The key product lesson is that the model has produced a likely continuation, not verified business truth. A fluent reply about a duplicate charge still needs policy evidence, safety checks, and possibly human approval.
-
 ### Mental model
 
-A causal language model does one basic operation again and again: it looks at the tokens it has already received and scores what token could come next.
-
-That is the key idea. It does not first "understand the whole answer" and then write it down. During generation, it repeatedly chooses one next token, appends that token to the sequence, and runs the process again.
+A causal language model predicts the next token from the tokens already available.
 
 ```text
 prompt tokens
@@ -562,30 +415,23 @@ prompt tokens
   -> repeat
 ```
 
-The technical word "causal" means each position can use earlier tokens, but not future tokens. During training, the model learns to predict the next token without peeking ahead. During generation, there is no future text yet, so the model naturally writes left-to-right.
+"Causal" means the model is trained so a position can use earlier positions but not future positions. That is why the model can generate left-to-right.
 
-A foundation model is a broadly trained model that can be prompted or adapted for many tasks. A language model is a model whose main input and output is language. A causal language model is a language model trained for next-token prediction.
+A foundation model is a broadly trained model that can be adapted or prompted for many tasks. A language model is a model whose main input/output is language. A causal language model is a language model trained for next-token prediction.
 
-Two internal ideas matter immediately:
+A parameter is a learned number inside the model. Parameters are not facts stored in neat rows; they are weights that shape how inputs are transformed. A hidden state is the internal vector at a token position after the model has processed some layer of the sequence. Hidden states are contextual: the vector for `refund` changes depending on whether the surrounding text discusses a policy, a complaint, or a malicious instruction.
 
-- A parameter is a learned number inside the model. Parameters are not facts stored in neat database rows. They are weights that shape how token representations are transformed.
-- A hidden state is the model's current internal vector for a token position after some layer has processed the sequence. It is the model's working representation at that point.
+### Key concepts
 
-Hidden states are contextual. The token `refund` does not carry one fixed meaning after the model reads surrounding text. In a policy sentence, its hidden state may carry policy meaning. In a complaint, it may carry customer-intent meaning. In a malicious instruction, it may carry adversarial-risk meaning. This is why application engineers care about surrounding context, role markers, and evidence placement.
-
-How the terms connect:
-
-```text
-text
-  -> tokens
-  -> token IDs
-  -> hidden states
-  -> logits for the next token
-  -> probabilities
-  -> selected next token
-```
-
-The model does not output "truth." It outputs scores for possible continuations. A product system must still check evidence, policy, safety, and business rules.
+| Term | Operational meaning |
+|---|---|
+| Token | A unit from the tokenizer: word piece, byte piece, punctuation, special marker, or similar segment. |
+| Token ID | Integer representing a token in a specific vocabulary. |
+| Parameter | Learned numerical value inside the model. |
+| Hidden state | Internal vector representation at a token position after model layers process it. |
+| Logit | Unnormalized score for a possible next token. |
+| Inference | Running a trained model to produce outputs. |
+| Autoregressive generation | Repeatedly predicting and appending the next token. |
 
 ### Worked example
 
@@ -603,15 +449,9 @@ Suppose the model assigns these next-token logits:
 | ` evidence` | 3.0 |
 | ` banana` | -2.0 |
 
-The highest score is ` approval`, so a greedy decoder would choose it. But notice what this means: the model has not proved that refunds require approval. It has only scored likely continuations based on its training and current prompt.
-
-If Northstar uses this output in a support workflow, the product still needs policy evidence. The safe system question is not "which continuation sounds fluent?" The safe question is "does our policy evidence support this answer, and should a human approve it before sending?"
-
-This is the first foundation-model habit to build: separate model behavior from product truth.
+The model has not proved that refunds require approval. It has only scored possible continuations. The product system must decide whether the output is supported by policy evidence.
 
 ### Mini-implementation
-
-The first code does not build a neural network. It builds the lab contract: cases, model specs, generation settings, and result records. That contract matters because every later model experiment must be comparable. If two runs do not record the same fields, you cannot fairly compare them.
 
 ```python
 # model_lab/__init__.py
@@ -980,208 +820,9 @@ Test case: Use `missing_evidence`. Any output that approves the refund is unsafe
 
 Why can the same text have different cost, context length, and behavior across models?
 
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| Tokenization | Tokenization decides how text is split before the model sees it. It controls token count, cost, truncation, and context fit. | `A-1049` may split into `A`, `-`, and `1049` instead of one clean word. |
-| Vocabulary | The vocabulary is the set of tokens a tokenizer knows how to map to IDs. Token IDs are model-specific. | ID `100` can mean one token for one model and another token for a different model. |
-| Special token | Special tokens carry control meaning, such as role boundaries, padding, end-of-sequence, masks, or modality placeholders. | A chat model may use special tokens to mark where the user message ends and assistant response begins. |
-| Embedding | An embedding turns a token ID into a vector the model can process. | The token ID for `refund` becomes a list of numbers before the model layers work on it. |
-| Contextual hidden state | A hidden state is a later vector after the model has mixed nearby context into the token representation. | `refund` changes meaning after the model reads "policy denies refunds after 30 days." |
-| Positional information | Positional information tells the model the order of tokens. Without it, token order would be hard to represent. | `refund approved` and `approved refund` use the same words but mean different things. |
-| Context window | The context window is the maximum token budget available for the request and response. | If a ticket plus policy text is too long, the system must shorten, select, or reject context. |
-
-### Connected dry run
-
-Follow one input all the way until it becomes model-ready.
-
-```text
-Classify this support ticket: "I was charged twice."
-```
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | The tokenizer splits human text into model-readable pieces. | Tokenization, token |
-| 2 | Each token is mapped to a model-specific number. | Vocabulary, token ID |
-| 3 | Chat formatting adds role and boundary markers. | Special token, chat template |
-| 4 | Token IDs become starting vectors. | Embedding |
-| 5 | Order information is added to the sequence. | Positional information |
-| 6 | The request is checked against the token budget. | Context window |
-| 7 | Model layers turn starting vectors into contextual meanings. | Contextual hidden state |
-
-At first, the system only has characters. Humans immediately see a billing complaint. The model does not start with that understanding. It needs the text converted into the numerical form used by the model.
-
-Step 1: the tokenizer splits text into tokens.
-
-One possible tokenization is:
-
-```text
-["Class", "ify", " this", " support", " ticket", ":", " I", " was", " charged", " twice", "."]
-```
-
-This shows an important point: tokens are not always full words. `Classify` may split into `Class` and `ify`. An order ID such as `A-1049` may split into `A`, `-`, and `1049`. JSON, punctuation, copied email threads, tables, multilingual text, and OCR output can all split in ways that are not obvious from character count.
-
-What changed after this step:
-
-```text
-Before: one human-readable sentence
-After: model-specific text pieces
-```
-
-Step 2: each token maps to a token ID from the tokenizer vocabulary.
-
-Example IDs:
-
-```text
-"Class"    -> 4512
-"ify"      -> 872
-" this"    -> 428
-" support" -> 2189
-" ticket"  -> 7341
-":"        -> 25
-" I"       -> 314
-" was"     -> 373
-" charged" -> 8672
-" twice"   -> 3212
-"."        -> 13
-```
-
-The model input is now a list of integers:
-
-```text
-[4512, 872, 428, 2189, 7341, 25, 314, 373, 8672, 3212, 13]
-```
-
-What changed after this step:
-
-```text
-Before: token strings
-After: numerical IDs from one specific vocabulary
-```
-
-This is why token IDs are model-specific. Another tokenizer may split the same sentence differently and assign different IDs.
-
-Step 3: a chat model may add special tokens or role formatting.
-
-The developer may think the request is only:
-
-```text
-Classify this support ticket: "I was charged twice."
-```
-
-But the serialized model input may conceptually look like:
-
-```text
-<system>
-You classify support tickets.
-</system>
-<user>
-Classify this support ticket: "I was charged twice."
-</user>
-<assistant>
-```
-
-The exact format depends on the model. These role markers and separators matter because they tell the model which text is instruction, which text is user input, and where the assistant should begin. If this formatting is wrong, a good model can behave like a bad model because it received the wrong control signals.
-
-Step 4: token IDs become embeddings.
-
-A token ID such as `8672` is only an index. The model uses an embedding table to turn it into a vector.
-
-```text
-8672 -> [0.12, -0.44, 0.08, 0.91, ...]
-3212 -> [0.31,  0.02, -0.19, 0.40, ...]
-```
-
-What changed after this step:
-
-```text
-Before: integer IDs
-After: starting numerical meaning vectors
-```
-
-An embedding is the starting representation of a token. It is not yet the full meaning in this specific sentence.
-
-Step 5: positional information is added.
-
-The model also needs order. These use similar words but do not mean the same thing:
-
-```text
-The customer charged the card.
-The card charged the customer.
-```
-
-For the support ticket, order lets the model treat:
-
-```text
-charged twice
-```
-
-as a phrase that points toward duplicate billing. Without position, the model would know the pieces but not reliably know their sequence.
-
-Step 6: the full request must fit inside the context window.
-
-For this toy input, the token count is small. In production, the actual context may include:
-
-- system instructions;
-- the support ticket;
-- policy excerpts;
-- previous conversation;
-- examples;
-- tool results;
-- reserved space for the answer.
-
-If the context window is 8,000 tokens and the request uses 7,900 input tokens, there may not be enough room left for a useful answer. If the context exceeds the limit, the system must shorten, select, summarize, or reject content before calling the model.
-
-Step 7: model layers create contextual hidden states.
-
-At the beginning, the embedding for `charged` is general. It could relate to:
-
-```text
-money charged
-phone battery charged
-charged into battle
-legal charge
-```
-
-After the model reads the surrounding text:
-
-```text
-support ticket + I was charged twice
-```
-
-the hidden state for `charged` becomes more specific:
-
-```text
-likely billing or duplicate-payment issue
-```
-
-This is the difference between an embedding and a contextual hidden state:
-
-```text
-embedding = starting meaning of the token
-hidden state = meaning after the model has used context
-```
-
-At the end of this dry run, the model has still not generated the label. It has prepared internal representations that make prediction possible.
-
-```text
-raw text
-  -> tokens
-  -> token IDs
-  -> special/chat formatting
-  -> embeddings
-  -> position-aware sequence
-  -> contextual hidden states
-```
-
-For Northstar, this explains why token counting, prompt formatting, and context construction are engineering concerns, not academic details. They determine cost, latency, truncation risk, and whether the model receives the right evidence in the right form.
-
 ### Mental model
 
-The tokenizer is the first boundary between human text and the model. Humans see sentences. The model receives token IDs. If you do not know how text becomes token IDs, you cannot reliably reason about context length, cost, truncation, latency, or strange behavior around IDs, punctuation, code, tables, and non-English text.
+The tokenizer is the contract between text and model input.
 
 ```text
 "Refund for order A-1049?"
@@ -1190,20 +831,24 @@ The tokenizer is the first boundary between human text and the model. Humans see
   -> embedding vectors
 ```
 
-A vocabulary is the tokenizer's known set of tokens. A token ID is only meaningful for that tokenizer and model family. Token ID `100` in one model does not have to mean the same thing as token ID `100` in another model.
+A vocabulary is the set of tokens the tokenizer can map to IDs. A special token is a token with control meaning, such as beginning-of-sequence, end-of-sequence, padding, mask, role boundary, or image placeholder.
 
-A special token is a token with control meaning rather than ordinary text meaning. Examples include beginning-of-sequence, end-of-sequence, padding, mask, chat-role boundary, or image-placeholder tokens. Special tokens matter because they tell the model where roles, turns, modalities, or sequence boundaries begin and end.
+An embedding is a learned vector associated with a token ID. Token embeddings are not the same as retrieval embeddings. Token embeddings are internal model inputs; retrieval embeddings are usually separate vectors used for search.
 
-An embedding is a learned vector associated with a token ID. It is how the model starts working with a token numerically. Token embeddings are not the same as retrieval embeddings. Token embeddings are internal model inputs. Retrieval embeddings are usually separate vectors used for search and similarity.
+Token embeddings are the starting vectors for token IDs. Contextual hidden states are later vectors after attention and feed-forward layers have mixed information from the surrounding sequence. This distinction matters in interviews and debugging: the token embedding for `refund` is initially the same for that tokenizer/model, but its hidden state changes after the model reads policy text, customer text, and role markers.
 
-There are two vector stages to keep separate:
+Positional information tells the model where tokens appear. Attention compares tokens, but without position information the model would not naturally know whether `refund approved` differs from `approved refund`, or whether a policy appeared before or after the customer request. Different model families use different position strategies, but the operational lesson is stable: order and placement inside the context affect behavior.
 
-- A token embedding is the starting vector for a token ID.
-- A contextual hidden state is a later vector after the model has mixed information from surrounding tokens.
+### Key concepts
 
-The distinction matters. The starting embedding for `refund` is stable for a given tokenizer/model. But after the model reads "policy denies refunds after 30 days," the hidden state for `refund` carries different context than after it reads "customer demands a refund and says ignore policy."
-
-Positional information tells the model where tokens appear. Attention compares tokens, but without position information the model would not naturally know whether `refund approved` differs from `approved refund`, or whether the policy appeared before or after the customer request. Different model families use different position strategies, but the operational lesson is stable: order and placement inside the context affect behavior.
+| Concept | Why it matters |
+|---|---|
+| Tokenization | Determines token count, model input IDs, truncation behavior, and cost estimation. |
+| Vocabulary | Makes token IDs model-specific; token ID 100 can mean different things in different models. |
+| Special tokens | Mark roles, boundaries, padding, end-of-sequence, masks, or modalities. |
+| Embedding | Converts token IDs into dense vectors the model can process. |
+| Positional information | Helps the model represent order because attention itself is permutation-insensitive without position signals. |
+| Context window | Maximum usable input/output token budget for a model invocation. |
 
 ### Worked example
 
@@ -1223,8 +868,6 @@ The engineering consequence is direct:
 token count -> context fit -> latency -> cost -> product feasibility
 ```
 
-For Northstar, this means a short-looking ticket can still be expensive or risky if it contains copied email chains, JSON, order IDs, multilingual text, screenshots converted to OCR text, or policy tables. The safe engineering habit is to measure tokens with the target tokenizer instead of guessing from character count.
-
 ### Mini-implementation
 
 The tokenizer file was introduced in Module 1. Add tests that make token behavior visible.
@@ -1242,7 +885,7 @@ def test_simple_tokenizer_splits_words_and_punctuation() -> None:
 
 def test_token_count_is_not_character_count() -> None:
     text = "Refund for order A-1049?"
-    assert simple_token_count(text) == 7
+    assert simple_token_count(text) == 6
     assert simple_token_count(text) < len(text)
 
 
@@ -1312,272 +955,9 @@ Test case: Compare `A-1049`, JSON, an email thread, a Markdown table, copied PDF
 
 How do generation settings change model behavior, repeatability, latency, and evaluation?
 
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| Logit | A logit is the model's raw score for a possible next token before probabilities are calculated. | After `refund requires`, ` evidence` may receive a higher score than ` banana`. |
-| Softmax | Softmax converts raw logits into probabilities that add up to one. | Scores like `4, 3, -2` become probabilities like "very likely, likely, very unlikely." |
-| Greedy decoding | Greedy decoding always chooses the highest-probability next token. It is stable but can be repetitive. | If ` evidence` has the highest probability, greedy decoding chooses it every time. |
-| Sampling | Sampling chooses from the probability distribution, so outputs can vary. | The model may usually choose ` evidence`, but sometimes choose ` approval`. |
-| Temperature | Temperature changes how sharp or spread out the sampling probabilities are. | Low temperature makes the top token dominate; high temperature gives weaker options more chance. |
-| Top-k | Top-k keeps only the `k` most likely next tokens before sampling. | With top-k `3`, the model samples only from the three strongest candidates. |
-| Top-p | Top-p keeps enough likely tokens to reach a chosen probability mass. | With top-p `0.9`, the model keeps candidates until their combined probability reaches 90%. |
-| Perplexity | Perplexity measures how surprised a language model is by text, but it does not measure business safety. | A model can have low perplexity and still make an unsafe refund promise. |
-| Stop sequence | A stop sequence tells generation when to end. | Stop when the model outputs `</answer>`. |
-
-### Connected dry run
-
-Continue from the Module 2 example.
-
-```text
-Classify this support ticket: "I was charged twice."
-```
-
-After tokenization, embeddings, positional information, and transformer processing, the model has hidden states for the prompt. Now it must generate the answer.
-
-Expected output:
-
-```text
-Billing issue
-```
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | The model looks at the current hidden state and predicts only the next token. | Hidden state, next-token prediction |
-| 2 | It produces raw scores for possible next tokens. | Logits |
-| 3 | Scores are converted into probabilities. | Softmax |
-| 4 | The decoding strategy chooses one token. | Greedy decoding, sampling |
-| 5 | The chosen token is appended to the context/output. | Autoregressive generation |
-| 6 | The model repeats the loop for the next token. | Decode loop |
-| 7 | Generation stops when a stop condition is reached. | Stop sequence, max output tokens |
-| 8 | Temperature changes how sharp or random sampling becomes. | Temperature |
-| 9 | Top-k/top-p restrict the candidate set. | Top-k, top-p |
-| 10 | Perplexity measures how expected the target text looks to the model. | Perplexity |
-
-Step 1: the model predicts only the next token.
-
-The model does not first create a complete answer in a hidden scratchpad and then print it. At the current position, it asks:
-
-```text
-Given the prompt and all tokens so far, what token should come next?
-```
-
-Because the prompt contains `support ticket`, `charged`, and `twice`, billing-related tokens should receive stronger scores.
-
-Step 2: the model produces logits.
-
-Logits are raw scores. They are not percentages yet.
-
-```text
-Possible next token   Logit
-"Billing"             8.2
-"Refund"              5.7
-"Technical"           3.1
-"Shipping"            2.4
-"Password"            1.2
-```
-
-Plain idea:
-
-```text
-Logits are the model's rough scoreboard before the scores become probabilities.
-```
-
-A higher logit means the model currently prefers that token more. It does not mean the token is guaranteed to be correct.
-
-Step 3: softmax converts logits into probabilities.
-
-Softmax reshapes the raw scores into a probability distribution.
-
-```text
-Possible next token   Probability
-"Billing"             89%
-"Refund"              7%
-"Technical"           3%
-"Shipping"            1%
-"Password"            <1%
-```
-
-Plain idea:
-
-```text
-Softmax turns raw scores into a probability menu.
-```
-
-The probabilities describe likely continuations, not verified facts.
-
-Step 4: the decoding strategy chooses one token.
-
-With greedy decoding, the system chooses the highest-probability token:
-
-```text
-"Billing"
-```
-
-The output so far is:
-
-```text
-Billing
-```
-
-With sampling, the system draws from the probability distribution. It will usually pick likely tokens, but it may sometimes choose a lower-probability option such as `Refund`.
-
-Why this matters:
-
-- Greedy decoding is more repeatable.
-- Sampling gives variation.
-- For classification, low-variation decoding is usually safer.
-- For brainstorming, controlled sampling may be useful.
-
-Step 5: the chosen token is appended to the context.
-
-The model now sees:
-
-```text
-Classify this support ticket: "I was charged twice."
-Billing
-```
-
-This is why generation is called autoregressive. The model writes one token, reads that token as part of the new context, and then predicts the next token.
-
-Step 6: the model predicts the next token.
-
-The next probability menu might look like:
-
-```text
-Possible next token   Probability
-" issue"              76%
-" problem"            15%
-" request"            6%
-"."                   3%
-```
-
-Greedy decoding chooses:
-
-```text
-" issue"
-```
-
-Now the output is:
-
-```text
-Billing issue
-```
-
-Step 7: generation stops.
-
-A model can stop because it reaches:
-
-- an end-of-message token;
-- a stop sequence;
-- a maximum output token limit;
-- a schema or wrapper limit in the application.
-
-For this task, a production wrapper might enforce:
-
-```text
-Allowed labels: Billing issue, Technical issue, Shipping issue, Account issue
-Max output tokens: 5
-Stop after first valid label
-```
-
-This prevents the model from continuing into an unnecessary explanation:
-
-```text
-Billing issue. The customer appears to have been charged twice and may need...
-```
-
-Step 8: temperature changes the shape of the probability menu.
-
-Low temperature makes the top options dominate more. It is useful when the task needs stability:
-
-```text
-classification
-data extraction
-compliance-sensitive answers
-```
-
-Higher temperature spreads probability more widely. It is useful when the task benefits from variation:
-
-```text
-brainstorming
-alternative phrasings
-creative drafts
-```
-
-Temperature does not make an answer more truthful. It changes sampling behavior.
-
-Step 9: top-k and top-p limit what can be sampled.
-
-Top-k keeps a fixed number of candidates:
-
-```text
-top_k = 3
-Allowed candidates: "Billing", "Refund", "Technical"
-```
-
-Top-p keeps enough candidates to reach a probability mass:
-
-```text
-top_p = 0.95
-Keep the smallest candidate group whose probabilities add up to 95%.
-```
-
-These controls reduce unlikely options, but they do not verify policy evidence.
-
-Step 10: perplexity measures how expected text looks to the model.
-
-If the correct label is `Billing issue` and the model assigns high probability to those tokens, perplexity is lower. If the model finds that label surprising, perplexity is higher.
-
-Plain idea:
-
-```text
-Low perplexity = the text looked expected to the model.
-High perplexity = the text looked surprising to the model.
-```
-
-Important limitation:
-
-```text
-Low perplexity does not guarantee business correctness.
-```
-
-A model can confidently produce a plausible but unsafe answer.
-
-The whole generation flow is:
-
-```text
-hidden states
-  -> logits
-  -> softmax probabilities
-  -> decoding rule
-  -> selected token
-  -> append token
-  -> repeat
-  -> stop
-```
-
-For Northstar, this dry run explains why generation settings must be recorded in every experiment. If one run uses greedy decoding and another uses high-temperature sampling, the team is not comparing only model quality. It is also comparing decoding behavior.
-
 ### Concept model
 
-A model does not directly say "the answer is this sentence." At each generation step, it produces a score for many possible next tokens. Those raw scores are called logits.
-
-Logits are not probabilities yet. They can be positive, negative, large, or small. Softmax turns those scores into probabilities that sum to one. After that, a decoding strategy decides which token to append.
-
-Think of the generation step as a decision pipeline:
-
-```text
-raw next-token scores
-  -> softmax probabilities
-  -> optional filtering or reshaping
-  -> next-token choice
-```
-
-Different decoding settings change the choice behavior, not the underlying truth of the answer. This is the most important point in this module.
+A model produces logits. Softmax rescales logits into probabilities. A decoding strategy selects the next token.
 
 | Decoding concept | Effect |
 |---|---|
@@ -1591,10 +971,6 @@ Different decoding settings change the choice behavior, not the underlying truth
 | Repetition control | Penalizes or limits repeated tokens/sequences. |
 | Structured generation | Constrains output toward a schema or grammar; covered more deeply in Lesson 09/10. |
 | Perplexity | Exponentiated average negative log-likelihood; useful for language-model fit, not sufficient for product quality. |
-
-Temperature is often misunderstood. It does not make the model more truthful or less truthful. It reshapes the probability distribution during sampling. Lower temperature makes high-probability tokens dominate more. Higher temperature spreads probability mass more widely, making lower-probability tokens easier to sample.
-
-Top-k and top-p are filtering strategies. Top-k keeps a fixed number of likely candidates. Top-p keeps enough candidates to reach a probability-mass threshold. Both reduce the candidate set before sampling, but neither checks whether a claim is supported by policy.
 
 Perplexity is useful when comparing how well a language model predicts a text distribution, but it is not a support-product metric. A model can have good perplexity and still make an unsafe refund promise. For Northstar, unsupported claims, missing-evidence behavior, latency, and human edit burden matter more than perplexity alone.
 
@@ -1619,14 +995,6 @@ Suppose the current logits are:
 | ` banana` | -2.0 |
 
 Greedy decoding selects ` evidence`. Sampling with high temperature can still occasionally select lower-probability tokens. If the support case lacks evidence, neither greedy decoding nor sampling proves that the draft is safe.
-
-The operational reading is:
-
-- Greedy decoding answers the question "what is the most likely next token right now?"
-- Sampling answers the question "what token can we draw from this probability distribution?"
-- Product evaluation answers a different question: "is the completed output acceptable for this workflow?"
-
-Do not confuse these three questions.
 
 ### Build
 
@@ -1813,255 +1181,9 @@ Correct model: Lower temperature changes token selection behavior. Truthfulness 
 
 How does a transformer use earlier tokens when deciding the next token?
 
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| Self-attention | Self-attention lets each token position gather useful information from other token positions. | While answering a refund question, the model can connect the current response to earlier policy text. |
-| Query | A query represents what the current token position is looking for. | The current response position may be "looking for" refund policy evidence. |
-| Key | A key represents what another token position can match against. | A policy sentence about "refunds within 30 days" offers a key that may match the refund question. |
-| Value | A value is the information contributed if a token position receives attention. | If the policy sentence is attended to, its policy information is mixed into the current representation. |
-| Causal mask | A causal mask prevents the model from looking at future tokens during next-token prediction. | When generating token 5, the model can use tokens 1-4 but not token 6. |
-| Multi-head attention | Multi-head attention runs several attention patterns in parallel. | One head may track policy evidence while another tracks customer intent. |
-| Transformer block | A transformer block combines attention, feed-forward transformations, residual connections, and normalization. | One block updates token representations; many blocks refine them repeatedly. |
-| Residual connection | A residual connection helps preserve information by adding the block input back into the output. | The model can keep useful earlier signal while a layer adds new changes. |
-| Normalization | Normalization keeps internal number scales stable across layers. | It helps prevent activations from becoming too large or unstable. |
-| Feed-forward network | The feed-forward part transforms each token position after attention has mixed information. | After policy information is mixed in, the feed-forward layer reshapes that token representation. |
-
-### Connected dry run
-
-Use one small prompt and follow what happens when the model starts writing the assistant answer.
-
-```text
-Policy: Duplicate card charges can be reversed after payment evidence is verified.
-Ticket: I was charged twice for order A-1049.
-Assistant:
-```
-
-The model is now about to generate the first assistant token. It needs to answer the ticket, but the important information is spread across the prompt:
-
-- the ticket says the customer was `charged twice`;
-- the policy says duplicate charges can be reversed only after `payment evidence is verified`;
-- the assistant should write a cautious support reply.
-
-Self-attention is the mechanism that helps the current response position look back at the useful earlier tokens.
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | Each token has a current working meaning. | Hidden state |
-| 2 | The assistant position asks, "What information do I need?" | Query |
-| 3 | Earlier tokens advertise what information they contain. | Key |
-| 4 | The model compares the question with those advertisements. | Self-attention, attention score |
-| 5 | The most useful earlier tokens send information forward. | Value |
-| 6 | Future tokens are blocked because they do not exist yet. | Causal mask |
-| 7 | Several attention patterns run at the same time. | Multi-head attention |
-| 8 | The transformer block updates the working meaning safely. | Transformer block, residual connection, normalization, feed-forward network |
-| 9 | The updated meaning is used to score possible next tokens. | Hidden state, logits |
-
-Step 1: each token has a current working meaning.
-
-Before attention, every token position already has a vector. You can think of that vector as the token's current working note.
-
-For example:
-
-```text
-"Duplicate"  -> note about a policy topic
-"charged"    -> note about the customer's billing problem
-"twice"      -> note about a repeated charge
-"Assistant:" -> note saying "we are about to write the reply"
-```
-
-The model does not literally store English notes. These are hidden states: numerical vectors that carry partial meaning. The labels above are only a human-friendly picture.
-
-Step 2: the assistant position asks what it needs.
-
-The assistant position is the place where the model is about to write the next token. It needs useful earlier information before choosing that token.
-
-Its query is like a question:
-
-```text
-What should I look back at before writing the next word?
-```
-
-For this example, the assistant position should look for:
-
-- the customer mentioned a duplicate charge;
-- the policy says reversal requires verified payment evidence;
-- the system expects a cautious support reply.
-
-Step 3: earlier tokens advertise what they contain.
-
-Each earlier token also has a key. A key is like a small learned label that says, "this is the kind of information I can provide."
-
-The policy phrase has keys related to:
-
-```text
-Duplicate card charges can be reversed after payment evidence is verified.
-```
-
-Those keys may match the assistant position's query because the assistant needs policy information about duplicate charges.
-
-The order ID also has information:
-
-```text
-A-1049
-```
-
-But for the first sentence of a cautious reply, the policy condition is more useful than the exact order ID.
-
-Step 4: attention compares the question with the advertisements.
-
-The model compares the assistant position's query with earlier tokens' keys. This produces attention scores.
-
-A simple picture:
-
-```text
-Earlier position                         Attention weight
-"Duplicate card charges"                 high
-"payment evidence is verified"           high
-"order A-1049"                            medium
-"Assistant:"                              low as source context
-```
-
-High attention weight means "use more information from here." Low attention weight means "use less information from here."
-
-Important: this is not a citation and not proof. It only means the model is mixing more information from some token positions than others.
-
-Step 5: useful tokens send information forward.
-
-If the assistant position pays strong attention to `payment evidence is verified`, the value from that token position is mixed into the assistant position's hidden state.
-
-In plain terms:
-
-```text
-query = what the current position is asking for
-key   = what an earlier position says it can help with
-value = the actual information that gets mixed in
-```
-
-So the assistant position's working note becomes more informed:
-
-```text
-Before:
-"write a support reply"
-
-After:
-"write a support reply about a duplicate charge, but mention evidence verification"
-```
-
-Step 6: the causal mask blocks future tokens.
-
-The model can only look backward. It cannot look at future assistant words because it has not generated them yet.
-
-When writing the first assistant token, the model can use:
-
-```text
-Policy: ...
-Ticket: ...
-Assistant:
-```
-
-It cannot use:
-
-```text
-Assistant: I can help review this...
-```
-
-because those future words do not exist yet.
-
-This is the causal rule:
-
-```text
-can attend to earlier tokens
-cannot attend to future tokens
-```
-
-Step 7: several attention heads look for different useful patterns.
-
-One attention head may focus on the policy rule:
-
-```text
-duplicate charge -> payment evidence required
-```
-
-Another head may focus on the customer's need:
-
-```text
-charged twice -> billing help
-```
-
-Another head may focus on where the assistant answer should begin:
-
-```text
-Assistant: -> start the reply now
-```
-
-This is multi-head attention. The model is not forced to look for only one relationship at a time. Different heads can track different relationships in parallel.
-
-Step 8: the transformer block updates and stabilizes the working meaning.
-
-After attention mixes useful information into the assistant position, the transformer block does more work:
-
-- the residual connection keeps the old useful signal while adding the new signal;
-- normalization keeps the internal numbers stable;
-- the feed-forward network reshapes the mixed information into a better form for the next layer.
-
-Simple picture:
-
-```text
-old working note
-  + information from attention
-  -> stabilize numbers
-  -> transform into a cleaner working note
-```
-
-After many transformer blocks, the assistant position may carry this kind of meaning:
-
-```text
-This is a duplicate-charge support case.
-The policy requires payment evidence verification.
-The reply should be cautious and should not promise an automatic refund.
-```
-
-Step 9: the final hidden state is used to score the next token.
-
-The model now uses the updated hidden state to score possible next tokens.
-
-For example:
-
-```text
-"I"       -> likely
-"Please"  -> likely
-"Refund"  -> risky if it starts an approval
-"Approved"-> risky without evidence
-```
-
-Those next-token scores are logits. The decoder will then choose one token and generation continues.
-
-The practical lesson is:
-
-```text
-self-attention can connect evidence to the answer
-but it does not prove the answer is supported
-```
-
-For Northstar, this is why attention is not enough as a compliance mechanism. The application still needs explicit evidence checks, evaluation cases, human review rules, and audit records.
-
 ### Mental model
 
-Self-attention is how a token position gathers useful information from other token positions.
-
-Start with a plain picture. Suppose the model is processing the word `refund` near the end of a support ticket. To decide what to generate next, that position may need information from earlier text:
-
-- the refund policy;
-- the order date;
-- the customer's request;
-- role markers showing what is instruction versus user content;
-- previous generated text.
-
-Self-attention gives the model a learned way to ask, "which earlier positions should influence this position right now?"
+Self-attention lets each token position gather information from other positions.
 
 For each token position, the model constructs:
 
@@ -2070,16 +1192,6 @@ For each token position, the model constructs:
 - Value: what information this position contributes if attended to.
 
 Attention compares queries with keys, turns scores into weights, and mixes values. A causal mask prevents positions from attending to future tokens in a causal language model.
-
-Here is the intuition:
-
-```text
-query = what I need
-key   = what each other token can match against
-value = what each other token can contribute
-```
-
-If the query at the current position matches the key for a policy sentence, that policy sentence can receive a higher attention weight. The model then mixes more of that position's value into the current hidden state.
 
 A transformer block typically combines:
 
@@ -2092,13 +1204,20 @@ self-attention
   -> normalization
 ```
 
-A residual connection adds the block input back into the block output. In plain terms, it gives the model a path to preserve useful information while each layer makes changes. Without residual connections, very deep networks are harder to train and can lose useful signal.
-
-Normalization keeps activation scales manageable so later layers receive numerically stable inputs. It does not "make the answer correct"; it stabilizes computation.
-
-A feed-forward network applies learned transformations at each position. Attention mixes information between positions. The feed-forward part transforms the representation at each position after that mixing.
+A residual connection adds the block input back into the output so information can flow through many layers. Normalization stabilizes activations. A feed-forward network applies learned transformations independently at each position.
 
 Transformer block internals matter because most LLM behavior is not produced by one component. Attention routes information between positions. The feed-forward network transforms each position's representation. Residual connections help preserve and refine information across many layers. Normalization keeps the scale of activations manageable. When output quality fails, the application engineer usually cannot inspect each internal layer in production, but understanding the block helps explain why context placement, model size, and architecture changes alter behavior.
+
+### Key concepts
+
+| Concept | Operational meaning |
+|---|---|
+| Attention | Weighted mixing of information across positions. |
+| Query/key/value | Learned projections used to compute and apply attention. |
+| Causal mask | Prevents looking at future tokens during next-token prediction. |
+| Multi-head attention | Runs several attention patterns in parallel. |
+| Transformer block | Attention plus feed-forward transformations and stabilization. |
+| Hidden state | The vector representation passed between layers. |
 
 ### Worked example
 
@@ -2109,16 +1228,6 @@ Policy allows refunds within 30 days. Customer asks for refund.
 ```
 
 When predicting the response, the model should connect `refund` in the customer request with `refunds within 30 days` in the policy text. Attention can help create this relationship, but it does not guarantee policy correctness. The policy might be too far away, phrased ambiguously, contradicted elsewhere, or ignored by the model.
-
-Step by step:
-
-1. The current response position forms a query, roughly representing what information is useful now.
-2. Earlier tokens expose keys, including policy tokens and customer-request tokens.
-3. Attention scores decide which positions matter more.
-4. The model mixes the corresponding values into a new hidden state.
-5. Later layers continue transforming that hidden state before logits are produced.
-
-This is why attention is powerful, but also why it is not enough for production evidence grounding. Attention can route information. It does not produce an audit trail saying, "this answer is legally supported by policy paragraph 3."
 
 ### Mini-implementation
 
@@ -2278,172 +1387,6 @@ Test case: Put relevant policy at the top, distractors in the middle, and a ques
 
 Why do base, instruction, reasoning, multimodal, dense, and mixture-of-experts models behave differently?
 
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| Encoder model | Encoder models are strong for reading and representing input. | Use one to classify text or create search embeddings. |
-| Decoder model | Decoder models generate text left-to-right and are common for chat. | A support assistant draft is usually generated by a decoder-style model. |
-| Encoder-decoder model | Encoder-decoder models read an input and then generate an output. | A translation model reads an English sentence and produces a French sentence. |
-| Dense model | A dense model generally uses the full model path for each token. | Each support-ticket token goes through the same broad parameter path. |
-| Mixture-of-experts model | A mixture-of-experts model routes tokens through selected expert parts. | One token may use only a few active experts even if the model has many total parameters. |
-| Base model | A base model is trained mainly to continue text, not necessarily follow instructions. | It may continue a ticket instead of helping an agent. |
-| Instruction-tuned model | An instruction-tuned model has been post-trained to follow user tasks better. | It is more likely to answer "classify this ticket" as a task. |
-| Reasoning-oriented model | A reasoning-oriented model is optimized for tasks needing deliberate steps. | It may help compare policy conditions before drafting. |
-| Multimodal model | A multimodal model can handle more than text, such as images, documents, or audio. | It matters if support tickets include screenshots or scanned PDFs. |
-| Hosted model | A hosted model is run by a provider behind an API. | Your app sends a request to a provider instead of running weights locally. |
-| Open-weight model | An open-weight model provides weights you can run or adapt, subject to license and infrastructure. | You may run a small open-weight model for a private internal workflow. |
-| Pretraining | Pretraining gives the model broad language ability. | The model learns general patterns from large text collections. |
-| Supervised fine-tuning | SFT teaches the model to imitate desired input-output examples. | Train on examples of good support-ticket classifications. |
-| Preference optimization | Preference optimization pushes outputs toward choices humans or rubrics prefer. | Prefer cautious answers over confident unsupported refund approvals. |
-| Quantization | Quantization lowers numerical precision to reduce memory or serving cost, but quality must be checked. | Use smaller number formats so a model fits on cheaper hardware. |
-
-### Connected dry run
-
-Imagine Northstar is choosing the first model candidate for a support-ticket drafting lab. The team has one task:
-
-```text
-Given a customer support ticket and policy evidence, draft a cautious agent-review reply.
-```
-
-The model-selection question is not "which model sounds most advanced?" It is:
-
-```text
-Which model shape, training history, and serving setup fit this workflow under our risk, cost, and latency constraints?
-```
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | The team decides whether the task mainly reads, generates, or transforms. | Encoder, decoder, encoder-decoder |
-| 2 | The team separates raw continuation behavior from instruction-following behavior. | Base model, instruction-tuned model |
-| 3 | The team accounts for how training stages shape behavior. | Pretraining, SFT, preference optimization |
-| 4 | The team compares serving architecture implications. | Dense model, mixture-of-experts model |
-| 5 | The team chooses a hosted or open-weight operating path. | Hosted model, open-weight model |
-| 6 | The team treats compression as a measured serving tradeoff. | Quantization |
-| 7 | The team turns the comparison into a recommendation. | Evaluation result, model-selection memo |
-
-Step 1: decide whether the task mainly reads, generates, or transforms.
-
-The task requires reading the ticket and policy, then generating a reply. A pure encoder model is usually not the main candidate because encoder models are strongest when the output is a representation, classification, ranking score, or embedding.
-
-A decoder model is a natural fit because the system must generate text left-to-right:
-
-```text
-ticket + policy
-  -> generated support draft
-```
-
-An encoder-decoder model could also fit a transformation task, but modern chat assistants are commonly decoder-style or decoder-dominant systems. The exact architecture matters less to the application team than measured behavior under the workflow.
-
-Step 2: separate base behavior from instruction-following behavior.
-
-A base model has learned broad text patterns. If given:
-
-```text
-Classify this ticket: "I was charged twice."
-```
-
-it may continue the text, imitate examples, or produce something plausible but not reliably follow the task.
-
-An instruction-tuned model has been post-trained to respond to instructions more directly. It is more likely to treat `classify this ticket` as a task rather than just text to continue.
-
-Plain decision:
-
-```text
-Base model = good for understanding raw model continuation behavior.
-Instruction-tuned model = better first candidate for an assistant workflow.
-```
-
-Step 3: account for pretraining, SFT, and preference optimization.
-
-Pretraining gives the model broad language ability. It is why the model can recognize ordinary support language such as `refund`, `order`, `charged`, and `policy`.
-
-Supervised fine-tuning, or SFT, teaches the model to imitate examples of desired input-output behavior. If the training examples contain cautious support replies, the model may learn that style.
-
-Preference optimization shifts outputs toward choices judged better by humans or a rubric. If reviewers prefer "ask for missing evidence" over "approve refund without evidence," preference optimization can make cautious behavior more likely.
-
-But none of these stages removes the need for evaluation:
-
-```text
-pretraining gives capability
-SFT gives task-following style
-preference optimization improves preferred behavior
-evaluation proves whether this specific workflow is acceptable
-```
-
-Step 4: compare dense and mixture-of-experts serving implications.
-
-Suppose Candidate A is a dense model and Candidate B is a mixture-of-experts model.
-
-For a dense model, the serving picture is simpler:
-
-```text
-each token generally uses the same broad model path
-```
-
-For a mixture-of-experts model, routing selects some expert components for each token:
-
-```text
-many total parameters
-fewer active parameters per token
-routing and serving complexity
-```
-
-MoE may provide strong capability-per-compute in some systems, but the application team still cares about observable facts:
-
-- Does it answer safely?
-- What is median and tail latency?
-- Is throughput stable under batching?
-- Does the provider/runtime expose reliable model IDs and revisions?
-- Does behavior change after routing, load, or provider updates?
-
-Step 5: compare hosted and open-weight paths.
-
-A hosted model is run by a provider. Northstar sends an API request and receives an output. This can reduce infrastructure work, but it raises provider policy, retention, regional availability, rate limit, and fallback questions.
-
-An open-weight model can be run by Northstar, subject to license and infrastructure. This may improve control or privacy, but it adds serving, scaling, patching, security, and hardware responsibility.
-
-The dry-run decision might be:
-
-```text
-Lesson 08:
-Use a local fake/baseline/open-weight mechanics path for understanding.
-Record hosted-model results manually for comparison.
-
-Lesson 09:
-Build real hosted model API integration and reliability controls.
-```
-
-Step 6: treat quantization as a measured tradeoff.
-
-If a model is too expensive or too large to run locally, the team may try quantization. Quantization reduces numerical precision so the model uses less memory or can run on cheaper hardware.
-
-The risk is that output quality can change. A quantized model might still pass simple tests but fail edge cases, structured output, or long-context behavior.
-
-The practical rule is:
-
-```text
-Quantization is not "free speed."
-It is a serving optimization that must be evaluated against the same fixed cases.
-```
-
-At the end of this dry run, the model-selection logic is:
-
-```text
-task shape
-  -> architecture family
-  -> base/instruction/reasoning behavior
-  -> training and post-training assumptions
-  -> hosted/open-weight serving path
-  -> dense/MoE/quantization cost and latency tradeoffs
-  -> measured evaluation result
-  -> recommendation memo
-```
-
-For Northstar, the correct candidate is not the model with the most impressive label. It is the candidate that produces safe, evidence-aware drafts within the workflow's cost, latency, privacy, and operational constraints.
-
 ### Mental model
 
 Model behavior is shaped by architecture, data, training objective, post-training, and serving setup.
@@ -2453,21 +1396,7 @@ architecture + pretraining + post-training + inference stack + prompt/context
   -> observed behavior
 ```
 
-Read model choice in three layers:
-
-```text
-model shape
-  -> how the model was trained or adapted
-  -> how the model is served
-```
-
-Model shape answers questions like: does it mainly read, generate, translate, reason, or handle images/audio? Training and post-training answer: what behavior was learned before you received the model? Serving answers: what latency, cost, privacy, and reliability constraints appear when the model runs for real users?
-
-For an applied engineer, the useful question is not "what is the most advanced model category?" The useful question is "which candidate has the right behavior for this workflow under our constraints?"
-
-### Reference comparison
-
-Model shape:
+### Key concepts
 
 | Concept | Explanation |
 |---|---|
@@ -2476,11 +1405,6 @@ Model shape:
 | Encoder-decoder model | Encodes input then decodes output; historically common for translation and summarization. |
 | Dense model | Uses the full parameter set for each token path, subject to architecture details. |
 | Mixture-of-experts model | Routes tokens through selected experts; total parameters can exceed active parameters per token. |
-
-Behavior and modality:
-
-| Concept | Explanation |
-|---|---|
 | Base model | Broad text continuation model before instruction/chat post-training. |
 | Instruction-tuned model | Post-trained to follow instructions and dialogue behavior. |
 | Reasoning-oriented model | Optimized for tasks that benefit from deliberate intermediate computation or planning. |
@@ -2488,7 +1412,7 @@ Behavior and modality:
 | Hosted model | Served by a provider through an API. |
 | Open-weight model | Weights are available to run or adapt, subject to license and operational constraints. |
 
-Lifecycle and adaptation:
+Lifecycle:
 
 | Stage | Application-engineering meaning |
 |---|---|
@@ -2500,18 +1424,9 @@ Lifecycle and adaptation:
 | Quantization | Lower precision representation to reduce memory or improve serving economics. |
 | Inference | Running the trained model to produce outputs. |
 
-Dense versus mixture-of-experts is not just a research distinction. A dense model tends to use the same broad parameter path for each token, subject to its architecture. A mixture-of-experts model has multiple expert components and routes tokens through selected experts. It may have many total parameters but fewer active parameters per token.
+Dense versus mixture-of-experts is not just a research distinction. It can affect serving cost, latency, memory layout, batching, and failure modes. A mixture-of-experts model may have many total parameters but activate only selected experts per token. That can improve capability-per-compute in some serving systems, but it also adds routing and infrastructure complexity. For an applied engineer, the practical question is not "which architecture sounds better?" It is "which candidate meets quality, latency, cost, privacy, and reliability requirements under my workload?"
 
-The serving implication is practical: MoE can improve capability-per-compute in some systems, but it adds routing and infrastructure complexity. Dense models can be simpler to reason about operationally, but may require more active compute for a given capability level. The right choice depends on measured quality, latency, throughput, memory, batching behavior, and provider/runtime maturity.
-
-Pretraining, supervised fine-tuning, and preference optimization change different things:
-
-- Pretraining gives broad language and world-pattern capability by learning from large data.
-- Continued pretraining adds more unsupervised/domain exposure.
-- Supervised fine-tuning teaches the model to imitate desired input-output examples.
-- Preference optimization shifts behavior toward outputs judged better by a preference signal.
-
-None of these stages guarantees correctness in your business workflow. A model can be instruction-tuned and still hallucinate. A model can be preference-optimized and still over-refuse or sound confident without evidence. You still need task-specific evaluation and production controls.
+Pretraining, supervised fine-tuning, and preference optimization change different things. Pretraining gives broad language and world-pattern capability. Supervised fine-tuning teaches the model to imitate desired input-output examples. Preference optimization shifts behavior toward outputs judged better by a preference signal. None of these stages guarantees correctness in your business workflow. You still need task-specific evaluation and production controls.
 
 Quantization reduces numerical precision to save memory or improve serving economics. It can make local or cheaper serving feasible, but it can also affect quality, compatibility, or latency depending on model, hardware, and runtime. Treat quantization as an engineering tradeoff to measure, not a free optimization.
 
@@ -2638,242 +1553,22 @@ Test case: Compare a large expensive model and a smaller instruction-tuned model
 
 How do context formatting and missing evidence affect model behavior?
 
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| Context window | The context window is the token budget for the request and response. | If the ticket, policy, and answer exceed the budget, the system must shorten or reject something. |
-| Prefill | Prefill is the phase where the model processes the input prompt before generating new tokens. | A long policy document makes the model spend more time reading before it answers. |
-| Decode | Decode is the phase where the model generates output tokens one by one. | A long draft reply takes more decode time than a short classification label. |
-| KV cache | The KV cache stores attention key/value information so generation can reuse previous work. | During a long answer, the model does not recompute all earlier attention information from scratch. |
-| Chat template | A chat template turns roles like system/user/assistant into the token format the model expects. | `system: follow policy` and `user: refund?` become serialized tokens with role markers. |
-| Hallucination | Hallucination is an unsupported or false output. | The model says "refund approved" when no policy evidence supports it. |
-| Uncertainty | Uncertainty means the system does not have enough basis to answer safely. | The ticket asks for a refund but gives no order date or policy evidence. |
-| Calibration | Calibration means confidence should match real correctness over many cases. | If a system says 80% confidence, around 80% of those predictions should be correct. |
-| Abstention | Abstention means choosing not to answer fully when evidence is missing or risk is high. | The assistant asks for the order date instead of approving the refund. |
-
-### Connected dry run
-
-Use one support case and trace what happens when context is available, too long, or incomplete.
-
-```text
-System instruction:
-You help support agents. Do not approve refunds without policy evidence.
-
-Policy excerpt:
-Duplicate card charges can be reversed after payment evidence is verified.
-
-Ticket:
-I was charged twice for order A-1049. Please refund me.
-```
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | The application serializes structured messages into the model's expected prompt format. | Chat template |
-| 2 | The system checks whether input plus reserved output fits. | Context window, token budget |
-| 3 | The model reads the input prompt before writing. | Prefill |
-| 4 | The runtime reuses processed attention information during generation. | KV cache |
-| 5 | The model writes the answer one token at a time. | Decode |
-| 6 | The system checks whether evidence is missing. | Uncertainty, missing evidence |
-| 7 | The system detects unsupported claims. | Hallucination |
-| 8 | The system avoids trusting self-reported confidence. | Calibration |
-| 9 | The system refuses, asks for evidence, or escalates when needed. | Abstention |
-
-Step 1: the application builds a chat-formatted prompt.
-
-The developer may store messages as structured objects:
-
-```text
-system: You help support agents...
-user: Policy excerpt... Ticket...
-assistant:
-```
-
-The chat template converts those messages into the model's expected token format. Conceptually:
-
-```text
-<system>
-You help support agents. Do not approve refunds without policy evidence.
-</system>
-<user>
-Policy excerpt: Duplicate card charges can be reversed after payment evidence is verified.
-Ticket: I was charged twice for order A-1049. Please refund me.
-</user>
-<assistant>
-```
-
-What changed:
-
-```text
-Before: structured messages in application code
-After: serialized model input with role boundaries
-```
-
-If the role formatting is wrong, the model may treat policy text like user text, or user text like instruction. That is why chat templates are part of the reliability boundary.
-
-Step 2: the system checks context pressure.
-
-Suppose the model's context window is 8,000 tokens. The application must fit:
-
-- system instruction;
-- policy evidence;
-- ticket;
-- any prior conversation;
-- any examples;
-- reserved output tokens.
-
-If the prompt uses 7,700 input tokens and the system reserves 500 output tokens, the total budget is:
-
-```text
-7,700 + 500 = 8,200 tokens
-```
-
-That does not fit. The system must reduce input, reserve fewer output tokens, choose narrower evidence, or reject/escalate. It should not silently cut off the policy, because truncating the wrong part can turn a safe answer into an unsupported answer.
-
-Step 3: prefill processes the input.
-
-Prefill is the phase where the model reads the input prompt before generating output. Long policy text increases prefill latency because the model must process many input tokens before it can answer.
-
-Plain idea:
-
-```text
-Prefill = the model reads the prompt.
-Decode = the model writes the answer.
-```
-
-If a support UI sends long ticket histories for every request, prefill cost can dominate. This is why context construction is both a quality problem and a cost problem.
-
-Step 4: the KV cache supports decoding.
-
-During generation, the model repeatedly creates new tokens. The KV cache stores attention key/value information from earlier tokens so the model can reuse previous work instead of recomputing everything from scratch at every step.
-
-Plain idea:
-
-```text
-KV cache = memory of processed attention information during generation
-```
-
-The cache helps decode efficiency, but it does not remove the initial cost of reading a long prompt. It also does not make the model more truthful.
-
-Step 5: decode generates the answer one token at a time.
-
-If evidence is present, a safe draft might begin:
-
-```text
-I can help review this duplicate-charge case...
-```
-
-The model continues token by token. Longer replies take more decode time because every generated token requires another prediction step.
-
-Step 6: the system checks missing evidence.
-
-Now compare a second case:
-
-```text
-Ticket:
-I was charged twice. Please refund me.
-
-Policy evidence:
-not available
-```
-
-The safe behavior is not to approve a refund. The system has uncertainty because it lacks enough basis to answer safely. A good product response is:
-
-```text
-I need the order date and applicable policy evidence before recommending a refund decision.
-```
-
-Step 7: identify hallucination risk.
-
-If the model says:
-
-```text
-Your refund has been approved.
-```
-
-with no policy evidence, that is a hallucination in product terms. The output may sound fluent, but it makes an unsupported claim.
-
-Step 8: do not rely on self-reported confidence.
-
-The model might add:
-
-```text
-I am confident this qualifies for a refund.
-```
-
-That sentence is not calibration. Calibration is measured over many cases by comparing confidence or score buckets to actual correctness.
-
-The safe gate is based on evidence and evaluation, not on the model's self-description:
-
-```text
-evidence present?
-policy condition satisfied?
-risk low enough?
-held-out evaluation acceptable?
-human review required?
-```
-
-Step 9: abstain when the system lacks enough basis.
-
-Abstention means the system deliberately refuses to give a full answer. It may ask for missing information or escalate:
-
-```text
-I cannot recommend refund approval from the available evidence. Please provide payment confirmation and the applicable refund policy.
-```
-
-The full context-and-risk flow is:
-
-```text
-structured messages
-  -> chat template
-  -> token budget check
-  -> prefill
-  -> KV cache during decode
-  -> generated answer
-  -> evidence/risk check
-  -> answer, abstain, or escalate
-```
-
-For Northstar, this dry run explains why "bigger context" is not enough. The system must decide what evidence enters context, reserve output space, measure latency, detect missing evidence, and block unsupported claims.
-
 ### Concept model
 
-A context window is the model's token budget for a request. It must hold the input tokens and leave room for output tokens. If the prompt, ticket, policy text, examples, and reserved answer space do not fit, something must be shortened, compressed, removed, or rejected before the model call.
-
-Longer context is useful but not free:
+A context window is the model's token budget for input and output. Longer context is useful but not free:
 
 - More input tokens increase prefill cost and latency.
 - More output tokens increase decode cost and latency.
 - Long context can bury important evidence.
 - The model can still use the wrong evidence or invent missing facts.
 
-A chat template converts structured messages into the exact token pattern a model expects. A developer may write messages as:
+A chat template converts structured messages into the exact token pattern a model expects. Chat messages are not magic; they are serialized into text/tokens with role markers and special tokens.
 
-```text
-system: You help support agents.
-user: Can I get a refund?
-```
+Hallucination means unsupported or false output. It is a system property, not only a model property. It can come from missing context, bad retrieval, ambiguous instructions, poor evaluation, weak UI, or business pressure to always answer.
 
-But the model receives serialized tokens with role markers, separators, and special tokens. Chat messages are not magic. They are formatted input.
-
-Hallucination means unsupported or false output. In product terms, hallucination is not just "the model made a mistake." It is a system failure where the user sees or relies on a claim the system cannot support. It can come from missing context, bad retrieval, ambiguous instructions, poor evaluation, weak UI, or business pressure to always answer.
-
-Uncertainty means the system does not have enough basis to answer safely. The hard part is that many LLMs produce fluent text even when the evidence is weak. They may sound confident because the next-token pattern is confident, not because the system has verified the claim.
-
-Calibration means predicted confidence should match empirical correctness across many cases. If a system says it is 80% confident on many cases, roughly 80% of those cases should be correct. Many LLM outputs are not naturally calibrated in a way product teams can trust directly.
+Uncertainty is difficult because many LLMs produce fluent text without calibrated confidence. Calibration means predicted confidence should match empirical correctness. A support system should use evidence and abstention rules, not rely on the model saying "I am confident."
 
 Hallucination, uncertainty, and calibration are related but not identical. Hallucination is the bad output: a claim unsupported by evidence. Uncertainty is the model or system not having enough basis to answer. Calibration is whether confidence estimates match actual correctness over many cases. In support operations, the safe behavior is not to ask the model "are you confident?" and trust the sentence it emits. The safe behavior is to check evidence availability, policy coverage, risk level, and evaluation history.
-
-Concrete distinction:
-
-| Situation | What it means | Safe product behavior |
-|---|---|---|
-| No policy evidence is available | Uncertainty / missing evidence | Ask for evidence or escalate. |
-| Model says "refund approved" without policy | Hallucination / unsupported claim | Block output and require review. |
-| Model says "high confidence" but is often wrong | Poor calibration | Do not use self-reported confidence as a gate. |
-| Long context includes policy but model uses distractor | Context-use failure | Improve context construction or retrieval. |
 
 ### Product consequence
 
@@ -3041,165 +1736,9 @@ Correct model: More context can help, but the model can still ignore, misread, o
 
 How do you compare model behavior without fooling yourself?
 
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| Fixed cases | Fixed cases keep the evaluation stable across model candidates. | Test every model on the same six support tickets. |
-| Generation settings | Settings control how the model is called, so they must be recorded for reproducibility. | `temperature=0.2` and `temperature=1.0` are different experiments. |
-| Raw output | Raw output is what the model actually said before scoring. It must be stored for audit and re-scoring. | Save the exact draft that promised a refund. |
-| Case score | A case score converts one output into task-specific evidence. | A draft that asks for evidence gets a higher score than one that approves a refund unsupported. |
-| Hard gate | A hard gate is a failure condition that blocks promotion even if averages look good. | One unsafe refund approval blocks the candidate. |
-| Model ID and revision | Model identity must be recorded so a result can be reproduced. | `model-x` and `model-x@revision-2` may behave differently. |
-| Token count | Token count affects cost, latency, and whether a case fits in context. | A long policy case may cost more than a short refund question. |
-| Latency | Latency measures how long the model takes. It affects user experience and workflow feasibility. | A support agent cannot wait 40 seconds for every draft. |
-| Model-selection memo | The memo turns test evidence into an engineering recommendation. | "Candidate B is safer because it asks for missing evidence." |
-
-### Connected dry run
-
-Run one candidate through a small model-behavior lab and watch how raw behavior becomes an engineering decision.
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | The team defines a stable set of test cases. | Fixed cases |
-| 2 | The team records the exact call configuration. | Generation settings, model ID, revision |
-| 3 | The lab runs each case and stores exact responses. | Raw output |
-| 4 | The scorer converts each response into task evidence. | Case score |
-| 5 | A blocking rule rejects unsafe candidates even if averages look good. | Hard gate |
-| 6 | The lab records speed and size evidence. | Token count, latency |
-| 7 | The team writes an evidence-backed recommendation. | Model-selection memo |
-
-Step 1: define fixed cases.
-
-Northstar creates a small held-out set:
-
-```text
-Case 1: clear duplicate-charge evidence
-Case 2: refund request with missing policy evidence
-Case 3: adversarial user asks the assistant to ignore policy
-Case 4: long ticket with copied email history
-Case 5: multilingual refund request
-Case 6: non-refund technical issue
-```
-
-Fixed cases matter because the team must compare candidates on the same evidence. If Candidate A gets easy cases and Candidate B gets hard cases, the comparison is meaningless.
-
-Step 2: record generation settings before running.
-
-Example:
-
-```text
-model_id: fake-model-v1
-revision: local-test-double
-temperature: 0.2
-top_p: 0.9
-max_output_tokens: 160
-stop: none
-```
-
-Settings are part of the experiment. A model run with `temperature=0.2` is not the same experiment as a model run with `temperature=1.0`.
-
-Step 3: run each case and save raw output.
-
-For Case 2, the raw output might be:
-
-```text
-Draft for agent review only: verify policy evidence before responding.
-```
-
-For the same case, a riskier candidate might output:
-
-```text
-Your refund has been approved.
-```
-
-The lab stores raw output because the exact text matters. If only a score is stored, reviewers cannot later audit whether the system made an unsupported promise.
-
-Step 4: calculate case-level evidence.
-
-The scorer checks task-specific signals:
-
-- Did the output mention missing evidence when evidence was missing?
-- Did it make an unsupported refund promise?
-- Did it stay within output length?
-- Did it avoid following adversarial instructions?
-- Did it preserve "agent review only" language?
-
-For Case 2:
-
-```text
-safe candidate:
-unsupported_claim = false
-asks_for_evidence = true
-case_score = pass
-
-risky candidate:
-unsupported_claim = true
-asks_for_evidence = false
-case_score = fail
-```
-
-Step 5: apply hard gates.
-
-A hard gate blocks promotion even if the average score looks good.
-
-Example:
-
-```text
-Hard gate:
-Any high-risk unsupported refund approval blocks the candidate.
-```
-
-This matters because averages can hide dangerous failures. A candidate that passes five cases but makes one legally risky promise is not acceptable for support automation.
-
-Step 6: record token count and latency.
-
-The lab records:
-
-```text
-input_tokens
-output_tokens
-total_tokens
-latency_ms
-```
-
-This turns cost and speed into evidence. A model that is safe but too slow for the agent workflow may not be the right first integration candidate.
-
-Step 7: write the model-selection memo.
-
-The memo should not say:
-
-```text
-Candidate B looked better.
-```
-
-It should say:
-
-```text
-Candidate B is recommended for Lesson 09 API integration because it avoided unsupported refund approval across the fixed cases, asked for missing evidence in the no-policy case, and stayed within the latency envelope in local tests. Remaining risks: hosted API behavior, rate limits, provider retention policy, and production monitoring are not yet validated.
-```
-
-The evaluation flow is:
-
-```text
-fixed cases
-  -> recorded settings
-  -> raw outputs
-  -> case scores
-  -> hard gates
-  -> latency/token evidence
-  -> recommendation memo
-```
-
-For Northstar, this dry run protects the team from being fooled by one polished demo answer. It forces the model choice to be based on repeatable evidence.
-
 ### Concept model
 
-A model-behavior lab exists to prevent a common mistake: trying one prompt, seeing one nice answer, and deciding the model is good.
-
-That is not evaluation. A model comparison must separate the ingredients of the experiment so the team can reproduce and challenge the conclusion.
+A model-behavior lab must separate:
 
 ```text
 fixed cases
@@ -3213,17 +1752,7 @@ human/system scores
 recommendation
 ```
 
-Each layer has a different job:
-
-- Fixed cases define what the model was tested on.
-- Settings define how the model was called.
-- Raw outputs preserve what the model actually said.
-- Scores convert outputs into task-specific evidence.
-- Recommendations explain what decision the evidence supports.
-
 The comparison must record model ID, revision, tokenizer, settings, token counts, latency, output text, unsafe flags, and limitations. Conclusions must distinguish measured observations from assumptions.
-
-Raw outputs matter because scoring rules can change. If you only store the final score, you cannot later ask, "did the model make an unsupported promise?" or "did the scorer miss a failure?" Storing outputs also lets reviewers audit edge cases and improve rubrics.
 
 ### Product consequence
 
@@ -3246,8 +1775,6 @@ Candidate A has polished prose and low latency but approves a refund in the adve
 Candidate B has less polished prose but consistently asks for missing evidence and never promises unsupported refunds.
 
 Candidate B is the safer integration candidate. Style can be improved later. Unsafe behavior blocks promotion.
-
-This example is intentionally simple. In real model selection, teams often overvalue polished language. For support automation, a less polished answer that respects evidence is usually a better candidate than a fluent answer that creates liability.
 
 ### Build
 
@@ -3637,92 +2164,6 @@ Correct model: Model selection needs separate gates for unsafe behavior, latency
 
 The lab should be runnable from the command line, testable through an API wrapper, observable enough for debugging, and packageable as a container. This does not make it production-ready for customer data. It makes the learning project operationally disciplined.
 
-This module is included because model understanding is not useful if the behavior cannot be reproduced. A model-behavior lab needs a repeatable way to run cases, collect outputs, inspect failures, and share results. The operational wrapper is not the main theory, but it protects the theory from becoming a one-off notebook experiment.
-
-### Key concepts
-
-| Concept/term | Why it matters | Very simple example |
-|---|---|---|
-| CLI | A command-line interface lets engineers run the lab repeatably without clicking through a notebook. | `model-lab baseline` runs the baseline cases. |
-| API wrapper | An API wrapper lets the same lab behavior be called through HTTP for smoke tests or integration practice. | `GET /healthz` checks whether the service is alive. |
-| Observability | Observability gives evidence when something is slow, broken, or behaving differently. | Logs and traces show which case ran and how long it took. |
-| Trace | A trace follows one operation across code boundaries. | A baseline API request creates a span around `api.run_baseline`. |
-| Health check | A health check confirms the service starts and responds. | Cloud Run or a local test calls `/healthz`. |
-| Container | A container packages the app and dependencies so it runs consistently. | Docker builds the lab into an image. |
-| Rollback | Rollback means returning to a previous working version if deployment fails. | If the API fails after deployment, route traffic back to the last good container. |
-
-### Connected dry run
-
-This module is operational, so the dry run follows one lab execution instead of one model-internal calculation.
-
-Dry-run map:
-
-| Step | What happens | Concepts being used |
-|---:|---|---|
-| 1 | An engineer runs the lab from the terminal. | CLI |
-| 2 | The same behavior is exposed through an HTTP boundary. | API wrapper |
-| 3 | Runtime evidence is emitted for debugging. | Observability, logs, traces |
-| 4 | The application is packaged for repeatable execution. | Container |
-| 5 | The deployed service proves it can start and respond. | Health check |
-| 6 | The team returns to a previous working version if the rollout fails. | Rollback |
-
-Step 1: an engineer runs the CLI.
-
-```bash
-model-lab baseline
-```
-
-The CLI loads the fixed cases, runs the baseline or candidate runner, writes result records, and prints the report path. This matters because the lab must be repeatable without manually clicking through a notebook.
-
-Step 2: the same behavior is exposed through an API wrapper.
-
-A smoke test calls:
-
-```text
-GET /healthz
-```
-
-Then an internal tool or test can call the baseline endpoint. The API wrapper does not make the model safer. It makes the lab callable through a production-like boundary so Lesson 09 can build on it.
-
-Step 3: logs and traces make the run inspectable.
-
-When the lab runs Case 2, logs should show which case ran, which model candidate was used, and whether the result was written. A trace should let an engineer follow one operation across the API handler, runner, evaluator, and store.
-
-Plain idea:
-
-```text
-logs tell what happened
-metrics tell how often and how much
-traces show where time was spent
-```
-
-Step 4: a container packages the app.
-
-Docker packages the Python app and dependencies so another machine can run the same lab. This does not prove model quality. It only proves the operational package starts and can run the lab.
-
-Step 5: the health check protects deployment.
-
-If the container starts but `/healthz` fails, the deployment should be treated as broken even if the code passed local unit tests.
-
-Step 6: rollback gives a safe escape path.
-
-If a new container version fails health checks or produces malformed reports, the team should return traffic to the previous known-good version.
-
-The operational flow is:
-
-```text
-CLI command
-  -> load cases
-  -> run candidate
-  -> write results
-  -> API smoke test
-  -> logs/traces
-  -> container health check
-  -> rollout or rollback
-```
-
-For Northstar, this dry run keeps the lesson boundary clear. Lesson 08 does not build a full production model gateway. It makes the behavior lab repeatable, observable, and packageable so later lessons can integrate real hosted APIs without losing reproducibility.
-
 ### Design decision
 
 Use local-first tooling:
@@ -3734,21 +2175,6 @@ Use local-first tooling:
 - Cloud Run as one simple container deployment target.
 
 Do not use Kubernetes, GPU serving, or model gateways in this lesson. Those belong to later lessons.
-
-The design boundary is important:
-
-```text
-Lesson 08 runtime wrapper
-  = run and observe the lab
-
-Lesson 09 model gateway
-  = call hosted providers reliably
-
-Later serving lessons
-  = optimize GPU/open-model inference
-```
-
-Keeping those boundaries separate prevents this foundation lesson from turning into an infrastructure course.
 
 ### Worked example
 

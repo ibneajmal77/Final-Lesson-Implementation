@@ -1,0 +1,12 @@
+fastapi<1,>=0.115
+opentelemetry-api<2,>=1.27
+opentelemetry-sdk<2,>=1.27
+pydantic<3,>=2.7
+torch<3,>=2
+transformers<6,>=4.57
+typer<1,>=0.12
+uvicorn[standard]<1,>=0.30
+
+[dev]
+httpx<1,>=0.27
+pytest<10,>=8

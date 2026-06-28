@@ -1,0 +1,2 @@
+[console_scripts]
+model-lab = model_lab.cli:app
