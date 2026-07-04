@@ -1,1033 +1,432 @@
 # Applied AI Problem Discovery
 
-## Lesson metadata
+## Lesson brief
 
-| Field | Value |
+| Item | Detail |
 |---|---|
-| Curriculum position | Core Lesson 07 |
-| Primary roles | Applied AI Engineer, Forward-Deployed AI Engineer, AI Product Manager, AI Solutions Architect |
-| Supporting roles | Generative AI Engineer, Machine Learning Engineer, AI Evaluation Engineer, AI Governance Specialist |
-| Difficulty | Intermediate |
-| Estimated study time | 6-8 hours |
-| Estimated implementation time | 6-10 hours |
-| Prerequisite lessons | Lessons 01-06 |
-| Project increment | Applied AI discovery package for customer-support operations |
-| Primary tools | Workflow diagrams, product requirements, architecture decision records, risk register, cost model, Python |
-| Technical guidance verified | June 25, 2026 |
+| What you learn | How to discover, frame, score, and govern Applied AI opportunities before anyone builds a model. |
+| What you build | A reproducible discovery package for Northstar Support: stakeholder map, workflow map, baseline, use-case register, risk register, ROI scenario, build/buy ADR, PRD, pilot plan, and a small validation CLI. |
+| Why it matters | Most failed AI projects start with a model idea before proving a workflow need, measurable value, acceptable risk, and operational ownership. |
+| Primary roles | Applied AI Engineer, Forward-Deployed AI Engineer, AI Product Manager, AI Solutions Architect. |
+| Prerequisites | Lessons 01-06; Python basics; Pydantic; pytest; basic product, API, database, and deployment vocabulary. |
+| Tools | Process diagrams, stakeholder interviews, PRDs, ADRs, risk registers, ROI spreadsheets, Python, Pydantic, PyYAML, pytest. |
+| Estimated time | 8-11 hours study, 8-14 hours implementation. |
+| Final deliverable | A tested Applied AI discovery package that recommends one controlled pilot and documents rejected alternatives. |
+| Carries forward | Lesson 08 assumes this lesson has selected a support-drafting pilot with measurable value, human approval, and clear non-goals. |
+| Verified | Local curriculum scope and code compatibility verified June 28, 2026. No provider-specific API behavior is used in this lesson. |
 
-## Why this lesson exists
+This is a discovery and system-design lesson, not a model-building lesson. The core skill is deciding whether AI should be used, where it should be used, and what must be true before implementation starts.
 
-Applied AI engineering begins before selecting a model, writing a prompt, or creating a vector
-database.
+## Business target
 
-The first responsibility is to determine:
+Northstar Support receives a leadership request: "Use AI to improve customer support productivity." The request is too broad. The team must convert it into a narrow, measurable, low-enough-risk pilot.
 
-- Which business problem exists
-- Which users and affected people are involved
-- Whether the problem is important enough to solve
-- Whether AI is appropriate
-- Which parts should remain deterministic or human-controlled
-- How success and failure will be measured
-- Whether the expected value justifies the cost and risk
+| Area | Decision |
+|---|---|
+| Current workflow | Support agents search policy documents, inspect order data, write replies, and wait for team leads on high-risk cases. Discovery evidence is scattered across interviews, tickets, spreadsheets, and dashboards. |
+| Target workflow | The team produces a discovery package that identifies the bottleneck, compares AI and non-AI options, recommends one pilot, defines human-control boundaries, and states go/no-go criteria before model work begins. |
+| Inputs | Stakeholder interviews, workflow steps, ticket volumes, handling-time samples, quality-review samples, error costs, data availability, legal/security constraints, candidate interventions. |
+| Outputs | Current-state workflow, baseline, use-case register, rejected use cases, risk register, PRD, ROI scenario, build/buy ADR, pilot plan, operational checklist. |
+| Constraints | No real customer PII in lesson artifacts; no autonomous customer-facing actions; no AI recommendation without a non-AI alternative; no ROI claim without baseline evidence. |
+| Risk level | Medium-to-high. Discovery mistakes can waste budget, automate the wrong work, create unsafe incentives, or hide legal and customer-impact risks. |
+| Acceptance metrics | AI use tied to a measured workflow bottleneck; high-impact actions retain human approval; non-AI fallback exists; rejected use cases are documented; success metrics and stop conditions are explicit. |
 
-Many unsuccessful AI projects reverse this order:
+Non-goals:
 
-```text
-Choose a model
-→ build a demonstration
-→ search for a use case
-→ discover missing data or workflow access
-→ discover quality is difficult to measure
-→ discover the business cannot tolerate the failure mode
-```
+- This lesson does not build an LLM, RAG system, agent, or provider integration.
+- This lesson does not choose a final model vendor.
+- This lesson does not automate refunds, credits, account changes, or customer-facing commitments.
+- This lesson does not treat a scoring spreadsheet as an automatic approval decision.
 
-This lesson teaches the correct order:
+## Starting checkpoint
 
-```text
-Understand the workflow
-→ measure the baseline
-→ identify the decision or task
-→ examine non-AI alternatives
-→ define acceptable behavior
-→ select the smallest sufficient solution
-→ design evaluation and controls
-→ run a bounded pilot
-```
+You should already know:
 
-NIST's AI Risk Management Framework Playbook places context mapping before measurement and
-management. It explicitly recommends documenting intended purpose, users, operational context,
-positive and negative impacts, human roles, requirements, limitations, and non-AI alternatives.
-The Playbook also says it is voluntary guidance rather than a universal checklist. As of
-June 25, 2026, NIST states that AI RMF 1.0 is being updated; use the current version together
-with applicable organizational and legal requirements.
+- How a Python project is structured and tested.
+- How APIs, databases, logs, and deployment boundaries appear in production systems.
+- Why user workflows and data contracts matter before implementation.
+- Why high-consequence decisions need explicit human control.
 
-This lesson does not train a model. Its production output is a decision package strong enough
-for engineering, product, security, legal, operations, and domain stakeholders to approve,
-reject, or reshape an AI initiative.
+Required setup:
 
-## Business problem
+- Python 3.11 or newer.
+- A virtual environment.
+- No paid model account.
+- No real customer data.
 
-### Organization
+Answer before continuing:
 
-Northstar Support operates customer service for a subscription software product. It handles
-approximately 50,000 support cases each month across email, web chat, and an internal ticketing
-system.
+- What is the difference between an executive request and a validated business problem?
+- What current-state baseline would you need before claiming productivity improvement?
+- Which support actions must require human approval?
+- What non-AI solution might solve the same support bottleneck?
+- What would make this project a "stop" even if the demo looked impressive?
 
-### Users
+## System map and build roadmap
 
-- Customers seeking help
-- Front-line support agents
-- Support supervisors
-- Quality-assurance reviewers
-- Product specialists
-- Security and privacy teams
-- Finance and operations leaders
+### Source compliance contract
 
-### Affected people
+| Source requirement | Where handled |
+|---|---|
+| User and stakeholder discovery | Modules 1-2; stakeholder map; interview guide. |
+| Workflow mapping | Modules 1-3; workflow-step schema and current-state map. |
+| Pain-point and bottleneck analysis | Modules 2-3; baseline and failure-path evidence. |
+| Current-state baseline | Module 3; baseline metrics and measurement rules. |
+| Automation versus decision support | Modules 4-5; solution-selection and human-control design. |
+| Human-in-the-loop boundaries | Module 5; control modes and approval design. |
+| AI suitability | Module 4; suitability filter and rejected alternatives. |
+| Build versus buy | Module 7; ADR and decision memo. |
+| Risk classification | Module 5; risk register and scoring dimensions. |
+| Product requirements | Module 7; PRD template. |
+| Success and adoption metrics | Module 6; metric hierarchy. |
+| Cost and expected return | Module 6; ROI scenario model. |
+| Domain and regulatory constraints | Modules 5, 7, security/governance section. |
+| Required tools | System roadmap, modules, implementation, assignment. |
+| Practical deliverables | Module 7, practical assignment, production checklist. |
 
-The user and the affected person are not always the same. A supervisor may use an AI-generated
-recommendation, but the customer is affected by the resulting response, delay, escalation, or
-refund decision.
-
-### Current workflow
+### Concept map
 
 ```text
-Customer submits request
-→ routing queue receives ticket
-→ agent reads ticket
-→ agent identifies issue and urgency
-→ agent searches policies and product documentation
-→ agent checks customer and order information
-→ agent drafts answer
-→ agent escalates or requests approval when needed
-→ response is sent
-→ ticket is closed or reopened
-→ quality team samples completed cases
+executive request
+  -> stakeholder discovery
+  -> current workflow
+  -> baseline and bottleneck
+  -> candidate interventions
+  -> AI suitability test
+  -> risk and human-control design
+  -> metrics and ROI scenario
+  -> build/buy/partner decision
+  -> PRD and pilot plan
+  -> go / revise / stop decision
 ```
 
-### Observed problems
-
-- Initial classification is inconsistent.
-- Agents spend significant time searching across several knowledge sources.
-- Drafting repetitive responses increases handling time.
-- New agents miss escalation rules.
-- Refund and account-change actions require careful authorization.
-- Management has incomplete data about avoidable rework.
-- The company does not have a reliable evaluation set for AI-generated answers.
-
-### Executive request
-
-> "Use AI to automate customer support and reduce cost by 40%."
-
-That request is not yet a valid engineering problem. It does not define:
-
-- Which tasks should be automated
-- Which errors are acceptable
-- Which actions require human judgment
-- Which data is available
-- Which customer groups may be affected differently
-- Which result represents success
-- What happens when the system is uncertain or unavailable
-
-### Discovery objective
-
-Produce a decision package that identifies a valuable, measurable, and controllable first AI
-use case. The package must also document rejected ideas and explain why they should not be built
-yet.
-
-### Constraints
-
-- The organization operates in the United States and serves customers in multiple regions.
-- Customer messages can contain personal and confidential information.
-- Financial actions require authorization.
-- Policy content changes weekly.
-- The first pilot must be reversible.
-- Existing agents and ticket systems must continue operating.
-- The pilot cannot use customer-facing autonomous responses.
-- The team has three months for a first controlled release.
-
-### Risk level
-
-Mixed. Drafting and search assistance are lower consequence when an agent reviews the result.
-Autonomous financial or account actions have higher consequence and require stronger controls.
-
-## Learning outcomes
-
-After completing this lesson, you will be able to:
-
-- Identify users, operators, owners, and affected stakeholders.
-- Interview stakeholders without turning requests directly into features.
-- Map a current business workflow and its failure paths.
-- Establish time, cost, quality, and risk baselines.
-- Separate symptoms from root causes.
-- Define an AI problem using explicit inputs, outputs, decisions, and constraints.
-- Compare deterministic software, rules, search, classical ML, LLMs, RAG, tools, agents,
-  fine-tuning, multimodal systems, and human work.
-- Identify tasks where AI should not be used.
-- Define human-review and human-approval boundaries.
-- Create measurable business, product, system, and risk metrics.
-- Build a risk register and use-case triage model.
-- Estimate first-year value, cost, ROI, and payback using scenarios rather than false precision.
-- Compare build, buy, and hybrid approaches.
-- Write product requirements, architecture decisions, and a pilot plan.
-- Define go, revise, and stop criteria before implementation begins.
-- Defend an Applied AI proposal in an interview or stakeholder review.
-
-## Prerequisites
-
-### Knowledge
-
-- Production Python fundamentals
-- API concepts
-- SQL and data modelling
-- Testing fundamentals
-- Basic understanding of authentication and authorization
-
-### Completed project capabilities
-
-Lessons 01-06 should have produced:
-
-- A reproducible repository
-- Typed Python code
-- Automated tests
-- A backend service
-- PostgreSQL and Redis
-- Basic user, tenant, ticket, and conversation data models
-
-### Software
-
-- Python 3.13
-- uv
-- Git
-- Markdown editor
-- Diagramming tool or Mermaid-compatible editor
-- Spreadsheet application
-
-### Data
-
-Use synthetic support data in this lesson. Do not import real customer conversations into a
-discovery exercise without approved access, purpose, retention, and privacy controls.
-
-## Key terminology
-
-### Business outcome
-
-A measurable organizational result, such as lower handling time, fewer repeat contacts, higher
-resolution rate, or reduced policy violations.
-
-### User task
-
-A specific action performed by a person or system, such as locating the relevant refund policy
-for a ticket.
-
-### Workflow
-
-The sequence of people, systems, decisions, inputs, outputs, handoffs, and exceptions required
-to complete a business process.
-
-### Bottleneck
-
-A step that limits workflow performance because of capacity, delay, rework, or dependence on
-scarce expertise.
-
-### Baseline
-
-The measured performance of the current process or simplest existing solution. An AI system
-must be compared with a baseline rather than with an imagined perfect process.
-
-### Counterfactual
-
-The likely outcome if the project is not built. The counterfactual may include process
-improvement, better search, additional training, or no change.
-
-### Decision support
-
-A system that provides information or recommendations while a responsible person makes the
-decision.
-
-### Automation
-
-A system that performs a task or action with limited or no human intervention.
-
-### Human in the loop
-
-A broad phrase describing human participation in an AI workflow. It is insufficient by itself.
-The design must state who reviews what, at which point, with which authority, and within what
-time limit.
-
-### Human review
-
-A person examines AI output before it is used. Review may be advisory and does not necessarily
-authorize a consequential action.
-
-### Human approval
-
-A person with appropriate authority explicitly authorizes a proposed action.
-
-### Human override
-
-A person can stop, reverse, or replace system behavior.
-
-### Abstention
-
-The system declines to provide a result when evidence, confidence, authorization, or operating
-conditions are insufficient.
-
-### Escalation
-
-The workflow transfers a task to a person or team with greater authority or expertise.
-
-### Reversibility
-
-The degree to which an action can be undone and its effects repaired.
-
-### Risk tolerance
-
-The amount and type of risk an organization is willing to accept for a defined use case. It is
-an organizational decision, not a model property.
-
-### Total cost of ownership
-
-The complete cost across discovery, implementation, data, model use, infrastructure,
-integration, evaluation, security, monitoring, human review, support, and change management.
-
-### Pilot
-
-A bounded production or production-like test designed to validate assumptions before broad
-deployment.
-
-### Go/no-go criteria
-
-Predefined evidence thresholds used to approve, revise, pause, or stop a project.
-
-## Mental model
-
-An Applied AI problem is a sociotechnical system, not a prompt.
+Decision rule:
 
 ```text
-People
-  + workflow
-  + data
-  + policies
-  + software
-  + model behavior
-  + incentives
-  + operating environment
-  = actual AI system
+Do not ask "Can we use AI here?"
+Ask "Which workflow outcome needs improvement, what evidence proves it, and which intervention is safest and most valuable?"
 ```
 
-The model may be one small component:
+### Project architecture
 
 ```text
-User request
-→ deterministic validation
-→ authorized data access
-→ retrieval or model inference
-→ output validation
-→ human review or approval
-→ business action
-→ feedback and monitoring
+discovery YAML package
+  -> Pydantic validation
+  -> baseline and use-case scoring
+  -> risk/readiness classification
+  -> artifact completeness checks
+  -> CLI JSON report
+  -> PRD / ADR / pilot plan
 ```
 
-Discovery asks five questions in order:
-
-```text
-Is the problem real?
-→ Is the workflow understood?
-→ Is the outcome measurable?
-→ Is AI the smallest sufficient solution?
-→ Can the risk be controlled in operation?
-```
-
-If any answer is unknown, the next activity should reduce uncertainty rather than increase
-implementation complexity.
-
-## Architecture and discovery flow
-
-```text
-Stakeholder interviews
-        │
-        ▼
-Current-state workflow map
-        │
-        ├── time and volume measurements
-        ├── error and rework analysis
-        ├── data and access inventory
-        └── risk and policy constraints
-        │
-        ▼
-Problem statements and candidate interventions
-        │
-        ├── non-AI process improvement
-        ├── deterministic software or rules
-        ├── search
-        ├── predictive ML
-        ├── LLM or RAG
-        └── controlled tool workflow
-        │
-        ▼
-Value, feasibility, and risk triage
-        │
-        ▼
-Selected pilot use case
-        │
-        ├── product requirements
-        ├── evaluation plan
-        ├── human-control design
-        ├── architecture decision
-        └── cost and rollout plan
-        │
-        ▼
-Go, revise, or stop
-```
+The implementation is intentionally not an AI prototype. It is a reproducible decision package. That is the correct build artifact for discovery.
 
 ### Trust boundaries
 
-- Customer messages may contain untrusted instructions and sensitive data.
-- Ticket-system access is governed by user and service permissions.
-- Knowledge sources may contain obsolete or malicious content.
-- Vendor systems may process or retain submitted data.
-- A model recommendation does not grant business authority.
-- Financial and account actions cross a consequential-action boundary.
+| Boundary | Rule |
+|---|---|
+| Stakeholder claims | Treat as hypotheses until supported by workflow evidence. |
+| Baseline data | Record source, measurement window, and owner. Do not invent ROI from weak data. |
+| Customer data | Use synthetic or aggregated examples in discovery artifacts. |
+| AI recommendation | Keep scoring advisory. Business and risk owners make decisions. |
+| Human-control design | Authorization and approval are product controls, not model preferences. |
+| Vendor information | Treat claims as inputs to due diligence, not proof of fit. |
 
 ### State ownership
 
 | State | Owner |
 |---|---|
-| Business goal | Executive sponsor and product owner |
-| Workflow definition | Operations owner |
-| Policy and escalation rules | Domain and compliance owners |
-| Data access | Data owner and security |
-| Risk acceptance | Accountable business and risk owner |
-| Technical architecture | Engineering owner |
-| Evaluation set | Evaluation owner and domain reviewers |
-| Deployment decision | Product, engineering, security, operations, and risk approvers |
+| Workflow map | Product owner with support operations review. |
+| Baseline metrics | Operations analytics / finance. |
+| Risk register | Product, security, legal, support operations. |
+| Use-case register | Applied AI team. |
+| PRD and pilot plan | Product owner. |
+| Go/no-go decision | Accountable business owner and risk owner. |
 
 ### Failure boundaries
 
-- If the baseline is unreliable, pause ROI conclusions.
-- If required data cannot be accessed lawfully or operationally, reject or redesign the use case.
-- If errors are not detectable before harm, reduce automation.
-- If the action is not reversible, require stronger approval and testing.
-- If the project cannot define a measurable outcome, do not begin model optimization.
+| Failure | Boundary |
+|---|---|
+| Weak baseline | Pause ROI claims; collect better evidence. |
+| High-risk automation request | Redesign as decision support or reject. |
+| Data not available or not permitted | Redesign workflow or choose non-AI path. |
+| Positive ROI but low readiness | Research/data cleanup before pilot. |
+| Good demo but no adoption path | Stop or redesign with users. |
 
-## Discovery artifacts
+### Tool choices
 
-The lesson produces:
+| Capability | Selected tool | Why selected | Alternative / switch point |
+|---|---|---|---|
+| Artifact schemas | Pydantic | Typed, testable discovery records. | JSON Schema for language-neutral contracts. |
+| Scenario input | YAML | Easy for product and engineering review. | Spreadsheet for finance-facing scenario work. |
+| Scoring and validation | Python + pytest | Reproducible, auditable, CI-friendly. | Notebook only for exploration, not source of truth. |
+| Workflow map | Markdown table / diagram | Reviewable in PRs and documents. | Miro/Lucidchart for workshops. |
+| PRD / ADR / risk register | Markdown templates | Versioned with the project. | Product-management tools after adoption. |
+
+### Project structure
 
 ```text
-discovery/
-├── README.md
-├── stakeholder-map.md
-├── interview-guide.md
-├── current-state-workflow.md
-├── baseline-metrics.csv
-├── problem-statements.md
-├── use-case-register.yaml
-├── risk-register.md
-├── build-buy-analysis.md
-├── product-requirements.md
-├── architecture-decision.md
-├── evaluation-plan.md
-├── pilot-plan.md
-├── go-no-go.md
-└── response-drafting-scenario.yaml
-src/
-└── ai_industry_labs/
-    └── discovery/
-        ├── __init__.py
-        ├── models.py
-        ├── scoring.py
-        └── cli.py
-tests/
-├── test_discovery_models.py
-└── test_discovery_scoring.py
+applied-ai-discovery/
+├── pyproject.toml
+├── discovery/
+│   └── response-drafting-package.yaml
+├── ai_discovery/
+│   ├── __init__.py
+│   ├── schemas.py
+│   ├── scoring.py
+│   ├── artifacts.py
+│   └── cli.py
+└── tests/
+    ├── test_schemas.py
+    ├── test_scoring.py
+    ├── test_artifacts.py
+    └── test_cli.py
 ```
 
-## Environment setup
+### Environment setup
 
-Continue in the `ai-industry-labs` repository created in Lesson 01.
+```toml
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
 
-Create the directories.
+[project]
+name = "applied-ai-discovery"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.7,<3.0",
+  "pyyaml>=6,<7"
+]
 
-PowerShell:
+[project.optional-dependencies]
+dev = ["pytest>=8.0,<10.0"]
 
-```powershell
-New-Item -ItemType Directory -Force -Path `
-    discovery, `
-    src\ai_industry_labs\discovery, `
-    tests | Out-Null
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 ```
 
-POSIX shell:
+Run:
 
 ```bash
-mkdir -p discovery src/ai_industry_labs/discovery tests
+python -m venv .venv
+python -m pip install -e ".[dev]"
+pytest
+python -m ai_discovery.cli discovery/response-drafting-package.yaml
 ```
 
-Add the YAML parser used by the scenario CLI:
+### Data/API contract
 
-```powershell
-uv add "pyyaml>=6,<7"
-uv sync --locked
-```
+The discovery package is a local YAML contract with these record groups:
 
-Verify the inherited engineering foundation:
+- `stakeholders`: who uses, owns, reviews, or funds the workflow.
+- `workflow_steps`: current work, systems, time, volume, outputs, failures.
+- `baselines`: measured current-state facts.
+- `use_cases`: candidate interventions and economic assumptions.
+- `risks`: failure modes, controls, owners, and response.
+- `selected_use_case`: the proposed pilot.
+- `rejected_use_cases`: documented alternatives.
+- `success_metrics`: how the pilot will be judged.
+- `non_ai_fallback`: how the workflow works if AI is unavailable or rejected.
+- `pilot_scope`: who, where, and when the pilot runs.
 
-```powershell
-uv lock --check
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy src
-uv run pytest
-```
+Privacy rule: discovery examples must be synthetic, aggregated, or approved for internal training use. Do not paste real support tickets into lesson artifacts.
 
-Do not add a model SDK for this lesson. The absence of a model dependency is intentional:
-discovery must reach a justified pilot decision before implementation commits to a model
-provider.
+### Baseline
 
-## Design decisions
+The baseline is the current workflow measured before AI. It must include:
 
-### Start with workflow evidence, not model capability
+- volume;
+- handling time;
+- error or rework rate;
+- escalation rate;
+- customer-impact measure;
+- cost or capacity estimate;
+- measurement window and source.
 
-Model demonstrations answer:
+The baseline proves what currently happens. It does not prove that AI will improve it.
 
-> Can a model produce an impressive output?
+### Build milestones
 
-Discovery must answer:
-
-> Can a controlled system improve this workflow for these users under these constraints?
-
-### Use one primary pilot
-
-Selecting many use cases at once prevents clear evaluation and ownership. This lesson will
-select one pilot:
-
-> Evidence-backed response drafting for support agents, with human approval before sending.
-
-### Keep higher-consequence actions out of the first pilot
-
-Autonomous refunds and account changes are rejected for the first pilot. The system may retrieve
-relevant policy and propose an action, but an authorized employee must approve it.
-
-### Use scoring for consistency, not automatic decision making
-
-A score can make assumptions visible. It cannot replace stakeholder judgment, legal analysis,
-or risk acceptance.
-
-### Require a non-AI alternative
-
-Every candidate use case must be compared with at least one non-AI or simpler alternative.
-
-## Tooling
-
-| Tool | Purpose | Why selected | Limitation |
-|---|---|---|---|
-| Markdown | Versioned discovery artifacts | Reviewable with code and architecture | Less convenient than specialist product tools for workshops |
-| Mermaid or diagram tool | Workflow and architecture diagrams | Makes handoffs and control boundaries visible | Diagrams become stale without ownership |
-| Spreadsheet | Baseline and scenario modelling | Accessible to business stakeholders | Formulas and assumptions require review |
-| Python | Reproducible scoring and ROI calculations | Testable, versioned, and auditable | Cannot decide risk tolerance |
-| Pydantic | Validate use-case records | Prevents incomplete or invalid entries | A valid schema does not guarantee a good proposal |
-| Git | Review and history | Creates decision traceability | Sensitive discovery material may need restricted repositories |
-| NIST AI RMF Playbook | Context and risk framing | Current official U.S. voluntary guidance | Not a legal classification or complete organizational policy |
-
-## Discovery operating principles
-
-### Separate request, need, and solution
-
-| Layer | Example |
-|---|---|
-| Request | "Automate support with AI" |
-| Need | Reduce repetitive work while maintaining policy compliance |
-| Measurable problem | Agents spend 4.8 minutes searching and drafting per eligible case |
-| Candidate solution | Search, templates, RAG-assisted draft, workflow redesign, or combination |
-
-### Ask for evidence
-
-Replace:
-
-> "Agents waste a lot of time."
-
-With:
-
-> "How many cases were sampled? What was median search time? How was rework measured?"
-
-### Look for incentives and displacement
-
-An AI system can optimize one metric while moving work elsewhere:
-
-- Faster initial response may increase reopened cases.
-- Higher automation may increase supervisor review.
-- Lower handling time may reduce customer satisfaction.
-- More suggestions may increase agent cognitive load.
-
-### Treat abstention as a valid product outcome
-
-The system should not be forced to answer every case. A high-quality workflow may:
-
-- Draft routine answers
-- Request missing information
-- Escalate policy ambiguity
-- Refuse unsupported financial actions
-
-## Stakeholder discovery
-
-### Stakeholder map
-
-**`discovery/stakeholder-map.md`**
-
-```markdown
-# Stakeholder Map
-
-| Stakeholder | Role in workflow | Goals | Risks and concerns | Decision authority | Required involvement |
-|---|---|---|---|---|---|
-| Customer | Requests support | Accurate and timely resolution | Wrong advice, privacy, unfair treatment | Can accept, reject, or complain | Usability and feedback research |
-| Support agent | Operates assistant | Faster evidence and drafting | Automation bias, added review work | Sends response within policy | Discovery, pilot, continuous feedback |
-| Supervisor | Handles escalation | Policy compliance and queue performance | Hidden errors and unauthorized actions | Approves exceptions | Requirements and pilot approval |
-| Quality reviewer | Audits completed cases | Consistency and root-cause data | Weak evaluation coverage | Defines review rubric | Evaluation design |
-| Product owner | Owns outcome | Adoption and business value | Feature without measurable impact | Prioritization | Full lifecycle |
-| Security | Protects systems and data | Least privilege and traceability | Data leakage and tool abuse | Security approval | Architecture and testing |
-| Privacy or legal | Reviews data use | Lawful and limited processing | Retention, vendor use, consent | Policy approval | Before data use and launch |
-| Engineering | Builds and operates | Reliable maintainable system | Undefined requirements and scope | Technical implementation | Full lifecycle |
-| Finance | Reviews economics | Defensible cost and benefit | Optimistic ROI assumptions | Budget approval | Scenario review |
-```
-
-### Interview guide
-
-Do not ask only:
-
-> "What AI features do you want?"
-
-Ask questions that reveal workflow evidence.
-
-**`discovery/interview-guide.md`**
-
-```markdown
-# Stakeholder Interview Guide
-
-## Workflow
-
-- Walk me through the last real case from start to finish.
-- Which systems and documents did you use?
-- Where did you wait?
-- Where did you repeat work?
-- Which decisions required judgment?
-- Which actions required approval?
-- What happened when information was missing?
-
-## Volume and time
-
-- How many cases follow this path?
-- What are the median and high-percentile handling times?
-- How much time is search, reading, drafting, approval, and rework?
-- Does the workload vary by channel, product, language, or customer tier?
-
-## Quality and failures
-
-- What counts as a correct resolution?
-- What errors occur most often?
-- Which errors are expensive or harmful?
-- How are reopened tickets and complaints recorded?
-- Which failures are detectable before the customer is affected?
-
-## Data and systems
-
-- What data is required?
-- Who owns it?
-- How current is it?
-- Which permissions apply?
-- What information must never be sent to a third party?
-
-## Human control
-
-- Which tasks can be suggested?
-- Which tasks can be automated?
-- Who can approve consequential actions?
-- How quickly can a person intervene?
-- Can an action be reversed?
-
-## Success and adoption
-
-- Which metric should improve?
-- Which metric must not get worse?
-- What would make agents ignore the system?
-- What evidence would justify stopping the pilot?
-```
-
-### Interview technique
-
-Use:
-
-- Real examples rather than hypothetical preferences
-- Neutral questions
-- Follow-up questions about exceptions
-- Direct workflow observation
-- Samples from different user groups and performance levels
-
-Avoid:
-
-- Leading users toward the planned solution
-- Treating managers as substitutes for front-line users
-- Ignoring affected customers
-- Recording sensitive data without approval
-- Promising automation before feasibility analysis
-
-## Current-state workflow mapping
-
-### Workflow table
-
-**`discovery/current-state-workflow.md`**
-
-```markdown
-# Current-State Support Workflow
-
-| Step | Actor | Input | Action | System | Output | Median time | Failure or rework | Control |
-|---|---|---|---|---|---|---:|---|---|
-| Intake | Customer | Message | Submit case | Support portal | Ticket | 1 min | Missing account details | Required fields |
-| Triage | Queue or agent | Ticket | Assign category and urgency | Ticket system | Routed case | 1.2 min | Incorrect category | Supervisor review sample |
-| Investigate | Agent | Ticket and account | Understand issue | Ticket and customer systems | Issue hypothesis | 2.5 min | Missing context | Ask customer |
-| Search | Agent | Issue hypothesis | Find policy and product evidence | Wiki and docs | Evidence | 2.1 min | Stale or conflicting content | Escalate |
-| Draft | Agent | Evidence | Compose response | Ticket editor | Draft | 2.7 min | Policy omission | Agent review |
-| Approve | Supervisor when required | Proposed exception | Approve or reject | Ticket system | Decision | 4-30 min wait | Incomplete justification | Approval policy |
-| Send | Agent | Approved response | Send | Ticket system | Customer response | 0.4 min | Wrong recipient or content | Confirmation |
-| Follow-up | Customer and agent | Response | Reopen or close | Ticket system | Outcome | Variable | Repeat contact | Quality review |
-```
-
-### Workflow measurement rules
-
-- Measure work time separately from queue time.
-- Report median and percentiles, not only averages.
-- Segment by case type, channel, language, region, and customer tier where appropriate.
-- Record sample size and measurement period.
-- Do not infer quality from speed alone.
-
-### Failure-path map
-
-```text
-Ticket received
-├── missing customer context → request information
-├── known routine issue → standard resolution
-├── conflicting policy → supervisor escalation
-├── suspected security incident → security queue
-├── refund request → policy check and authorized approval
-└── unsupported request → specialist team
-```
-
-Discovery must represent these paths. Designing only the happy path creates unsafe automation.
-
-## Establish the baseline
-
-### Baseline dimensions
-
-Measure at least:
-
-- Volume
-- Handling time
-- Queue time
-- Search time
-- Drafting time
-- First-contact resolution
-- Reopen rate
-- Escalation rate
-- Policy-compliance rate
-- Customer satisfaction
-- Agent acceptance or workload
-- Cost per resolved case
-
-### Synthetic baseline data
-
-**`discovery/baseline-metrics.csv`**
-
-```csv
-segment,monthly_cases,median_handle_minutes,p90_handle_minutes,median_search_minutes,median_draft_minutes,reopen_rate,escalation_rate,policy_error_rate,cost_per_case_usd
-password_reset,12000,6.2,11.5,0.8,1.9,0.04,0.02,0.01,4.10
-billing_question,9000,12.8,25.0,3.4,3.1,0.09,0.12,0.04,8.75
-refund_request,5000,16.4,34.0,4.2,3.6,0.11,0.38,0.06,12.20
-technical_issue,18000,19.7,45.0,5.8,4.0,0.17,0.31,0.08,15.60
-security_concern,1000,28.0,60.0,6.0,4.5,0.08,0.92,0.03,24.00
-account_closure,5000,11.0,21.0,2.5,2.8,0.06,0.20,0.03,7.90
-```
-
-These values are illustrative synthetic data, not measured company results.
-
-### Baseline quality
-
-Ask:
-
-- Is the metric definition consistent across teams?
-- Is handling time distorted by idle time?
-- Are policy errors sampled or comprehensively recorded?
-- Are reopened cases linked to the original response?
-- Are customer outcomes available after ticket closure?
-- Does the data exclude contractor or regional workflows?
-
-An unreliable baseline does not justify an invented ROI estimate. It creates a discovery task:
-improve measurement first.
-
-## Problem formulation
-
-### Weak problem statement
-
-> Use an LLM to automate support.
-
-### Strong problem statement
-
-> For English-language billing and account-support tickets that do not involve security
-> incidents or discretionary financial exceptions, reduce median agent search and drafting time
-> by 30% while keeping policy-error and reopen rates no worse than the current baseline. The
-> system may retrieve approved evidence and generate an editable draft. An authenticated agent
-> must approve every customer-facing response during the pilot.
-
-### Problem-statement template
-
-```text
-For [user]
-performing [task]
-in [operating context],
-improve [business outcome]
-from [baseline]
-to [target]
-without degrading [guardrail metrics].
-
-The system receives [inputs]
-and produces [outputs].
-
-It may [allowed behavior].
-It must not [prohibited behavior].
-
-When [uncertainty, missing evidence, risk, or failure condition],
-it must [abstain, request information, or escalate].
-```
-
-### Define inputs and outputs
-
-| Element | Pilot definition |
-|---|---|
-| Input | Ticket text, authorized account metadata, approved policies, product documentation |
-| Output | Evidence list, structured issue summary, editable response draft, escalation recommendation |
-| Allowed | Search approved sources, summarize evidence, draft non-binding response |
-| Prohibited | Send response, issue refund, modify account, expose unauthorized documents |
-| Abstain when | Evidence conflicts, policy is missing, security concern exists, identity is unclear |
-| Escalate to | Supervisor, billing specialist, security team, or product specialist |
-
-## Root-cause analysis
-
-Do not assume every delay is a model problem.
-
-### Example root causes
-
-| Symptom | Possible root cause | Likely intervention |
-|---|---|---|
-| Agents search for a long time | Documentation is fragmented | Search and content governance |
-| Drafts are inconsistent | No standard response structure | Templates and deterministic validation |
-| Escalations are slow | Approval queue is understaffed | Workflow and staffing change |
-| Policies are missed | Documents are stale | Ownership and publication process |
-| Classification is inconsistent | Categories overlap | Taxonomy redesign or classifier |
-| Refund errors occur | Authorization is unclear | Policy engine and approval control |
-
-### Five-whys example
-
-```text
-Why are billing tickets reopened?
-→ The answer omitted an eligibility condition.
-
-Why was the condition omitted?
-→ The agent used an outdated article.
-
-Why was the outdated article discoverable?
-→ Search indexes all versions equally.
-
-Why are old versions not removed?
-→ Documentation has no effective-date metadata or delete workflow.
-
-Why is there no delete workflow?
-→ Content governance was never assigned.
-```
-
-The first fix is content governance and retrieval freshness, not fine-tuning.
-
-## Candidate use cases
-
-Create a candidate register before selecting the pilot.
-
-| Candidate | User task | Possible approach | Value hypothesis | Main risk |
+| Module | Type | Concept focus | Implementation artifact | Tests |
 |---|---|---|---|---|
-| Ticket classification | Assign category and urgency | Rules plus ML or LLM classification | Reduce triage time | Misrouting |
-| Knowledge search | Locate relevant policy | Hybrid search | Reduce search time | Stale or unauthorized evidence |
-| Response drafting | Draft evidence-backed reply | RAG plus LLM | Reduce drafting time | Hallucination or policy omission |
-| Missing-info detection | Identify required customer details | Rules plus structured LLM output | Reduce back-and-forth | Incorrect requirements |
-| Escalation suggestion | Recommend specialist queue | Rules plus classifier | Reduce wrong escalation | Under-escalation |
-| Refund execution | Issue refund automatically | Tool-using agent | Reduce handling time | Financial loss and unauthorized action |
-| Quality review | Sample and score closed cases | Rules plus model-assisted review | Expand QA coverage | Biased or unreliable scoring |
-| Voice triage | Transcribe and route calls | Speech plus workflow | Reduce queue time | Consent and transcription error |
+| 1 | Concept-build | Request versus problem | Schemas for stakeholders/workflows/use cases | Schema tests |
+| 2 | Hybrid | Stakeholders and workflow map | Discovery package sections | Artifact tests |
+| 3 | Hybrid | Baseline and bottlenecks | Baseline fields and evidence rules | Schema tests |
+| 4 | Hybrid | Solution options and AI suitability | Solution-type and suitability logic | Scoring tests |
+| 5 | Hybrid | Risk and human control | Risk dimensions and control modes | Scoring/artifact tests |
+| 6 | Hybrid | ROI and metrics | Business-case calculator | Scoring tests |
+| 7 | Implementation | PRD, ADR, pilot package | Artifact validator | Artifact tests |
+| 8 | Implementation | CLI and operating path | CLI report | CLI tests |
 
-## Solution-selection framework
+### Implementation assembly checklist
 
-Select the smallest sufficient method.
+Create these files:
 
-### Deterministic software
+- `pyproject.toml`
+- `ai_discovery/__init__.py`
+- `ai_discovery/schemas.py`
+- `ai_discovery/scoring.py`
+- `ai_discovery/artifacts.py`
+- `ai_discovery/cli.py`
+- `discovery/response-drafting-package.yaml`
+- tests under `tests/`
 
-Use when:
+After each implementation module, run:
 
-- Rules are explicit
-- Inputs are structured
-- Exact behavior is required
-- Errors are unacceptable
-
-Examples:
-
-- Required-field validation
-- Authorization
-- Refund limits
-- Data-retention enforcement
-- Schema validation
-
-### Rules
-
-Use when:
-
-- Domain experts can express stable conditions
-- Auditability is important
-- The rule set remains manageable
-
-Example:
-
-```text
-IF issue_type = "security_concern"
-THEN route_to = "security"
-AND prohibit_response_draft = true
+```bash
+pytest
 ```
 
-### Search
+Final verification:
 
-Use when:
-
-- The task is to find current information
-- The source of truth changes
-- Evidence must be shown
-
-Examples:
-
-- Policy lookup
-- Product documentation
-- Similar resolved cases
-
-### Classical machine learning
-
-Use when:
-
-- Historical labelled data exists
-- Output is a prediction, score, class, or ranking
-- The problem has stable features and metrics
-
-Examples:
-
-- Escalation likelihood
-- SLA breach risk
-- Ticket category
-
-### Foundation-model API
-
-Use when:
-
-- Inputs are unstructured language or multimodal content
-- The task requires extraction, summarization, drafting, or flexible interpretation
-- Output can be validated or reviewed
-
-### RAG
-
-Use when:
-
-- Answers require current or private evidence
-- Citations are valuable
-- Knowledge changes more frequently than the model
-
-### Tool calling
-
-Use when:
-
-- The system must query or act through external systems
-- Arguments can be validated
-- Permissions are enforced outside the model
-
-### Controlled agent workflow
-
-Use when:
-
-- A task requires multiple conditional steps
-- State and recovery are explicit
-- Step, cost, and permission limits can be enforced
-
-Do not use an open-ended agent when a deterministic workflow is sufficient.
-
-### Fine-tuning
-
-Use when:
-
-- Stable behavior, style, structure, or task patterns are not reliably achieved through
-  prompting, retrieval, or tools
-- Sufficient high-quality data and evaluation exist
-
-Do not use fine-tuning to store frequently changing policy facts.
-
-### Multimodal model
-
-Use when:
-
-- The workflow depends on images, scanned forms, audio, or video
-
-### Human work
-
-Retain human work when:
-
-- Judgment depends on context not available to the system
-- The action is high consequence
-- Error detection is weak
-- Data or legal conditions are unresolved
-- The task is rare enough that automation has poor economics
-
-### Hybrid solution
-
-The selected pilot is hybrid:
-
-```text
-Deterministic authorization
-+ permission-aware search
-+ LLM extraction and drafting
-+ schema validation
-+ human approval
-+ feedback and monitoring
+```bash
+python -m ai_discovery.cli discovery/response-drafting-package.yaml
 ```
 
-## AI suitability test
+Expected final artifact: a JSON report containing the selected use case, value scenario, risk/readiness scores, recommendation, and artifact completeness findings.
 
-Reject or redesign the AI use case when several of these conditions apply:
+## Concept-build module 1: From executive request to testable business problem
 
-- The problem has no measured baseline.
-- The business goal is primarily headcount reduction without workflow analysis.
-- Required data is unavailable, unlawful to use, or too poor.
-- Correct output cannot be defined or reviewed.
-- Errors are high consequence and not detectable before impact.
-- The workflow changes faster than the system can be maintained.
-- A deterministic rule or process change solves the problem.
-- The organization cannot assign operational ownership.
-- The expected volume does not justify implementation and review cost.
-- The user cannot contest or correct the result.
-- The system would create incentives to hide failures.
+### Core question
 
-## Use-case triage model
+How do you turn "we need AI" into a measurable workflow problem?
 
-The scoring tool below helps compare candidates. It is not a legal risk assessment and must not
-make the final decision automatically.
+### Key concepts
 
-### Typed use-case record
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Executive request | The initial ask from leadership. It is a starting signal, not a validated problem. | "Use AI to reduce support cost." |
+| Business outcome | The measurable result the organization wants. It keeps the project tied to value. | "Reduce average handle time by 12% without increasing refund-policy errors." |
+| User task | The work a person performs inside the workflow. AI should support a task, not an abstract department. | "Find the correct refund policy and draft a reply." |
+| Workflow | The sequence of steps, systems, people, and decisions that produces an outcome. | Ticket intake -> policy lookup -> order check -> draft -> review -> reply. |
+| Bottleneck | The slow, expensive, or error-prone part of the workflow. It identifies where intervention may help. | Agents spend six minutes searching policy. |
+| Baseline | The measured current state before changes. It prevents fake improvement claims. | Current average handle time is 14.2 minutes. |
+| Non-AI alternative | A non-model intervention that may solve the problem. It prevents unnecessary AI complexity. | Better templates and policy search. |
 
-**`src/ai_industry_labs/discovery/models.py`**
+### Connected dry run
+
+Start with one vague request and convert it into a testable problem.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | Leadership asks for AI. | Executive request |
+| 2 | The team identifies the business outcome. | Business outcome |
+| 3 | The team names the user task. | User task |
+| 4 | The team maps the workflow around the task. | Workflow |
+| 5 | Evidence reveals a bottleneck. | Bottleneck, baseline |
+| 6 | A non-AI alternative is documented. | Non-AI alternative |
+| 7 | The problem statement becomes testable. | Problem formulation |
+
+Step 1: leadership asks for AI.
+
+The request is:
+
+```text
+Use AI to make support more efficient.
+```
+
+This is too broad. It does not say which user, which task, which metric, which risk, or which workflow step.
+
+Step 2: the team identifies the outcome.
+
+The team asks: "What would improve if this worked?" A better outcome is:
+
+```text
+Reduce support-agent drafting and policy-search time without increasing policy errors.
+```
+
+Now the work has a measurable direction.
+
+Step 3: the team names the user task.
+
+The user is the support agent. The task is not "do support." The task is:
+
+```text
+Find relevant policy evidence and draft a safe response for agent review.
+```
+
+Step 4: the team maps the workflow.
+
+The agent receives a ticket, reads the customer's issue, searches policy, checks order data, drafts a reply, and escalates risky cases.
+
+Step 5: evidence reveals the bottleneck.
+
+Interviews and timing samples show that policy lookup and first-draft writing take the most time.
+
+Step 6: a non-AI alternative is documented.
+
+The team records:
+
+```text
+Improve policy search, templates, and agent training.
+```
+
+If this non-AI option solves the problem cheaply, AI may not be necessary.
+
+Step 7: the problem becomes testable.
+
+The final problem statement is:
+
+```text
+Support agents spend too much time finding policy evidence and writing first drafts for refund-related tickets. We will test whether evidence-backed draft assistance reduces handle time without increasing unsupported refund claims.
+```
+
+This can now be measured, challenged, or rejected.
+
+### Mental model
+
+Applied AI discovery is a funnel:
+
+```text
+request
+  -> outcome
+  -> user task
+  -> workflow evidence
+  -> bottleneck
+  -> candidate intervention
+  -> risk controls
+  -> pilot decision
+```
+
+Do not skip the middle. If the team jumps from request to model, it may optimize the wrong step, automate risky work, or build a system users will not adopt.
+
+### Worked example
+
+Weak problem:
+
+```text
+Use an LLM to answer refund questions.
+```
+
+Strong problem:
+
+```text
+Support agents handling refund-related tickets spend a median 6.4 minutes searching policy and drafting the first reply. The pilot will test an evidence-backed draft assistant that never sends customer responses automatically and requires human approval for refund-related commitments.
+```
+
+The strong version names user, workflow step, baseline, intervention, guardrail, and evaluation target.
+
+### Mini-implementation
+
+This code does not build AI. It makes discovery artifacts typed and testable so weak assumptions become visible.
 
 ```python
-from enum import StrEnum
+# ai_discovery/__init__.py
+"""Applied AI discovery package validation and scoring."""
+```
 
-from pydantic import BaseModel, Field, model_validator
+```python
+# ai_discovery/schemas.py
+from __future__ import annotations
+
+from enum import StrEnum
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SolutionType(StrEnum):
@@ -1045,10 +444,56 @@ class SolutionType(StrEnum):
     HYBRID = "hybrid"
 
 
+class ControlMode(StrEnum):
+    DECISION_SUPPORT = "decision_support"
+    HUMAN_REVIEW = "human_review"
+    HUMAN_APPROVAL = "human_approval"
+    AUTOMATION = "automation"
+    PROHIBITED = "prohibited"
+
+
+class Stakeholder(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=2)
+    role: str = Field(min_length=2)
+    goals: list[str] = Field(min_length=1)
+    concerns: list[str] = Field(default_factory=list)
+    decision_authority: bool = False
+    required_for_pilot: bool = True
+
+
+class WorkflowStep(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=3)
+    actor: str = Field(min_length=2)
+    system: str = Field(min_length=2)
+    input: str = Field(min_length=3)
+    output: str = Field(min_length=3)
+    average_minutes: float = Field(ge=0)
+    monthly_volume: int = Field(ge=0)
+    failure_modes: list[str] = Field(default_factory=list)
+
+
+class BaselineMetric(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=3)
+    current_value: float = Field(ge=0)
+    unit: str = Field(min_length=1)
+    source: str = Field(min_length=3)
+    measurement_window: str = Field(min_length=3)
+    owner: str = Field(min_length=2)
+
+
 class UseCase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=3, max_length=120)
     user: str = Field(min_length=3, max_length=120)
     business_outcome: str = Field(min_length=10, max_length=500)
+    workflow_step: str = Field(min_length=3)
     solution_type: SolutionType
     monthly_volume: int = Field(ge=0)
     minutes_saved_per_case: float = Field(ge=0, le=120)
@@ -1068,27 +513,951 @@ class UseCase(BaseModel):
     evidence_quality: int = Field(ge=1, le=5)
     data_readiness: int = Field(ge=1, le=5)
     integration_readiness: int = Field(ge=1, le=5)
-    human_approval_required: bool
+    control_mode: ControlMode
     non_ai_alternative: str = Field(min_length=5, max_length=500)
+    owner: str = Field(min_length=2)
 
     @model_validator(mode="after")
-    def validate_expected_error(self) -> "UseCase":
+    def validate_value_scenario(self) -> "UseCase":
         if self.expected_error_rate > self.baseline_error_rate:
             raise ValueError(
-                "Expected error rate cannot exceed baseline in the value scenario. "
-                "Use a downside scenario separately."
+                "expected_error_rate cannot exceed baseline_error_rate in the expected-value scenario"
             )
+        if self.solution_type != SolutionType.HUMAN and not self.non_ai_alternative:
+            raise ValueError("a non-AI alternative is required")
+        return self
+
+
+class RiskRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    risk: str = Field(min_length=3)
+    cause: str = Field(min_length=3)
+    affected_party: str = Field(min_length=2)
+    impact: str = Field(min_length=3)
+    detection: str = Field(min_length=3)
+    preventive_control: str = Field(min_length=3)
+    response: str = Field(min_length=3)
+    owner: str = Field(min_length=2)
+
+
+class DiscoveryPackage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    package_id: str = Field(min_length=3)
+    business_problem: str = Field(min_length=20)
+    stakeholders: list[Stakeholder] = Field(min_length=1)
+    workflow_steps: list[WorkflowStep] = Field(min_length=1)
+    baselines: list[BaselineMetric] = Field(min_length=1)
+    use_cases: list[UseCase] = Field(min_length=1)
+    selected_use_case: str = Field(min_length=3)
+    rejected_use_cases: list[str] = Field(default_factory=list)
+    risks: list[RiskRecord] = Field(min_length=1)
+    success_metrics: list[str] = Field(min_length=1)
+    non_ai_fallback: str = Field(min_length=5)
+    pilot_scope: str = Field(min_length=5)
+    approval_owner: str = Field(min_length=2)
+    notes: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_selected_use_case(self) -> "DiscoveryPackage":
+        names = {use_case.name for use_case in self.use_cases}
+        if self.selected_use_case not in names:
+            raise ValueError("selected_use_case must match a use case name")
+        if not any(stakeholder.decision_authority for stakeholder in self.stakeholders):
+            raise ValueError("at least one stakeholder must have decision authority")
         return self
 ```
 
-### Value and triage calculations
-
-**`src/ai_industry_labs/discovery/scoring.py`**
+### Tests
 
 ```python
+# tests/test_schemas.py
+import pytest
+
+from ai_discovery.schemas import ControlMode, SolutionType, UseCase
+
+
+def valid_use_case_data() -> dict[str, object]:
+    return {
+        "name": "Evidence-backed response drafting",
+        "user": "Support agent",
+        "business_outcome": "Reduce search and drafting time without increasing policy errors",
+        "workflow_step": "Draft first response",
+        "solution_type": SolutionType.HYBRID,
+        "monthly_volume": 18000,
+        "minutes_saved_per_case": 3.5,
+        "adoption_rate": 0.60,
+        "loaded_labor_cost_per_hour": 34.0,
+        "baseline_error_rate": 0.08,
+        "expected_error_rate": 0.06,
+        "error_cost": 18.0,
+        "implementation_cost": 120000.0,
+        "monthly_recurring_cost": 8000.0,
+        "monthly_oversight_cost": 4000.0,
+        "consequence": 3,
+        "autonomy": 1,
+        "data_sensitivity": 4,
+        "uncertainty": 3,
+        "irreversibility": 2,
+        "evidence_quality": 4,
+        "data_readiness": 4,
+        "integration_readiness": 4,
+        "control_mode": ControlMode.HUMAN_APPROVAL,
+        "non_ai_alternative": "Improve policy search, templates, and agent training",
+        "owner": "Support operations",
+    }
+
+
+def test_valid_use_case_is_accepted() -> None:
+    use_case = UseCase.model_validate(valid_use_case_data())
+    assert use_case.name == "Evidence-backed response drafting"
+    assert use_case.control_mode == ControlMode.HUMAN_APPROVAL
+
+
+def test_expected_error_cannot_exceed_baseline() -> None:
+    data = valid_use_case_data()
+    data["expected_error_rate"] = 0.12
+    with pytest.raises(ValueError):
+        UseCase.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("adoption_rate", 1.5),
+        ("consequence", 6),
+        ("minutes_saved_per_case", -1),
+    ],
+)
+def test_out_of_range_values_are_rejected(field: str, value: object) -> None:
+    data = valid_use_case_data()
+    data[field] = value
+    with pytest.raises(ValueError):
+        UseCase.model_validate(data)
+```
+
+### Verify
+
+```bash
+pytest tests/test_schemas.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- define the discovery data contract;
+- validate one use case;
+- reject impossible or out-of-range assumptions;
+- explain why a business problem is not the same thing as a model request.
+
+### Common misconception
+
+Misconception: "The business problem is already clear because leadership requested AI."
+
+Why it seems plausible: Leadership usually knows real pain exists.
+
+Correct model: Leadership may know pain exists, but discovery must identify the user task, bottleneck, baseline, risk, and non-AI alternative.
+
+Test case: If the team cannot name the workflow step and baseline, the problem is not ready.
+
+### Guided practice and independent transfer
+
+- Guided: Rewrite "automate support with AI" into a problem statement with user, workflow step, baseline, outcome, and guardrail.
+- Independent transfer: Apply the same structure to invoice review, sales call summarization, or internal IT helpdesk triage.
+
+### Recall
+
+- What is the difference between an executive request and a business outcome?
+- Why is a baseline required before ROI?
+- What does a non-AI alternative protect against?
+- Why should discovery artifacts be typed and testable?
+
+## Hybrid module 2: Stakeholder discovery and workflow mapping
+
+### Core question
+
+Whose work changes, and what actually happens before, during, and after the proposed AI step?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Stakeholder | A person or group affected by the workflow or decision. Missing stakeholders create adoption and risk surprises. | Support agents, team leads, customers, legal, finance. |
+| Decision authority | The person or group allowed to approve scope, budget, or risk. It prevents unclear ownership. | The support VP approves the pilot scope. |
+| Current-state workflow | The workflow as it works today, not as the process document claims. It reveals real bottlenecks. | Agents copy policy text manually because search is poor. |
+| Failure path | A route through the workflow where work fails, loops, escalates, or creates harm. | Draft goes to lead review because refund evidence is missing. |
+| Handoff | A transfer of work between people or systems. Handoffs often create delay and missing context. | Agent escalates to billing specialist. |
+| Shadow work | Unofficial work people do to make a broken process function. It often reveals the true system. | Agents keep personal policy notes. |
+
+### Connected dry run
+
+Trace one ticket through stakeholder discovery and workflow mapping.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The team identifies everyone affected. | Stakeholder |
+| 2 | The team separates users from decision owners. | Decision authority |
+| 3 | Interviews capture what people actually do. | Current-state workflow |
+| 4 | The workflow map records steps, systems, inputs, and outputs. | Workflow step |
+| 5 | Loops and escalations are marked. | Failure path |
+| 6 | Informal workarounds are recorded. | Shadow work |
+| 7 | The team chooses which step is in pilot scope. | Workflow boundary |
+
+Step 1: the team identifies affected people.
+
+Support agents use the tool. Team leads review risky responses. Customers are affected by replies. Legal and security care about policy and data. Finance cares about cost assumptions.
+
+Step 2: users and decision owners are separated.
+
+Agents may know the workflow best, but the support VP may own the pilot decision. Both are needed.
+
+Step 3: interviews capture real work.
+
+The team asks agents to walk through a recent refund ticket. The goal is not to confirm the official process. The goal is to find what actually happens.
+
+Step 4: the workflow map records the current state.
+
+A useful row includes actor, system, input, output, average time, volume, and failure modes.
+
+Step 5: failure paths are marked.
+
+When evidence is missing, the agent escalates. When policy is unclear, a lead reviews. These loops matter because AI may amplify them if they are ignored.
+
+Step 6: shadow work is documented.
+
+Agents may use personal notes because policy search is slow. That is not a user flaw. It is evidence of a system gap.
+
+Step 7: pilot scope is narrowed.
+
+The team chooses "evidence-backed first-draft assistance for refund tickets" rather than "automate support."
+
+### Concept model
+
+Discovery is not just interviewing people. It is building a shared evidence map:
+
+```text
+stakeholders
+  -> goals and concerns
+  -> current workflow
+  -> failure paths
+  -> pilot boundary
+```
+
+Every stakeholder adds a different constraint. Agents reveal friction. Operations reveals volumes. Legal and security reveal risk. Finance challenges ROI. Customers experience the outcome.
+
+### Product consequence
+
+If the team interviews only executives, it may build a system that optimizes reporting instead of real agent work. If it interviews only agents, it may miss governance and budget constraints. The pilot needs both workflow truth and decision authority.
+
+### Worked example
+
+Stakeholder map:
+
+| Stakeholder | Goal | Concern | Required involvement |
+|---|---|---|---|
+| Support agent | Faster safe replies | Tool adds review work | Workflow interviews and pilot feedback |
+| Team lead | Lower escalation load | Unsafe drafts | Approval design |
+| Customer | Correct reply | Wrong refund promise | Customer-impact metrics |
+| Legal/security | Policy and privacy | PII leakage, commitments | Risk review |
+| Finance | Defensible value | Inflated ROI | Scenario review |
+
+### Build
+
+Add stakeholder and workflow sections to `discovery/response-drafting-package.yaml` later in Module 8. For now, design them with these fields:
+
+```text
+stakeholders:
+  - name
+  - role
+  - goals
+  - concerns
+  - decision_authority
+
+workflow_steps:
+  - name
+  - actor
+  - system
+  - input
+  - output
+  - average_minutes
+  - monthly_volume
+  - failure_modes
+```
+
+### Tests
+
+The schema tests from Module 1 enforce required fields. Module 7 adds completeness checks across the whole package.
+
+### Experiment
+
+Interview two simulated users with conflicting incentives:
+
+| Interviewee | Likely emphasis | Evidence to request |
+|---|---|---|
+| Support manager | Handle time, staffing, escalation | Volume, backlog, QA scores |
+| Support agent | Search friction, unclear policy, tooling | Screen-share workflow, recent tickets |
+
+Failure signal: both interviews describe different workflows and nobody can produce baseline data.
+
+### Interpret results
+
+Different stakeholder stories are not a problem by themselves. They are discovery evidence. The problem is making an implementation decision before reconciling them.
+
+### Verify
+
+```bash
+pytest tests/test_schemas.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- identify affected stakeholders;
+- distinguish users from decision owners;
+- define a current-state workflow shape;
+- explain at least one failure path and one workaround.
+
+### Failure drill
+
+Failure: The workflow map shows only the happy path.
+
+Evidence: No escalations, exceptions, rework, or human review are represented.
+
+Fix: Ask for recent failed cases and map them separately.
+
+Prevention: Require every workflow map to include at least one failure path.
+
+### Common misconception
+
+Misconception: "A workflow diagram from documentation is enough."
+
+Why it seems plausible: Official process documents look authoritative.
+
+Correct model: Actual work often includes workarounds, queues, and exceptions not captured in documentation.
+
+### Guided practice and independent transfer
+
+- Guided: Map the current refund-ticket workflow in five to eight steps.
+- Independent transfer: Map an internal IT password-reset workflow and mark where AI would be forbidden.
+
+### Recall
+
+- Why should affected people and decision owners both be interviewed?
+- What is a failure path?
+- Why is shadow work useful evidence?
+- What fields make a workflow step measurable?
+
+## Hybrid module 3: Baseline, bottlenecks, and measurable evidence
+
+### Core question
+
+What current-state evidence is required before you can claim an AI pilot created value?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Baseline metric | A measured current-state value. It is the comparison point for improvement. | Average handle time is 14.2 minutes. |
+| Measurement window | The period used for measurement. It prevents cherry-picking. | Last full calendar month. |
+| Bottleneck | The constrained or slowest high-value part of the workflow. It tells where intervention may help. | Policy lookup takes 6.4 minutes. |
+| Error cost | The estimated cost of mistakes or rework. It makes quality visible in ROI. | Unsupported refund promise costs $18 in rework on average. |
+| Counterfactual | What would happen without the AI system. It prevents crediting AI for unrelated process changes. | New templates alone might reduce handle time. |
+| Evidence quality | How reliable the baseline is. Weak evidence should lower readiness. | Dashboard samples are better than anecdotes. |
+
+### Connected dry run
+
+Follow one metric from raw observation to baseline evidence.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The team picks a workflow step to measure. | Bottleneck |
+| 2 | It defines a baseline metric. | Baseline metric |
+| 3 | It records source and measurement window. | Measurement window |
+| 4 | It estimates cost of errors and rework. | Error cost |
+| 5 | It compares against a non-AI path. | Counterfactual |
+| 6 | It rates whether the evidence is strong enough. | Evidence quality |
+| 7 | Weak evidence becomes a discovery task, not an ROI claim. | Readiness |
+
+Step 1: the team chooses the step.
+
+The workflow map shows policy lookup and first-draft writing as time-consuming.
+
+Step 2: a baseline metric is defined.
+
+The metric is:
+
+```text
+Median time from ticket open to first draft for refund-related tickets.
+```
+
+Step 3: the measurement source is recorded.
+
+The team uses helpdesk timestamps and a sampled screen-share study from the last month. The source matters because self-reported time is weaker than system timestamps.
+
+Step 4: error cost is estimated.
+
+Quality review shows unsupported refund language creates rework. The team assigns a conservative rework cost for scenario comparison.
+
+Step 5: the counterfactual is documented.
+
+The team asks: "What if we only improved templates and policy search?" This prevents the AI pilot from taking credit for process fixes.
+
+Step 6: evidence quality is rated.
+
+If the data is sampled, stale, or incomplete, readiness goes down.
+
+Step 7: weak evidence blocks false precision.
+
+When baseline evidence is weak, the right next step is measurement, not an AI demo.
+
+### Concept model
+
+Baseline evidence connects the workflow to business value:
+
+```text
+workflow step
+  -> measured baseline
+  -> bottleneck
+  -> candidate intervention
+  -> expected delta
+  -> evaluation plan
+```
+
+Without a baseline, a demo can feel useful while creating no measurable value.
+
+### Product consequence
+
+Northstar should not claim productivity improvement from "agents liked the demo." Adoption and satisfaction matter, but value needs measured time, quality, and cost changes.
+
+### Worked example
+
+Baseline table:
+
+| Metric | Current value | Source | Window | Owner |
+|---|---:|---|---|---|
+| Refund ticket monthly volume | 18,000 | Helpdesk analytics | Last 30 days | Support ops |
+| Median policy lookup + drafting time | 6.4 min | Screen-share sample | Two-week sample | Support ops |
+| Unsupported refund language rate | 8% | QA sample | Last month | QA lead |
+| Escalation rate | 22% | Helpdesk tags | Last month | Team leads |
+
+### Build
+
+Baseline records are captured in the YAML package in Module 8 and validated by `DiscoveryPackage`.
+
+### Tests
+
+The schema requires every baseline metric to include a source, measurement window, and owner.
+
+### Experiment
+
+Take one baseline metric and ask:
+
+| Question | Good answer |
+|---|---|
+| Where did it come from? | Named system or sampled study. |
+| How recent is it? | Measurement window recorded. |
+| Who owns it? | Person or team named. |
+| What can bias it? | Known limitation stated. |
+
+Failure signal: metric has a precise number but no source.
+
+### Interpret results
+
+Precise numbers are not necessarily better. A rough measured range is better than an invented exact ROI.
+
+### Verify
+
+```bash
+pytest tests/test_schemas.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- define baseline metrics with source and window;
+- identify at least one bottleneck;
+- separate baseline evidence from target assumptions;
+- state a non-AI counterfactual.
+
+### Failure drill
+
+Failure: ROI is calculated from guessed time savings.
+
+Evidence: No current handle-time source exists.
+
+Fix: Run a short measurement study before ROI.
+
+Prevention: Require baseline source and measurement window in every discovery package.
+
+### Common misconception
+
+Misconception: "A pilot can prove value without baseline because users will know if it helps."
+
+Correct model: User feedback helps explain adoption, but measured baseline is required for value claims.
+
+### Guided practice and independent transfer
+
+- Guided: Define three baseline metrics for support drafting.
+- Independent transfer: Define baseline metrics for contract review or sales-call summarization.
+
+### Recall
+
+- What makes a baseline metric auditable?
+- Why does counterfactual matter?
+- What should happen when evidence quality is weak?
+- How can a bottleneck differ from the loudest complaint?
+
+## Hybrid module 4: Candidate interventions and AI suitability
+
+### Core question
+
+How do you choose between process change, deterministic software, rules, search, ML, LLMs, RAG, tools, agents, fine-tuning, and human operations?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Candidate intervention | A possible change to the workflow. Comparing candidates prevents model-first thinking. | Better templates, search, RAG draft assistant, or human QA. |
+| Decision support | AI assists a human decision but does not take final action. | Draft a reply for agent review. |
+| Automation | The system takes action without human approval. It raises risk. | Auto-send a refund approval. |
+| Deterministic solution | A predictable software or process fix. It is often safer and cheaper than AI. | Route tickets by keyword rules. |
+| AI suitability | A check that asks whether AI is necessary, useful, and controllable. | Use AI only if language variability matters and output can be reviewed. |
+| Rejected alternative | A documented option not selected. It prevents repeated debate and shows judgment. | Reject autonomous refund agent for first pilot. |
+
+### Connected dry run
+
+Compare four possible interventions for the same bottleneck.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The team names the bottleneck. | Candidate intervention |
+| 2 | A non-AI process fix is considered. | Deterministic/process solution |
+| 3 | A rules/search option is considered. | Rules, search |
+| 4 | A decision-support AI option is considered. | Decision support |
+| 5 | A high-autonomy option is rejected. | Automation, rejected alternative |
+| 6 | Suitability is checked against data, risk, reviewability, and value. | AI suitability |
+| 7 | The selected pilot is narrowed. | Pilot scope |
+
+Step 1: the bottleneck is policy-backed drafting.
+
+Agents spend time finding evidence and writing first drafts.
+
+Step 2: process fix is considered.
+
+The team could improve policy templates and training. This is cheap and safe. It may be enough for some cases.
+
+Step 3: rules/search is considered.
+
+The team could improve search and route refund tickets to policy snippets. This is predictable and easier to govern.
+
+Step 4: decision-support AI is considered.
+
+An AI draft assistant can summarize evidence and produce a first draft for agent review. It handles varied language but must be validated and reviewed.
+
+Step 5: high-autonomy automation is rejected.
+
+An autonomous agent that approves refunds is too risky for the first pilot.
+
+Step 6: suitability is checked.
+
+AI may be justified because support tickets are variable language tasks and the draft can be reviewed before customer impact.
+
+Step 7: the pilot is narrowed.
+
+The team selects:
+
+```text
+Evidence-backed response drafting for refund-related tickets, human approval required.
+```
+
+### Concept model
+
+Use a ladder of complexity:
+
+```text
+process improvement
+  -> deterministic software
+  -> rules/search
+  -> classical ML
+  -> hosted LLM
+  -> RAG
+  -> tool workflow
+  -> controlled agent
+  -> fine-tuning
+  -> multimodal
+```
+
+Move up the ladder only when simpler options do not satisfy the workflow need.
+
+### Product consequence
+
+Choosing the wrong solution type can create avoidable cost and risk. A rules-based routing fix may be better than an LLM. A draft assistant may be better than an autonomous agent.
+
+### Worked example
+
+| Option | Fits? | Reason |
+|---|---|---|
+| Better templates | Partial | Low risk, but does not solve policy lookup. |
+| Improved search | Strong baseline | Helps evidence access. |
+| Direct LLM drafting | Weak | Can hallucinate without evidence. |
+| RAG-assisted drafting | Strong candidate | Uses evidence and keeps agent approval. |
+| Autonomous refund agent | Reject | High consequence and irreversible actions. |
+
+### Build
+
+The `SolutionType` enum and `UseCase` schema encode the candidate type and require a non-AI alternative.
+
+### Tests
+
+The schema test rejects invalid or unsupported assumptions. Scoring tests later show how risk/readiness affect the recommendation.
+
+### Experiment
+
+For each candidate, answer:
+
+```text
+What problem does it solve?
+What simpler option might solve it?
+What data does it need?
+How is output reviewed?
+What action is prohibited?
+```
+
+Failure signal: the use case cannot explain why a simpler option is insufficient.
+
+### Interpret results
+
+"AI can do it" is not a selection criterion. The relevant criteria are value, control, reviewability, data readiness, and operational fit.
+
+### Verify
+
+```bash
+pytest tests/test_schemas.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- list candidate interventions;
+- document rejected alternatives;
+- distinguish decision support from automation;
+- justify why the selected pilot needs AI at all.
+
+### Failure drill
+
+Failure: The team selects RAG before testing search or templates.
+
+Evidence: No simpler option is documented.
+
+Fix: Add a non-AI and search baseline to the use-case register.
+
+Prevention: Require rejected alternatives in every discovery package.
+
+### Common misconception
+
+Misconception: "The best AI system is the most autonomous one."
+
+Correct model: The best first pilot is often decision support with human approval and narrow scope.
+
+### Guided practice and independent transfer
+
+- Guided: Compare rules, search, LLM, RAG, and human work for refund drafting.
+- Independent transfer: Compare candidate interventions for invoice exception triage.
+
+### Recall
+
+- Why should simpler interventions be considered first?
+- What is the difference between decision support and automation?
+- Why document rejected alternatives?
+- When is AI suitability weak?
+
+## Hybrid module 5: Risk classification and human-control design
+
+### Core question
+
+Which actions require human review, human approval, override, abstention, or rejection?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Consequence | Severity if the system is wrong. It drives control requirements. | Wrong refund approval creates financial and policy risk. |
+| Autonomy | How much action the system takes without a person. Higher autonomy raises risk. | Drafting is lower autonomy than sending. |
+| Data sensitivity | How sensitive the data is. It affects privacy and access controls. | Customer order and billing data are sensitive. |
+| Uncertainty | How hard it is to know whether the output is correct. It affects review and abstention. | Missing policy evidence increases uncertainty. |
+| Irreversibility | How hard it is to undo an action. It affects approval requirements. | Sending a customer commitment is harder to undo than drafting. |
+| Human review | A person checks output before use. It catches quality problems. | Agent reviews draft text. |
+| Human approval | A person explicitly approves a consequential action. It gates risk. | Team lead approves refund-related promise. |
+| Abstention | The system refuses to answer fully when evidence is missing. It prevents fake certainty. | Ask for order date instead of approving refund. |
+
+### Connected dry run
+
+Classify one risky refund-drafting use case.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The team identifies possible harm. | Consequence |
+| 2 | It checks whether the system acts or only assists. | Autonomy |
+| 3 | It marks sensitive data. | Data sensitivity |
+| 4 | It asks whether correctness can be verified. | Uncertainty |
+| 5 | It checks whether mistakes are reversible. | Irreversibility |
+| 6 | It selects review and approval controls. | Human review, human approval |
+| 7 | It defines when the system must abstain. | Abstention |
+| 8 | It records owner, detection, prevention, and response. | Risk register |
+
+Step 1: possible harm is named.
+
+The system could draft an unsupported refund promise.
+
+Step 2: autonomy is checked.
+
+The selected pilot drafts for an agent. It does not send to the customer. Autonomy is low.
+
+Step 3: sensitive data is marked.
+
+Tickets and orders may contain names, emails, addresses, payment context, and account details.
+
+Step 4: uncertainty is assessed.
+
+If policy evidence is missing, the system cannot safely recommend eligibility.
+
+Step 5: reversibility is assessed.
+
+A draft is reversible. A sent customer promise is not easily reversible.
+
+Step 6: human control is chosen.
+
+The agent reviews every draft. Refund-related commitments require human approval.
+
+Step 7: abstention is defined.
+
+If required evidence is missing, the system asks for missing information instead of drafting a confident decision.
+
+Step 8: risk response is assigned.
+
+The risk register names owner, detection, preventive control, and incident response.
+
+### Concept model
+
+Risk is not a generic label on "AI." It is specific to:
+
+```text
+task + data + user + autonomy + consequence + reversibility + controls
+```
+
+The same model output can be low risk as a draft and high risk as an automatic action.
+
+### Product consequence
+
+Northstar can pilot draft assistance because a human remains in control. It should not pilot autonomous refunds because consequence and irreversibility are too high.
+
+### Worked example
+
+| Action | Control mode |
+|---|---|
+| Suggest category | Human review |
+| Draft reply | Human review |
+| Mention missing evidence | Human review |
+| Promise refund eligibility | Human approval |
+| Issue refund | Prohibited in first pilot |
+| Change account status | Prohibited in first pilot |
+
+### Build
+
+The `ControlMode` enum and risk fields in `UseCase` make control boundaries explicit.
+
+### Tests
+
+Module 6 scoring tests reject high-risk autonomy without human approval.
+
+### Experiment
+
+Take one candidate action and ask:
+
+```text
+If this is wrong, who is harmed?
+Can a person catch it before impact?
+Can it be undone?
+Who approves it?
+What evidence is required?
+```
+
+Failure signal: the system has an action but no approval owner.
+
+### Interpret results
+
+High value does not cancel high risk. High-value, high-risk work may need stronger controls, a narrower pilot, or rejection.
+
+### Verify
+
+```bash
+pytest tests/test_schemas.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- score risk dimensions for each use case;
+- define control mode;
+- specify abstention conditions;
+- assign risk owners.
+
+### Failure drill
+
+Failure: The design says "human in the loop" but not what the human does.
+
+Evidence: No review criteria, approval owner, or override process.
+
+Fix: Specify review, approval, override, and escalation.
+
+Prevention: Treat "human in the loop" as incomplete until roles and decisions are explicit.
+
+### Common misconception
+
+Misconception: "Human review means the system is safe."
+
+Correct model: Human review is only useful if the reviewer has time, evidence, authority, and clear criteria.
+
+### Guided practice and independent transfer
+
+- Guided: Classify support-drafting actions by review, approval, prohibited, or abstain.
+- Independent transfer: Classify actions for HR resume screening or medical appointment triage.
+
+### Recall
+
+- What is the difference between human review and human approval?
+- Why is reversibility important?
+- Why is risk use-case specific?
+- When should a system abstain?
+
+## Hybrid module 6: Metrics, ROI, adoption, and go/no-go evidence
+
+### Core question
+
+How do you estimate expected value without pretending discovery math is a forecast?
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Value scenario | A transparent calculation of possible benefit and cost. It is not a promise. | 3.5 minutes saved per adopted case. |
+| Labor benefit | Estimated value from time saved or capacity created. It should avoid double-counting. | Fewer minutes per ticket. |
+| Error avoidance | Estimated value from fewer mistakes or rework. It makes quality visible. | Fewer unsupported refund drafts. |
+| Operating cost | Recurring cost after launch. It includes model, review, monitoring, and maintenance. | Monthly provider cost plus oversight. |
+| Payback period | Time needed for benefits to recover implementation cost. | Implementation cost divided by monthly net value. |
+| Adoption metric | Measures whether users actually use and accept the workflow. | Percentage of eligible tickets where agents use the draft. |
+| Go/no-go criteria | Predefined decision rules for proceed, revise, or stop. | Stop if unsupported claims increase. |
+
+### Connected dry run
+
+Run one candidate through an ROI and readiness scenario.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The team enters baseline volume and time savings. | Labor benefit |
+| 2 | It enters expected error-rate change. | Error avoidance |
+| 3 | It adds implementation and operating costs. | Operating cost |
+| 4 | It calculates first-year net value and ROI. | Value scenario |
+| 5 | It calculates payback period. | Payback period |
+| 6 | It combines risk and readiness evidence. | Risk score, readiness score |
+| 7 | It produces a recommendation with caveats. | Go/no-go criteria |
+
+Step 1: labor benefit is estimated.
+
+If 18,000 cases per month are eligible, adoption is 60%, and the tool saves 3.5 minutes per used case, the team can estimate annual hours saved.
+
+Step 2: error avoidance is estimated.
+
+If unsupported refund language falls from 8% to 6%, the scenario estimates avoided rework.
+
+Step 3: costs are added.
+
+Implementation, model usage, oversight, evaluation, and maintenance are included. Omitting oversight makes ROI look falsely high.
+
+Step 4: first-year net value is calculated.
+
+The scenario subtracts first-year costs from annual benefit.
+
+Step 5: payback is calculated.
+
+If monthly net value after launch is positive, implementation cost can be divided by monthly net value.
+
+Step 6: risk and readiness remain separate.
+
+The team does not merge all numbers into one magic AI score. A profitable but high-risk case may still require a controlled pilot or rejection.
+
+Step 7: recommendation is produced.
+
+The recommendation is advisory:
+
+```text
+controlled-pilot: narrow scope and require approval
+```
+
+Humans still decide.
+
+### Concept model
+
+Discovery math should make assumptions visible:
+
+```text
+volume
+  x adoption
+  x minutes saved
+  x labor cost
+  + error avoidance
+  - implementation and operating cost
+  -> value scenario
+```
+
+Then evaluate separately:
+
+```text
+value scenario + risk + readiness + adoption path -> decision
+```
+
+### Product consequence
+
+Northstar should not approve a pilot because ROI is positive alone. The pilot must also have data readiness, control design, owner commitment, and stop conditions.
+
+### Worked example
+
+| Metric | Example |
+|---|---:|
+| Monthly volume | 18,000 |
+| Adoption | 60% |
+| Minutes saved per adopted case | 3.5 |
+| Loaded labor cost | $34/hour |
+| Baseline error rate | 8% |
+| Expected error rate | 6% |
+| Implementation cost | $120,000 |
+| Monthly recurring + oversight | $12,000 |
+
+### Build
+
+```python
+# ai_discovery/scoring.py
+from __future__ import annotations
+
 from dataclasses import dataclass
 
-from ai_industry_labs.discovery.models import UseCase
+from ai_discovery.schemas import ControlMode, UseCase
 
 
 @dataclass(frozen=True)
@@ -1108,9 +1477,7 @@ class BusinessCase:
 def calculate_business_case(use_case: UseCase) -> BusinessCase:
     annual_cases_used = use_case.monthly_volume * 12 * use_case.adoption_rate
     annual_hours_saved = annual_cases_used * use_case.minutes_saved_per_case / 60
-    annual_labor_benefit = (
-        annual_hours_saved * use_case.loaded_labor_cost_per_hour
-    )
+    annual_labor_benefit = annual_hours_saved * use_case.loaded_labor_cost_per_hour
 
     errors_avoided = annual_cases_used * (
         use_case.baseline_error_rate - use_case.expected_error_rate
@@ -1167,16 +1534,17 @@ def calculate_business_case(use_case: UseCase) -> BusinessCase:
     )
 
 
-def triage_recommendation(
-    business_case: BusinessCase,
-    *,
-    human_approval_required: bool,
-) -> str:
+def triage_recommendation(use_case: UseCase, business_case: BusinessCase) -> str:
     if business_case.readiness_score < 7:
         return "research: improve evidence, data, or integration readiness"
 
-    if business_case.risk_score >= 20 and not human_approval_required:
-        return "reject: consequence requires stronger human control"
+    high_risk = business_case.risk_score >= 17
+    lacks_control = use_case.control_mode not in {
+        ControlMode.HUMAN_REVIEW,
+        ControlMode.HUMAN_APPROVAL,
+    }
+    if high_risk and lacks_control:
+        return "reject: risk requires stronger human control"
 
     if business_case.first_year_net_value <= 0:
         return "revise: current value scenario does not justify first-year cost"
@@ -1187,34 +1555,20 @@ def triage_recommendation(
     return "pilot: proceed with defined guardrails and evaluation"
 ```
 
-### Why this model is intentionally simple
-
-- It exposes assumptions.
-- It supports scenario comparison.
-- It does not claim to predict actual model quality.
-- It does not convert organizational risk tolerance into an automatic truth.
-- It keeps value and risk visible as separate dimensions.
-
-Do not combine value and risk into one "AI score." A high-value, high-risk use case requires
-different governance from a low-value, low-risk use case.
-
 ### Tests
 
-**`tests/test_discovery_models.py`**
-
 ```python
-import pytest
+# tests/test_scoring.py
+from ai_discovery.schemas import ControlMode, SolutionType, UseCase
+from ai_discovery.scoring import calculate_business_case, triage_recommendation
 
-from ai_industry_labs.discovery.models import SolutionType, UseCase
 
-
-def valid_data() -> dict[str, object]:
-    return {
+def response_drafting_use_case(**overrides: object) -> UseCase:
+    data: dict[str, object] = {
         "name": "Evidence-backed response drafting",
         "user": "Support agent",
-        "business_outcome": (
-            "Reduce search and drafting time without increasing policy errors"
-        ),
+        "business_outcome": "Reduce search and drafting time without increasing policy errors",
+        "workflow_step": "Draft first response",
         "solution_type": SolutionType.HYBRID,
         "monthly_volume": 18000,
         "minutes_saved_per_case": 3.5,
@@ -1234,1069 +1588,436 @@ def valid_data() -> dict[str, object]:
         "evidence_quality": 4,
         "data_readiness": 4,
         "integration_readiness": 4,
-        "human_approval_required": True,
-        "non_ai_alternative": (
-            "Improve search, policy templates, and agent training"
-        ),
+        "control_mode": ControlMode.HUMAN_APPROVAL,
+        "non_ai_alternative": "Improve policy search, templates, and agent training",
+        "owner": "Support operations",
     }
-
-
-def test_valid_use_case_is_accepted() -> None:
-    use_case = UseCase.model_validate(valid_data())
-
-    assert use_case.solution_type is SolutionType.HYBRID
-    assert use_case.human_approval_required is True
-
-
-def test_expected_error_cannot_exceed_baseline_in_expected_scenario() -> None:
-    data = valid_data()
-    data["expected_error_rate"] = 0.20
-
-    with pytest.raises(ValueError):
-        UseCase.model_validate(data)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("monthly_volume", -1),
-        ("adoption_rate", 1.1),
-        ("consequence", 0),
-        ("data_readiness", 6),
-    ],
-)
-def test_out_of_range_values_are_rejected(field: str, value: object) -> None:
-    data = valid_data()
-    data[field] = value
-
-    with pytest.raises(ValueError):
-        UseCase.model_validate(data)
-```
-
-**`tests/test_discovery_scoring.py`**
-
-```python
-from ai_industry_labs.discovery.models import SolutionType, UseCase
-from ai_industry_labs.discovery.scoring import (
-    calculate_business_case,
-    triage_recommendation,
-)
-
-
-def response_drafting_use_case() -> UseCase:
-    return UseCase(
-        name="Evidence-backed response drafting",
-        user="Support agent",
-        business_outcome="Reduce search and drafting time without increasing policy errors",
-        solution_type=SolutionType.HYBRID,
-        monthly_volume=18000,
-        minutes_saved_per_case=3.5,
-        adoption_rate=0.60,
-        loaded_labor_cost_per_hour=34.0,
-        baseline_error_rate=0.08,
-        expected_error_rate=0.06,
-        error_cost=18.0,
-        implementation_cost=120000.0,
-        monthly_recurring_cost=8000.0,
-        monthly_oversight_cost=4000.0,
-        consequence=3,
-        autonomy=1,
-        data_sensitivity=4,
-        uncertainty=3,
-        irreversibility=2,
-        evidence_quality=4,
-        data_readiness=4,
-        integration_readiness=4,
-        human_approval_required=True,
-        non_ai_alternative="Improve search, policy templates, and agent training",
-    )
-
-
-def test_business_case_calculates_positive_benefit() -> None:
-    result = calculate_business_case(response_drafting_use_case())
-
-    assert result.annual_labor_benefit > 0
-    assert result.annual_error_avoidance > 0
-    assert result.first_year_net_value > 0
-    assert result.risk_score == 13
-    assert result.readiness_score == 12
-    assert triage_recommendation(
-        result,
-        human_approval_required=True,
-    ).startswith("pilot")
-
-
-def test_low_readiness_requires_research() -> None:
-    use_case = response_drafting_use_case().model_copy(
-        update={
-            "evidence_quality": 2,
-            "data_readiness": 2,
-            "integration_readiness": 2,
-        }
-    )
-    result = calculate_business_case(use_case)
-
-    assert triage_recommendation(
-        result,
-        human_approval_required=use_case.human_approval_required,
-    ).startswith("research")
-
-
-def test_high_risk_autonomy_is_rejected_without_approval() -> None:
-    use_case = response_drafting_use_case().model_copy(
-        update={
-            "consequence": 5,
-            "autonomy": 5,
-            "data_sensitivity": 4,
-            "uncertainty": 4,
-            "irreversibility": 4,
-            "human_approval_required": False,
-        }
-    )
-    result = calculate_business_case(use_case)
-
-    assert triage_recommendation(
-        result,
-        human_approval_required=use_case.human_approval_required,
-    ).startswith("reject")
-```
-
-### Use-case register
-
-**`discovery/use-case-register.yaml`**
-
-```yaml
-use_cases:
-  - name: "Evidence-backed response drafting"
-    user: "Support agent"
-    proposed_solution: "Hybrid retrieval, LLM drafting, validation, and human approval"
-    non_ai_alternative: "Improve search, policy templates, and agent training"
-    expected_value: "Reduce search and drafting time"
-    guardrail: "Policy error and reopen rates must not worsen"
-    prohibited_actions:
-      - "Send a response automatically"
-      - "Issue a refund"
-      - "Modify an account"
-    status: "pilot_candidate"
-
-  - name: "Autonomous refund execution"
-    user: "Support operations"
-    proposed_solution: "Tool-using agent"
-    non_ai_alternative: "Improve approval workflow and refund tooling"
-    expected_value: "Reduce refund handling time"
-    guardrail: "No unauthorized or incorrect financial action"
-    prohibited_actions: []
-    status: "rejected_for_first_pilot"
-    rejection_reason: "High-consequence action with insufficient evidence and control maturity"
-```
-
-## Risk classification
-
-### Risk is use-case specific
-
-The same model can be low consequence in one workflow and high consequence in another.
-
-Examples:
-
-- Drafting an internal summary: lower consequence
-- Sending legal or medical advice: higher consequence
-- Suggesting a refund: moderate to high consequence
-- Executing a refund: higher consequence
-
-### Triage dimensions
-
-| Dimension | Low | High |
-|---|---|---|
-| Consequence | Minor inconvenience | Financial, legal, safety, rights, or significant customer impact |
-| Autonomy | Suggestion only | Executes action without approval |
-| Data sensitivity | Public information | Personal, confidential, regulated, or secret data |
-| Uncertainty | Output easily verified | Correctness difficult to determine |
-| Irreversibility | Easy to undo | Difficult or impossible to repair |
-| Scale | Small controlled pilot | Large population or repeated high-volume use |
-
-### Risk register
-
-**`discovery/risk-register.md`**
-
-```markdown
-# Applied AI Risk Register
-
-| Risk | Cause | Affected party | Impact | Detection | Preventive control | Response | Owner |
-|---|---|---|---|---|---|---|---|
-| Unsupported answer | Missing or irrelevant evidence | Customer and agent | Wrong guidance | Citation and human review | RAG, abstention, evaluation | Escalate and correct | Product owner |
-| Unauthorized evidence | Permission filter failure | Customer or employee | Confidentiality breach | Access tests and audit | Pre-retrieval authorization | Disable feature and investigate | Security |
-| Automation bias | Agent trusts fluent draft | Customer | Missed policy condition | Edit and error analysis | Source display and training | Increase review and narrow scope | Operations |
-| Stale policy | Old document remains indexed | Customer | Incorrect answer | Freshness checks | Version and delete workflow | Reindex and review affected cases | Knowledge owner |
-| Cost overrun | Long context or high usage | Organization | Budget impact | Cost dashboard | Token and rate budgets | Route or pause | Engineering |
-| Unequal quality | Evaluation misses subgroup | Customer segment | Disparate service quality | Segmented evaluation | Representative testing | Revise data or scope | Evaluation owner |
-| Vendor data exposure | Provider terms or configuration | Customer | Privacy incident | Vendor audit | Approved settings and contracts | Incident response | Privacy owner |
-```
-
-### Human-control design
-
-Use explicit levels:
-
-| Level | System behavior | Human role |
-|---|---|---|
-| Assist | Find and summarize evidence | Agent decides and writes |
-| Draft | Produce editable response | Agent reviews and sends |
-| Recommend | Propose escalation or action | Authorized person decides |
-| Execute with approval | Prepare exact tool action | Authorized person approves |
-| Autonomous execution | Execute within policy | Human monitors and can override |
-
-The first pilot stops at **Draft**.
-
-### Approval design
-
-An approval must show:
-
-- Proposed action or response
-- Evidence used
-- Relevant policy
-- Data affected
-- Expected consequence
-- Model and prompt version
-- Expiration time
-- Approver identity
-
-A generic "approve AI" button is not meaningful control.
-
-## Define product requirements
-
-**`discovery/product-requirements.md`**
-
-```markdown
-# Product Requirements: Evidence-Backed Support Drafting Pilot
-
-## User
-
-English-language support agents handling billing and account questions.
-
-## Problem
-
-Agents spend substantial time finding current policy evidence and drafting repetitive answers.
-
-## Outcome
-
-Reduce median search and drafting time by at least 30% for eligible cases.
-
-## Guardrails
-
-- Policy-error rate must not exceed the current baseline.
-- Reopen rate must not exceed the current baseline.
-- Unauthorized documents must never appear.
-- No response may be sent without agent approval.
-
-## Inputs
-
-- Ticket text
-- Authorized account metadata
-- Current approved knowledge sources
-
-## Outputs
-
-- Structured issue summary
-- Retrieved evidence with source identifiers
-- Editable response draft
-- Abstention or escalation reason
-
-## Allowed behavior
-
-- Search approved sources
-- Summarize evidence
-- Draft a response
-- Ask the agent to obtain missing information
-
-## Prohibited behavior
-
-- Send a response
-- Issue a refund
-- Modify an account
-- Use unauthorized customer or employee data
-- Hide missing or conflicting evidence
-
-## Service targets
-
-- Median end-to-end response under 8 seconds during the pilot
-- 99% successful request handling during staffed pilot hours
-- Per-case cost tracked and limited by policy
-
-## Human control
-
-The agent reviews, edits, and explicitly sends every response.
-
-## Feedback
-
-Record accept, edit, reject, abstain, escalation, and final ticket outcome.
-
-## Exclusions
-
-- Security incidents
-- Legal threats
-- High-value refunds
-- Unsupported languages
-- Cases without verified customer identity
-```
-
-### Functional and non-functional requirements
-
-Functional requirements describe behavior:
-
-- Retrieve approved evidence
-- Draft a response
-- Show citations
-- Accept edits
-- Record feedback
-
-Non-functional requirements describe operating qualities:
-
-- Latency
-- Availability
-- Security
-- Privacy
-- Auditability
-- Cost
-- Accessibility
-- Maintainability
-
-## Metrics
-
-### Metric hierarchy
-
-```text
-Business outcome
-└── Product behavior
-    └── AI system quality
-        └── Component and operational health
-```
-
-### Business metrics
-
-- Cost per resolved case
-- Median resolution time
-- First-contact resolution
-- Reopen rate
-- Escalation rate
-- Customer satisfaction
-
-### Product metrics
-
-- Agent adoption
-- Draft acceptance
-- Edit distance or edit effort
-- Rejection rate
-- Abstention rate
-- Time saved
-- Human-review time
-
-### AI system metrics
-
-- Answer correctness
-- Policy compliance
-- Groundedness
-- Citation accuracy
-- Completeness
-- Unsupported-claim rate
-- Escalation correctness
-
-### Operational metrics
-
-- Latency
-- Availability
-- Error rate
-- Token usage
-- Cost per request
-- Retrieval failures
-- Provider failures
-
-### Guardrail metrics
-
-Guardrails prevent optimization of one metric at the expense of another:
-
-- Policy-error rate
-- Reopen rate
-- Privacy or access incidents
-- High-risk under-escalation
-- Agent workload
-- Quality by customer segment
-
-### Metric specification
-
-Every metric needs:
-
-- Definition
-- Numerator and denominator
-- Data source
-- Owner
-- Collection frequency
-- Segment
-- Baseline
-- Target
-- Alert or stop threshold
-
-Example:
-
-```text
-Metric: Draft acceptance rate
-Definition: Eligible AI drafts sent after zero or minor edits
-Numerator: Accepted drafts
-Denominator: Generated drafts presented to agents
-Data source: Draft feedback table
-Frequency: Daily during pilot
-Segments: Case type, agent tenure, language
-Purpose: Product usefulness
-Not a quality guarantee: High acceptance can still reflect automation bias
-```
-
-## Return-on-investment analysis
-
-### Benefits
-
-Possible benefits:
-
-- Labor time saved
-- Avoided rework
-- Reduced error cost
-- Faster onboarding
-- Higher support capacity
-- Improved customer retention
-
-Do not count the same benefit twice. If time saved is converted into capacity rather than staff
-reduction, describe it as capacity.
-
-### Costs
-
-Include:
-
-- Discovery and design
-- Engineering
-- Data preparation
-- Integration
-- Evaluation
-- Model API or GPU
-- Storage and network
-- Security and privacy review
-- Human review
-- Monitoring
-- Support
-- Training and change management
-- Vendor contracts
-- Incident response
-
-### Scenario model
-
-Use:
-
-- Conservative scenario
-- Expected scenario
-- Upside scenario
-- Downside or failure scenario
-
-Do not present a single point estimate as certainty.
-
-### Example formulas
-
-```text
-Annual labor benefit =
-monthly eligible cases
-× adoption rate
-× minutes saved
-÷ 60
-× loaded hourly cost
-× 12
-
-Annual error avoidance =
-annual eligible cases
-× (baseline error rate - expected error rate)
-× average error cost
-
-First-year net value =
-annual benefit
-- implementation cost
-- annual operating cost
-
-First-year ROI =
-first-year net value
-÷ first-year total cost
-```
-
-### Sensitivity analysis
-
-The business case is usually most sensitive to:
-
-- Eligible volume
-- Actual adoption
-- Minutes saved after review
-- Human-oversight cost
-- Model and retrieval cost
-- Quality regressions
-- Integration scope
-
-Change each assumption and show how the conclusion moves.
-
-## Build, buy, or hybrid
-
-### Build
-
-Advantages:
-
-- Greater control
-- Custom workflow and permissions
-- Flexible evaluation
-- Reduced provider lock-in at the application layer
-
-Costs:
-
-- Engineering and operations ownership
-- Security responsibility
-- Longer time to market
-
-### Buy
-
-Advantages:
-
-- Faster initial deployment
-- Vendor-supported features
-- Lower initial engineering effort
-
-Costs:
-
-- Integration limits
-- Vendor lock-in
-- Data-policy constraints
-- Less control over updates and evaluation
-
-### Hybrid
-
-Use hosted model and managed infrastructure while retaining:
-
-- Application logic
-- Permissions
-- Retrieval
-- Evaluation
-- Prompt and model routing
-- Observability
-- Business workflow
-
-The pilot selects hybrid.
-
-### Vendor assessment
-
-Evaluate:
-
-- Required capability
-- Data retention and training policy
-- Regional processing
-- Security attestations
-- Identity and access integration
-- Logging and audit
-- Model versioning
-- Rate limits and availability
-- Pricing and cost predictability
-- Contract and exit terms
-- Portability
-
-Do not select a vendor only from benchmark scores.
-
-## Data contract
-
-The discovery package uses three data contracts.
-
-### Baseline metric record
-
-| Field | Type | Rule |
-|---|---|---|
-| `segment` | string | Stable business-defined case segment |
-| `monthly_cases` | integer | Non-negative and tied to a measurement period |
-| `median_handle_minutes` | number | Non-negative; excludes or identifies queue time |
-| `p90_handle_minutes` | number | Must be at least the median |
-| `median_search_minutes` | number | Non-negative |
-| `median_draft_minutes` | number | Non-negative |
-| `reopen_rate` | number | Between zero and one |
-| `escalation_rate` | number | Between zero and one |
-| `policy_error_rate` | number | Between zero and one |
-| `cost_per_case_usd` | number | Non-negative; calculation method documented |
-
-### Use-case scenario record
-
-The `UseCase` Pydantic model defines the machine-readable contract. Required groups are:
-
-- Identity: name, user, outcome, solution type
-- Value: volume, time, adoption, labor cost, error cost
-- Cost: implementation, recurring operation, human oversight
-- Risk: consequence, autonomy, data sensitivity, uncertainty, irreversibility
-- Readiness: evidence, data, integration
-- Control: human approval and non-AI alternative
-
-### Valid record
-
-The `response-drafting-scenario.yaml` example is valid because:
-
-- All rates are between zero and one.
-- Expected error is no higher than the baseline in the stated expected scenario.
-- Scores remain within one to five.
-- A non-AI alternative is present.
-- Human control is explicit.
-
-### Invalid record
-
-```yaml
-name: "Draft"
-user: ""
-business_outcome: "Use AI"
-solution_type: "magic"
-monthly_volume: -1
-adoption_rate: 1.5
-baseline_error_rate: 0.05
-expected_error_rate: 0.20
-human_approval_required: false
-non_ai_alternative: ""
-```
-
-The record fails identity, enum, range, scenario, and alternative requirements.
-
-### Boundary records
-
-Test:
-
-- Zero eligible monthly volume
-- Zero minutes saved
-- Zero implementation cost
-- Expected error equal to baseline
-- Risk and readiness scores at one and five
-- First-year net value exactly zero
-- Negative monthly net after launch
-
-### Provenance
-
-Every input assumption must include, in its human-readable supporting artifact:
-
-- Source
-- Measurement period
-- Owner
-- Confidence
-- Scenario
-- Last review date
-
-The YAML file contains calculation inputs; it does not replace the evidence supporting them.
-
-### Privacy
-
-Use aggregated or synthetic data. If record-level data is required:
-
-- Limit fields to the discovery purpose.
-- Obtain data-owner approval.
-- Use controlled storage.
-- Remove direct identifiers where possible.
-- Define retention and deletion.
-- Do not include raw customer text in the Git repository.
-
-## Build-buy analysis
-
-**`discovery/build-buy-analysis.md`**
-
-```markdown
-# Build, Buy, or Hybrid Decision
-
-## Decision
-
-Use a hybrid approach for the pilot.
-
-## Build internally
-
-- Ticket-system integration
-- Identity and permissions
-- Document ingestion
-- Retrieval and citations
-- Prompt and workflow logic
-- Evaluation
-- Feedback
-- Audit and monitoring
-
-## Buy or consume as managed service
-
-- Foundation-model inference
-- Managed PostgreSQL and object storage
-- Cloud monitoring
-
-## Revisit self-hosting when
-
-- Volume makes managed inference materially more expensive
-- Data constraints require private hosting
-- Model customization becomes strategically important
-- The team can operate GPU infrastructure reliably
-```
-
-## Architecture options
-
-### Option A — Better process and templates
-
-```text
-Agent
-→ improved search and approved templates
-→ manual response
-```
-
-Use as the non-AI baseline.
-
-### Option B — Direct LLM drafting
-
-```text
-Ticket
-→ LLM
-→ draft
-→ agent
-```
-
-Rejected because current private policy evidence and citations are missing.
-
-### Option C — RAG-assisted drafting
-
-```text
-Authenticated agent
-→ authorized ticket and customer context
-→ permission-aware retrieval
-→ evidence and citations
-→ LLM draft
-→ schema and policy validation
-→ agent review
-→ send
-→ feedback and outcome
-```
-
-Selected for the pilot.
-
-### Option D — Autonomous support agent
-
-```text
-Customer
-→ agent loop
-→ search and tools
-→ send and execute actions
-```
-
-Rejected for the first pilot because controls, evaluation, and operational maturity are
-insufficient.
-
-### Architecture decision record
-
-**`discovery/architecture-decision.md`**
-
-```markdown
-# ADR: Select RAG-Assisted Human-Approved Drafting
-
-## Status
-
-Proposed for pilot.
-
-## Context
-
-Support agents spend measurable time finding current policies and drafting routine answers.
-Policies change frequently and responses require evidence.
-
-## Decision
-
-Use permission-aware hybrid retrieval and a hosted language model to create an editable draft.
-An authenticated agent must approve every response.
-
-## Rejected alternatives
-
-- Direct LLM drafting: lacks current private evidence and citations.
-- Fine-tuning as knowledge storage: policy changes too frequently.
-- Autonomous sending: consequence and evaluation maturity are unacceptable.
-- Process-only change: retained as the baseline but expected to provide less drafting support.
-
-## Consequences
-
-- Requires document governance and retrieval evaluation.
-- Adds model-provider cost and privacy review.
-- Retains human workload for review.
-- Provides a reversible first deployment.
-
-## Revisit when
-
-- Evaluation demonstrates stable quality.
-- Human review data is available.
-- Incident and rollback procedures have been tested.
-```
-
-## Evaluation plan before implementation
-
-Discovery must define evaluation before the team sees prototype results.
-
-**`discovery/evaluation-plan.md`**
-
-```markdown
-# Evaluation Plan
-
-## Offline dataset
-
-- Representative eligible cases
-- Difficult and ambiguous cases
-- Policy-conflict cases
-- Missing-information cases
-- Security and out-of-scope cases
-- Segments by issue type and agent experience
-
-## Baselines
-
-- Current human workflow
-- Improved search and templates
-- RAG-assisted draft
-
-## Quality measures
-
-- Policy correctness
-- Citation correctness
-- Completeness
-- Unsupported claims
-- Appropriate abstention
-- Appropriate escalation
-
-## Product measures
-
-- Time to approved response
-- Draft acceptance and edit effort
-- Agent satisfaction
-- Reopen rate
-
-## Safety and security
-
-- Unauthorized-document access
-- Prompt injection
-- Sensitive-data disclosure
-- Incorrect non-escalation
-
-## Release gates
-
-- No critical access-control failure
-- Policy-error rate no worse than baseline
-- Reopen rate no worse than baseline
-- Measurable reduction in search and drafting time
-- Agent review remains mandatory
-```
-
-## Pilot design
-
-### Pilot scope
-
-- English-language billing and account questions
-- Volunteer or selected trained agents
-- Staffed business hours
-- Human approval for every output
-- No autonomous action
-- Limited model and token budget
-- Existing workflow remains available
-
-### Pilot stages
-
-```text
-Offline evaluation
-→ internal shadow mode
-→ limited agent pilot
-→ expanded pilot
-→ production decision
-```
-
-### Shadow mode
-
-The system generates a result but does not show it to the agent or affect the customer. Compare:
-
-- Proposed category
-- Evidence
-- Draft
-- Escalation decision
-
-Shadow mode supports evaluation without influencing the workflow.
-
-### Limited agent pilot
-
-Agents can:
-
-- View evidence
-- Edit draft
-- Reject draft
-- Escalate
-- Report an issue
-
-The product records:
-
-- Time
-- Edits
-- acceptance or rejection
-- Evidence used
-- Final outcome
-
-### Stop conditions
-
-Stop or pause when:
-
-- Unauthorized content is exposed.
-- A critical security incident occurs.
-- Policy-error rate exceeds the threshold.
-- High-risk cases are not escalated.
-- Review workload exceeds the expected benefit.
-- Cost per successful case exceeds the approved limit.
-- Users cannot understand or contest output.
-
-### Pilot plan
-
-**`discovery/pilot-plan.md`**
-
-```markdown
-# Pilot Plan
-
-## Duration
-
-Four weeks after offline and shadow evaluation pass.
-
-## Participants
-
-- 20 trained support agents
-- 2 supervisors
-- 2 quality reviewers
-- Product, engineering, evaluation, security, and privacy owners
-
-## Eligible cases
-
-- English billing questions
-- English account questions
-- Verified identity
-- No security or legal escalation
-
-## Controls
-
-- Human approval
-- Source display
-- Abstention
-- Rate and spending limits
-- Audit logs
-- Daily quality sample
-- Immediate disable switch
-
-## Decision points
-
-- End of offline evaluation
-- End of shadow week
-- End of limited pilot
-- Production recommendation
-```
-
-## Go, revise, or stop decision
-
-**`discovery/go-no-go.md`**
-
-```markdown
-# Go, Revise, or Stop Criteria
-
-## Go to controlled pilot
-
-- Baseline data is reliable.
-- Eligible workflow is narrow and documented.
-- Required data access is approved.
-- Offline quality meets thresholds.
-- Security and privacy reviews pass.
-- Human approval is implemented.
-- Cost is within the pilot budget.
-
-## Revise
-
-- Value is plausible but data or integration readiness is weak.
-- Quality is close to target but failure slices are unclear.
-- Human review takes too long.
-- Architecture requires narrower scope.
-
-## Stop
-
-- Non-AI process change provides equivalent value at lower risk.
-- Required data use is not acceptable.
-- High-consequence errors cannot be detected before impact.
-- The project has no accountable operator.
-- First-year value remains negative under credible scenarios.
-- The system conflicts with organizational or legal requirements.
-```
-
-## Minimal implementation
-
-The minimum implementation for this lesson is not an AI prototype. It is a validated decision
-package and reproducible scenario calculator.
-
-### Add project dependency
-
-The repository from Lesson 01 already uses Pydantic. No new runtime dependency is required.
-
-### Add package files
-
-**`src/ai_industry_labs/discovery/__init__.py`**
-
-```python
-"""Tools for reproducible Applied AI discovery analysis."""
-```
-
-Use the `models.py` and `scoring.py` implementations shown earlier.
-
-### Add a CLI
-
-**`src/ai_industry_labs/discovery/cli.py`**
-
-```python
-import argparse
-import json
-from pathlib import Path
-
-import yaml
-
-from ai_industry_labs.discovery.models import UseCase
-from ai_industry_labs.discovery.scoring import (
-    calculate_business_case,
-    triage_recommendation,
-)
-
-
-def load_use_case(path: Path) -> UseCase:
-    with path.open(encoding="utf-8") as file:
-        data = yaml.safe_load(file)
+    data.update(overrides)
     return UseCase.model_validate(data)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Evaluate one Applied AI discovery scenario."
-    )
-    parser.add_argument("use_case", type=Path)
-    args = parser.parse_args()
-
-    use_case = load_use_case(args.use_case)
+def test_business_case_calculates_value_and_scores() -> None:
+    use_case = response_drafting_use_case()
     result = calculate_business_case(use_case)
-    recommendation = triage_recommendation(
-        result,
-        human_approval_required=use_case.human_approval_required,
-    )
+    assert result.annual_total_benefit > 0
+    assert result.first_year_total_cost == 264000
+    assert result.risk_score == 13
+    assert result.readiness_score == 12
+    assert triage_recommendation(use_case, result) == "pilot: proceed with defined guardrails and evaluation"
 
-    print(
-        json.dumps(
-            {
-                "use_case": use_case.name,
-                "annual_total_benefit": round(result.annual_total_benefit, 2),
-                "first_year_total_cost": round(result.first_year_total_cost, 2),
-                "first_year_net_value": round(result.first_year_net_value, 2),
-                "first_year_roi": (
-                    round(result.first_year_roi, 4)
-                    if result.first_year_roi is not None
-                    else None
-                ),
-                "payback_months": (
-                    round(result.payback_months, 2)
-                    if result.payback_months is not None
-                    else None
-                ),
-                "risk_score": result.risk_score,
-                "readiness_score": result.readiness_score,
-                "recommendation": recommendation,
-            },
-            indent=2,
-        )
+
+def test_low_readiness_requires_research() -> None:
+    use_case = response_drafting_use_case(evidence_quality=1, data_readiness=2, integration_readiness=2)
+    result = calculate_business_case(use_case)
+    assert triage_recommendation(use_case, result).startswith("research")
+
+
+def test_high_risk_without_control_is_rejected() -> None:
+    use_case = response_drafting_use_case(
+        consequence=5,
+        autonomy=5,
+        data_sensitivity=5,
+        uncertainty=4,
+        irreversibility=4,
+        control_mode=ControlMode.AUTOMATION,
     )
+    result = calculate_business_case(use_case)
+    assert triage_recommendation(use_case, result).startswith("reject")
+```
+
+### Experiment
+
+Create three scenarios:
+
+| Scenario | Change | Expected decision effect |
+|---|---|---|
+| Conservative | Lower adoption and savings | ROI may become weak. |
+| Riskier | Increase autonomy and consequence | Human control required. |
+| Low readiness | Lower evidence/data/integration scores | Research before pilot. |
+
+Failure signal: the decision does not change when assumptions change.
+
+### Interpret results
+
+A scenario model is useful only if it is sensitive to assumptions. If every input produces "go," the model is a sales document, not a decision tool.
+
+### Verify
+
+```bash
+pytest tests/test_scoring.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- calculate value and cost separately;
+- calculate risk and readiness separately;
+- produce a recommendation without automatic approval;
+- explain why ROI is a scenario, not a forecast.
+
+### Failure drill
+
+Failure: ROI looks high because review cost is omitted.
+
+Evidence: Monthly oversight cost is zero despite mandatory human review.
+
+Fix: Add reviewer time, QA, monitoring, and maintenance.
+
+Prevention: Require recurring and oversight cost fields.
+
+### Common misconception
+
+Misconception: "Positive ROI means the AI project should proceed."
+
+Correct model: Positive ROI is necessary but not sufficient. Risk, readiness, controls, adoption, and fallback also matter.
+
+### Guided practice and independent transfer
+
+- Guided: Change adoption from 60% to 20% and explain the decision impact.
+- Independent transfer: Build a scenario for AI-assisted invoice exception triage.
+
+### Recall
+
+- Why should labor benefit and error avoidance be separated?
+- What does payback period measure?
+- Why keep risk separate from ROI?
+- What should happen when readiness is low?
+
+## Implementation module 7: Discovery package, PRD, ADR, and pilot plan
+
+### Purpose
+
+The discovery work must produce a decision package, not a pile of notes. The package should be reviewable by product, engineering, support operations, finance, security, and legal.
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| PRD | Product Requirements Document. It defines user, problem, scope, requirements, constraints, and metrics. | "Draft assistance for refund tickets only." |
+| ADR | Architecture Decision Record. It records a decision and rejected alternatives. | Select RAG-assisted drafting; reject autonomous agent. |
+| Risk register | A table of risks, causes, controls, owners, and responses. It turns risk into operational work. | Unsupported refund claim -> block and human review. |
+| Pilot plan | A controlled rollout plan. It limits blast radius and creates decision points. | Two teams, shadow mode first, four weeks. |
+| Go/no-go criteria | Explicit proceed/revise/stop rules. It prevents moving forward because of demo excitement. | Stop if unsupported claims increase. |
+| Artifact completeness | A check that required discovery evidence exists. It prevents missing sections from being ignored. | Package fails if no non-AI fallback exists. |
+
+### Connected dry run
+
+Assemble one discovery package and check whether it is review-ready.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The team summarizes the selected pilot. | PRD |
+| 2 | It records options and rejected alternatives. | ADR |
+| 3 | It documents risks and owners. | Risk register |
+| 4 | It defines rollout stages and stop conditions. | Pilot plan |
+| 5 | It states go/revise/stop criteria. | Go/no-go criteria |
+| 6 | A validator checks missing artifacts. | Artifact completeness |
+| 7 | Reviewers can approve, revise, or stop. | Decision package |
+
+Step 1: the PRD names the pilot.
+
+The PRD says the pilot supports evidence-backed drafting for refund tickets. It excludes autonomous sending, refund issuance, and account changes.
+
+Step 2: the ADR records the decision.
+
+The ADR compares process-only, direct LLM drafting, RAG-assisted drafting, and autonomous agent. It selects the controlled drafting pilot and rejects the agent.
+
+Step 3: the risk register assigns owners.
+
+Every major risk has detection, prevention, response, and owner. "We will monitor it" is not enough.
+
+Step 4: the pilot plan limits exposure.
+
+The pilot starts in shadow mode, then a limited agent pilot, then go/revise/stop.
+
+Step 5: go/no-go criteria are written before launch.
+
+The team defines what counts as success, what requires revision, and what stops the pilot.
+
+Step 6: validation checks completeness.
+
+The CLI can flag missing baselines, risk owners, selected use case, or fallback.
+
+Step 7: reviewers make the decision.
+
+The package informs the decision. It does not make the decision automatically.
+
+### Design decision
+
+Use a structured YAML package and a validator rather than a spreadsheet-only process. Spreadsheets remain useful for finance review, but the canonical discovery package should be versioned, testable, and reviewable.
+
+### Build
+
+```python
+# ai_discovery/artifacts.py
+from __future__ import annotations
+
+from ai_discovery.schemas import ControlMode, DiscoveryPackage
+from ai_discovery.scoring import calculate_business_case
+
+
+def selected_use_case(package: DiscoveryPackage):
+    for use_case in package.use_cases:
+        if use_case.name == package.selected_use_case:
+            return use_case
+    raise ValueError("selected use case not found")
+
+
+def validate_discovery_package(package: DiscoveryPackage) -> list[str]:
+    findings: list[str] = []
+
+    if not package.rejected_use_cases:
+        findings.append("rejected use cases are missing")
+
+    if len(package.baselines) < 3:
+        findings.append("at least three baseline metrics are recommended")
+
+    if not package.non_ai_fallback.strip():
+        findings.append("non-AI fallback is missing")
+
+    risk_owners = {risk.owner for risk in package.risks}
+    if not risk_owners:
+        findings.append("risk owners are missing")
+
+    use_case = selected_use_case(package)
+    business_case = calculate_business_case(use_case)
+
+    if business_case.risk_score >= 17 and use_case.control_mode not in {
+        ControlMode.HUMAN_REVIEW,
+        ControlMode.HUMAN_APPROVAL,
+    }:
+        findings.append("high-risk use case lacks human review or approval")
+
+    if business_case.readiness_score < 7:
+        findings.append("selected use case readiness is too low for pilot")
+
+    if "stop" not in " ".join(package.success_metrics).lower():
+        findings.append("success metrics should include stop conditions")
+
+    return findings
+
+
+def prd_summary(package: DiscoveryPackage) -> dict[str, object]:
+    use_case = selected_use_case(package)
+    return {
+        "problem": package.business_problem,
+        "selected_use_case": use_case.name,
+        "user": use_case.user,
+        "business_outcome": use_case.business_outcome,
+        "control_mode": use_case.control_mode.value,
+        "non_ai_fallback": package.non_ai_fallback,
+        "pilot_scope": package.pilot_scope,
+        "approval_owner": package.approval_owner,
+    }
+```
+
+### Unit tests
+
+```python
+# tests/test_artifacts.py
+from tests.test_cli import valid_package
+
+from ai_discovery.artifacts import prd_summary, validate_discovery_package
+from ai_discovery.schemas import DiscoveryPackage
+
+
+def test_complete_package_has_no_findings() -> None:
+    package = DiscoveryPackage.model_validate(valid_package())
+    assert validate_discovery_package(package) == []
+
+
+def test_missing_rejected_use_cases_is_flagged() -> None:
+    data = valid_package()
+    data["rejected_use_cases"] = []
+    package = DiscoveryPackage.model_validate(data)
+    assert "rejected use cases are missing" in validate_discovery_package(package)
+
+
+def test_prd_summary_contains_selected_pilot() -> None:
+    package = DiscoveryPackage.model_validate(valid_package())
+    summary = prd_summary(package)
+    assert summary["selected_use_case"] == "Evidence-backed response drafting"
+    assert summary["control_mode"] == "human_approval"
+```
+
+### Verify in runtime
+
+```bash
+pytest tests/test_artifacts.py
+```
+
+### Module completion checkpoint
+
+At this point, your project should:
+
+- validate package completeness;
+- summarize the selected PRD scope;
+- reject missing alternatives or controls;
+- explain the decision package to non-engineering reviewers.
+
+### Failure drill
+
+Failure: The ADR says "use AI" but does not list rejected alternatives.
+
+Evidence: No process/search/human option is compared.
+
+Fix: Add an alternatives table with rejection rationale.
+
+Prevention: Artifact validation requires `rejected_use_cases`.
+
+### Production note
+
+In a real organization, the package should be reviewed by support operations, product, security, legal, finance, and engineering before implementation starts.
+
+### Guided practice and independent transfer
+
+- Guided: Write the ADR context, decision, rejected alternatives, and consequences for the support-drafting pilot.
+- Independent transfer: Write a PRD and ADR for AI-assisted claims intake.
+
+### Recall
+
+- What is the difference between a PRD and an ADR?
+- Why does a risk register need owners?
+- Why should stop conditions be defined before the pilot?
+- What does artifact completeness prove and not prove?
+
+## Implementation module 8: CLI validation, evaluation report, and operating path
+
+### Purpose
+
+The discovery package should run in a repeatable way. A CLI report makes assumptions visible and lets reviewers reproduce the recommendation.
+
+### Key concepts
+
+| Concept/term | Why it matters | Very simple example |
+|---|---|---|
+| Discovery package | The structured source of truth for the proposed pilot. | `response-drafting-package.yaml`. |
+| CLI report | A reproducible report generated from package data. It prevents hand-edited decision summaries. | JSON report with ROI and recommendation. |
+| Validation finding | A warning that the package is incomplete or unsafe. | "Rejected use cases are missing." |
+| Operating cadence | The recurring process for review, update, and decision. | Weekly pilot review with support ops and risk owner. |
+| Rollback path | The way to return to the old workflow if the pilot fails. | Disable draft assistance and use templates/search. |
+| Decision log | The record of decisions, owners, dates, and evidence. | "June 28: proceed to shadow pilot." |
+
+### Connected dry run
+
+Run the package through the CLI and interpret the result.
+
+Dry-run map:
+
+| Step | What happens | Concepts being used |
+|---:|---|---|
+| 1 | The CLI loads the YAML package. | Discovery package |
+| 2 | Pydantic validates the structure. | Schema validation |
+| 3 | The selected use case is scored. | ROI, risk, readiness |
+| 4 | The package is checked for missing artifacts. | Validation finding |
+| 5 | A recommendation is produced. | CLI report |
+| 6 | Reviewers use the report in the operating cadence. | Decision log |
+| 7 | Rollback remains available if the pilot fails. | Rollback path |
+
+Step 1: the CLI loads YAML.
+
+The file contains stakeholders, workflow, baseline, use cases, risks, and pilot scope.
+
+Step 2: schema validation runs.
+
+Invalid fields fail immediately. This catches missing owners, impossible rates, and malformed values.
+
+Step 3: the selected use case is scored.
+
+The CLI calculates benefit, cost, ROI, payback, risk, and readiness.
+
+Step 4: completeness checks run.
+
+The CLI checks whether rejected use cases, baselines, fallback, risk owners, and stop conditions exist.
+
+Step 5: a recommendation is generated.
+
+The output might say:
+
+```text
+pilot: proceed with defined guardrails and evaluation
+```
+
+or:
+
+```text
+research: improve evidence, data, or integration readiness
+```
+
+Step 6: reviewers use the report.
+
+The report supports a human decision. It is not an automatic green light.
+
+Step 7: rollback remains explicit.
+
+If the pilot fails, the workflow returns to templates, search, and manual drafting.
+
+### Design decision
+
+Use JSON output for the CLI report because it can be saved, diffed, audited, and consumed by CI or dashboards.
+
+### Build
+
+```python
+# ai_discovery/cli.py
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from ai_discovery.artifacts import prd_summary, selected_use_case, validate_discovery_package
+from ai_discovery.schemas import DiscoveryPackage
+from ai_discovery.scoring import calculate_business_case, triage_recommendation
+
+
+def load_package(path: Path) -> DiscoveryPackage:
+    with path.open(encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+    return DiscoveryPackage.model_validate(data)
+
+
+def build_report(package: DiscoveryPackage) -> dict[str, Any]:
+    use_case = selected_use_case(package)
+    business_case = calculate_business_case(use_case)
+    findings = validate_discovery_package(package)
+    recommendation = triage_recommendation(use_case, business_case)
+    return {
+        "package_id": package.package_id,
+        "selected_use_case": use_case.name,
+        "prd_summary": prd_summary(package),
+        "annual_total_benefit": round(business_case.annual_total_benefit, 2),
+        "first_year_total_cost": round(business_case.first_year_total_cost, 2),
+        "first_year_net_value": round(business_case.first_year_net_value, 2),
+        "first_year_roi": (
+            round(business_case.first_year_roi, 4)
+            if business_case.first_year_roi is not None
+            else None
+        ),
+        "payback_months": (
+            round(business_case.payback_months, 2)
+            if business_case.payback_months is not None
+            else None
+        ),
+        "risk_score": business_case.risk_score,
+        "readiness_score": business_case.readiness_score,
+        "recommendation": recommendation,
+        "validation_findings": findings,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate an Applied AI discovery package.")
+    parser.add_argument("package", type=Path)
+    args = parser.parse_args(argv)
+    package = load_package(args.package)
+    print(json.dumps(build_report(package), indent=2))
     return 0
 
 
@@ -2304,668 +2025,773 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-The CLI uses PyYAML. Add it:
-
-```powershell
-uv add "pyyaml>=6,<7"
-```
-
-### Example scenario
-
-**`discovery/response-drafting-scenario.yaml`**
+Example package:
 
 ```yaml
-name: "Evidence-backed response drafting"
-user: "Support agent"
-business_outcome: "Reduce search and drafting time without increasing policy errors"
-solution_type: "hybrid"
-monthly_volume: 18000
-minutes_saved_per_case: 3.5
-adoption_rate: 0.60
-loaded_labor_cost_per_hour: 34.0
-baseline_error_rate: 0.08
-expected_error_rate: 0.06
-error_cost: 18.0
-implementation_cost: 120000.0
-monthly_recurring_cost: 8000.0
-monthly_oversight_cost: 4000.0
-consequence: 3
-autonomy: 1
-data_sensitivity: 4
-uncertainty: 3
-irreversibility: 2
-evidence_quality: 4
-data_readiness: 4
-integration_readiness: 4
-human_approval_required: true
-non_ai_alternative: "Improve search, policy templates, and agent training"
+# discovery/response-drafting-package.yaml
+package_id: "northstar-support-discovery-v1"
+business_problem: "Support agents spend too much time finding policy evidence and drafting safe first responses for refund-related tickets."
+stakeholders:
+  - name: "Support agents"
+    role: "Primary user"
+    goals: ["Faster safe replies", "Less policy searching"]
+    concerns: ["Bad drafts increase review work"]
+    decision_authority: false
+    required_for_pilot: true
+  - name: "Support VP"
+    role: "Business owner"
+    goals: ["Improve productivity", "Protect customer trust"]
+    concerns: ["Inflated ROI", "Unsafe automation"]
+    decision_authority: true
+    required_for_pilot: true
+workflow_steps:
+  - name: "Draft first response"
+    actor: "Support agent"
+    system: "Helpdesk and policy portal"
+    input: "Refund-related support ticket"
+    output: "First response draft for review"
+    average_minutes: 6.4
+    monthly_volume: 18000
+    failure_modes: ["Policy not found", "Unsupported refund language", "Escalation delay"]
+baselines:
+  - name: "Refund ticket volume"
+    current_value: 18000
+    unit: "tickets/month"
+    source: "Helpdesk analytics"
+    measurement_window: "Last 30 days"
+    owner: "Support operations"
+  - name: "Policy lookup and first draft time"
+    current_value: 6.4
+    unit: "minutes"
+    source: "Screen-share sample"
+    measurement_window: "Two-week sample"
+    owner: "Support operations"
+  - name: "Unsupported refund language"
+    current_value: 0.08
+    unit: "rate"
+    source: "QA sample"
+    measurement_window: "Last 30 days"
+    owner: "QA lead"
+use_cases:
+  - name: "Evidence-backed response drafting"
+    user: "Support agent"
+    business_outcome: "Reduce search and drafting time without increasing policy errors"
+    workflow_step: "Draft first response"
+    solution_type: "hybrid"
+    monthly_volume: 18000
+    minutes_saved_per_case: 3.5
+    adoption_rate: 0.60
+    loaded_labor_cost_per_hour: 34.0
+    baseline_error_rate: 0.08
+    expected_error_rate: 0.06
+    error_cost: 18.0
+    implementation_cost: 120000.0
+    monthly_recurring_cost: 8000.0
+    monthly_oversight_cost: 4000.0
+    consequence: 3
+    autonomy: 1
+    data_sensitivity: 4
+    uncertainty: 3
+    irreversibility: 2
+    evidence_quality: 4
+    data_readiness: 4
+    integration_readiness: 4
+    control_mode: "human_approval"
+    non_ai_alternative: "Improve policy search, templates, and agent training"
+    owner: "Support operations"
+selected_use_case: "Evidence-backed response drafting"
+rejected_use_cases:
+  - "Autonomous refund approval agent"
+  - "Direct LLM customer response without evidence"
+risks:
+  - risk: "Unsupported refund claim"
+    cause: "Model drafts a commitment without policy evidence"
+    affected_party: "Customer and support organization"
+    impact: "Incorrect expectation, rework, financial exposure"
+    detection: "QA review and unsupported-claim checks"
+    preventive_control: "Human approval required for refund commitments"
+    response: "Block output, escalate, revise prompt/evidence policy"
+    owner: "Support operations"
+success_metrics:
+  - "Go: 10% handle-time reduction with no increase in unsupported refund language"
+  - "Revise: quality improves but adoption remains below 30%"
+  - "Stop: unsupported refund claims increase or agents bypass the workflow"
+non_ai_fallback: "Use improved policy search, response templates, and manual review."
+pilot_scope: "Four-week shadow pilot followed by limited agent-review pilot for refund-related tickets only."
+approval_owner: "Support VP"
+notes:
+  data_policy: "Use synthetic examples in discovery and approved internal data for pilot review."
 ```
 
-Run:
+### Unit tests
 
-```powershell
-uv run python -m ai_industry_labs.discovery.cli discovery/response-drafting-scenario.yaml
+```python
+# tests/test_cli.py
+import json
+from pathlib import Path
+
+import yaml
+
+from ai_discovery.cli import build_report, load_package, main
+from ai_discovery.schemas import DiscoveryPackage
+
+
+def valid_package() -> dict[str, object]:
+    return {
+        "package_id": "northstar-support-discovery-v1",
+        "business_problem": "Support agents spend too much time finding policy evidence and drafting safe first responses for refund-related tickets.",
+        "stakeholders": [
+            {
+                "name": "Support agents",
+                "role": "Primary user",
+                "goals": ["Faster safe replies"],
+                "concerns": ["Bad drafts increase review work"],
+                "decision_authority": False,
+            },
+            {
+                "name": "Support VP",
+                "role": "Business owner",
+                "goals": ["Improve productivity"],
+                "concerns": ["Inflated ROI"],
+                "decision_authority": True,
+            },
+        ],
+        "workflow_steps": [
+            {
+                "name": "Draft first response",
+                "actor": "Support agent",
+                "system": "Helpdesk and policy portal",
+                "input": "Refund-related support ticket",
+                "output": "First response draft for review",
+                "average_minutes": 6.4,
+                "monthly_volume": 18000,
+                "failure_modes": ["Policy not found"],
+            }
+        ],
+        "baselines": [
+            {
+                "name": "Refund ticket volume",
+                "current_value": 18000,
+                "unit": "tickets/month",
+                "source": "Helpdesk analytics",
+                "measurement_window": "Last 30 days",
+                "owner": "Support operations",
+            },
+            {
+                "name": "Policy lookup and first draft time",
+                "current_value": 6.4,
+                "unit": "minutes",
+                "source": "Screen-share sample",
+                "measurement_window": "Two-week sample",
+                "owner": "Support operations",
+            },
+            {
+                "name": "Unsupported refund language",
+                "current_value": 0.08,
+                "unit": "rate",
+                "source": "QA sample",
+                "measurement_window": "Last 30 days",
+                "owner": "QA lead",
+            },
+        ],
+        "use_cases": [
+            {
+                "name": "Evidence-backed response drafting",
+                "user": "Support agent",
+                "business_outcome": "Reduce search and drafting time without increasing policy errors",
+                "workflow_step": "Draft first response",
+                "solution_type": "hybrid",
+                "monthly_volume": 18000,
+                "minutes_saved_per_case": 3.5,
+                "adoption_rate": 0.60,
+                "loaded_labor_cost_per_hour": 34.0,
+                "baseline_error_rate": 0.08,
+                "expected_error_rate": 0.06,
+                "error_cost": 18.0,
+                "implementation_cost": 120000.0,
+                "monthly_recurring_cost": 8000.0,
+                "monthly_oversight_cost": 4000.0,
+                "consequence": 3,
+                "autonomy": 1,
+                "data_sensitivity": 4,
+                "uncertainty": 3,
+                "irreversibility": 2,
+                "evidence_quality": 4,
+                "data_readiness": 4,
+                "integration_readiness": 4,
+                "control_mode": "human_approval",
+                "non_ai_alternative": "Improve policy search, templates, and agent training",
+                "owner": "Support operations",
+            }
+        ],
+        "selected_use_case": "Evidence-backed response drafting",
+        "rejected_use_cases": ["Autonomous refund approval agent"],
+        "risks": [
+            {
+                "risk": "Unsupported refund claim",
+                "cause": "Model drafts a commitment without policy evidence",
+                "affected_party": "Customer and support organization",
+                "impact": "Incorrect expectation and rework",
+                "detection": "QA review",
+                "preventive_control": "Human approval required",
+                "response": "Block output and escalate",
+                "owner": "Support operations",
+            }
+        ],
+        "success_metrics": [
+            "Go: 10% handle-time reduction",
+            "Stop: unsupported refund claims increase",
+        ],
+        "non_ai_fallback": "Use improved policy search, templates, and manual review.",
+        "pilot_scope": "Four-week shadow pilot for refund-related tickets.",
+        "approval_owner": "Support VP",
+    }
+
+
+def test_package_loads_from_yaml(tmp_path: Path) -> None:
+    path = tmp_path / "package.yaml"
+    path.write_text(yaml.safe_dump(valid_package()), encoding="utf-8")
+    package = load_package(path)
+    assert package.selected_use_case == "Evidence-backed response drafting"
+
+
+def test_report_contains_recommendation() -> None:
+    package = DiscoveryPackage.model_validate(valid_package())
+    report = build_report(package)
+    assert report["recommendation"] == "pilot: proceed with defined guardrails and evaluation"
+    assert report["validation_findings"] == []
+
+
+def test_main_prints_json_report(tmp_path: Path, capsys) -> None:
+    path = tmp_path / "package.yaml"
+    path.write_text(yaml.safe_dump(valid_package()), encoding="utf-8")
+    assert main([str(path)]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["selected_use_case"] == "Evidence-backed response drafting"
 ```
 
-The output is an input-dependent scenario, not a forecast or promise.
+### Verify in runtime
 
-## Production implementation
+```bash
+pytest
+python -m ai_discovery.cli discovery/response-drafting-package.yaml
+```
 
-### Version assumptions
+### Module completion checkpoint
 
-Every value model must record:
+At this point, your project should:
 
-- Source
-- Date
-- Owner
-- Confidence
-- Scenario
-- Review status
+- load a discovery YAML package;
+- validate it;
+- calculate scenario value and scores;
+- report findings and recommendation;
+- preserve human decision authority.
 
-### Require independent review
+### Failure drill
 
-At least one reviewer should not be the proposal author. Review:
+Failure: CLI report is used as automatic approval.
 
-- Baseline definitions
-- Data access assumptions
-- Benefit calculations
-- Risk controls
-- Excluded users
-- Stop criteria
+Evidence: Teams skip stakeholder/risk review because recommendation says "pilot."
 
-### Maintain a decision log
+Fix: Add approval owner and review sign-off outside the CLI.
 
-Record:
+Prevention: Report language remains advisory and includes validation findings.
 
-- Decision
-- Date
-- Participants
-- Evidence
-- Alternatives
-- Dissent
-- Conditions for revisiting
+### Production note
 
-### Protect discovery data
+Operational path for discovery:
 
-- Use access-controlled repositories for sensitive material.
-- Remove customer content from diagrams and examples.
-- Aggregate operational metrics where possible.
-- Do not copy production data into personal spreadsheets.
-- Apply retention and deletion policy.
+- version every package;
+- review changes through pull requests;
+- keep sensitive examples out of artifacts;
+- record decisions in a decision log;
+- revisit assumptions after the pilot;
+- rollback to non-AI process if stop conditions trigger.
 
-### Assign owners
+### Guided practice and independent transfer
 
-A proposal without owners is incomplete.
+- Guided: Run the CLI, then change `adoption_rate` and explain how the report changes.
+- Independent transfer: Create a second package for "AI-assisted policy search" and compare recommendations.
 
-| Responsibility | Required owner |
+### Recall
+
+- What does the CLI prove?
+- What does it not prove?
+- Why keep recommendations advisory?
+- What belongs in the decision log?
+
+### Final cumulative retrieval: complete discovery path
+
+Closed book, reconstruct:
+
+```text
+request -> outcome -> workflow -> baseline -> candidates -> risk controls -> ROI -> ADR -> pilot plan
+```
+
+Then answer:
+
+- Where could a non-AI solution win?
+- Which actions are prohibited?
+- Which metric would stop the pilot?
+- Which owner approves the pilot?
+
+## Reference glossary
+
+| Term | Meaning |
 |---|---|
-| Business outcome | Product or operations |
-| Workflow | Operations |
-| Data | Data owner |
-| Model and application | Engineering |
-| Evaluation | Evaluation or QA |
-| Security | Security |
-| Privacy or legal | Appropriate control owner |
-| Production operation | Service owner |
-| Budget | Business sponsor |
+| Abstention | Choosing not to answer or act when evidence is missing or risk is too high. |
+| Adoption metric | A measure of whether users actually use the workflow. |
+| Baseline | Current-state measurement before the intervention. |
+| Bottleneck | Workflow step that limits speed, quality, cost, or capacity. |
+| Build/buy/hybrid | Decision between internal build, managed/vendor solution, or combined path. |
+| Counterfactual | What would happen without the AI system. |
+| Decision support | System assists a person but does not take final action. |
+| Human approval | Explicit human authorization before a consequential action. |
+| Human review | Human checks model output before use. |
+| Pilot | Limited trial with scope, metrics, controls, and stop conditions. |
+| Risk register | Artifact listing risks, controls, owners, detection, and responses. |
+| Workflow map | Current-state sequence of actors, systems, inputs, outputs, time, and failures. |
 
-## Testing
+## Full test suite
 
-### Software tests
+Command:
 
-Test:
+```bash
+pytest
+```
 
-- Use-case schema validation
-- Invalid rates and scores
-- ROI calculations
-- Zero-cost and zero-benefit cases
-- Low-readiness recommendation
-- High-risk autonomous recommendation
-- YAML loading errors
+Expected result:
 
-### Artifact completeness tests
+```text
+all tests pass
+```
 
-Create a simple review checklist:
+Test map:
 
-- Stakeholders identified
-- Current workflow documented
-- Baseline source recorded
-- Non-AI alternative present
-- Prohibited behavior defined
-- Metrics and guardrails defined
-- Human-control point defined
-- Risk owner assigned
-- Pilot and stop criteria defined
+| Test file | Proves |
+|---|---|
+| `test_schemas.py` | Use-case fields and validation constraints work. |
+| `test_scoring.py` | ROI, risk/readiness, and recommendations respond to assumptions. |
+| `test_artifacts.py` | Discovery package completeness checks work. |
+| `test_cli.py` | YAML package loads and JSON report is produced. |
 
-### Consistency tests
+What this suite proves:
 
-Check:
+- The package is structurally valid.
+- Calculations are reproducible.
+- Missing required artifacts are detectable.
+- CLI output is machine-readable.
 
-- Product target matches ROI assumptions.
-- Eligible volume matches baseline segments.
-- Architecture supports prohibited behaviors.
-- Evaluation cases cover stated risks.
-- Pilot excludes out-of-scope users and cases.
+What this suite does not prove:
 
-### Adversarial review
+- The ROI assumptions are true.
+- Users will adopt the workflow.
+- A future model will meet quality targets.
+- Legal, regulatory, or customer-risk review is complete.
 
-Ask a reviewer to argue:
+## Experiment playbook
 
-- The project should not be built.
-- The benefit assumptions are wrong.
-- The selected metric can be gamed.
-- Human review is ineffective.
-- A simpler solution is better.
-- The pilot excludes an important affected group.
+| Experiment | Input | Settings | Metric | Expected evidence | Failure signal |
+|---|---|---|---|---|---|
+| Baseline sensitivity | Same package with lower minutes saved | Adoption 60%, savings 1 min | Net value | Recommendation becomes weaker | Recommendation never changes |
+| Risk control | Same use case with automation | autonomy 5, consequence 5 | Recommendation | Rejects without human control | Automation still approved |
+| Readiness gap | Low evidence/data scores | readiness fields 1-2 | Recommendation | Research before pilot | Pilot still recommended |
+| Non-AI alternative | Process/search-only candidate | lower cost | Comparative memo | AI not assumed necessary | Non-AI option ignored |
+| Stop condition review | Remove "Stop" metric | success metrics incomplete | Validation finding | Finding is raised | Package passes silently |
 
-The proposal should improve after this review.
+## Evaluation and acceptance
 
-## Evaluation
+Held-out evidence for the real pilot should include:
 
-This lesson evaluates discovery quality, not model quality.
+- baseline ticket sample;
+- current handle-time measurements;
+- QA sample of unsupported claims;
+- escalation-rate sample;
+- agent interview notes;
+- customer-impact categories.
 
-| Dimension | Evidence | Acceptance criterion | Result |
-|---|---|---|---|
-| Problem reality | Workflow observations and baseline | Bottleneck supported by data | |
-| User coverage | Stakeholder map | Users, operators, and affected people represented | |
-| Baseline quality | Metric definitions and source | Sample, period, and limitations documented | |
-| AI suitability | Solution comparison | Non-AI and simpler alternatives evaluated | |
-| Product clarity | Requirements | Inputs, outputs, allowed, prohibited, and escalation behavior explicit | |
-| Risk control | Risk register | Owners, controls, detection, and response defined | |
-| Human control | Workflow | Review or approval authority explicit | |
-| Economics | Scenario model | Costs and assumptions reviewable | |
-| Evaluation readiness | Evaluation plan | Quality, business, safety, and operational metrics defined | |
-| Pilot quality | Pilot plan | Narrow, reversible, monitored, and stoppable | |
-| Decision quality | ADR and go/no-go | Rejected alternatives and revisit conditions recorded | |
+Functional metrics:
 
-### Business acceptance
+- discovery package validates;
+- selected use case exists;
+- risk register has owners;
+- non-AI fallback exists;
+- rejected alternatives documented.
 
-A discovery package is successful even when it recommends:
+Business metrics:
 
-- Process improvement instead of AI
-- More data collection
-- A smaller pilot
-- Stronger human control
-- Delaying or stopping the project
+- handle-time reduction;
+- escalation-rate change;
+- QA error-rate change;
+- adoption rate;
+- review burden.
 
-The purpose is decision quality, not project approval.
+Safety/security gates:
+
+- no autonomous refund or account actions;
+- no customer-facing output without human review;
+- no real PII in lesson artifacts;
+- stop conditions defined.
+
+Acceptance threshold:
+
+```text
+Proceed to Lesson 08/09 implementation only when:
+selected pilot is narrow,
+baseline exists,
+high-impact actions require human approval,
+non-AI fallback exists,
+and go/revise/stop criteria are documented.
+```
+
+## System-decision memo
+
+Decision: pursue a controlled discovery-to-pilot path for evidence-backed support response drafting.
+
+Candidate or design: hybrid workflow using improved search/templates plus future model-assisted drafting for agent review.
+
+Evidence:
+
+- Refund tickets have high volume.
+- Policy lookup and drafting create measurable time cost.
+- Unsupported refund language creates review cost.
+- Human approval can control customer-impact risk.
+
+Measured strengths:
+
+- Clear user task.
+- Reviewable output.
+- Existing support workflow can host a controlled pilot.
+
+Measured failures or blocked risks:
+
+- Data quality and policy evidence must be verified before model implementation.
+- Autonomous refund action is rejected.
+- ROI remains scenario-based until pilot results exist.
+
+Cost/latency notes:
+
+- Discovery uses estimated model operating cost.
+- Future lessons will measure token cost and model latency.
+
+Privacy/security notes:
+
+- Use synthetic data in lesson artifacts.
+- Real pilot must use approved data handling and access controls.
+
+Operational notes:
+
+- Start in shadow mode.
+- Keep non-AI fallback.
+- Track stop conditions weekly.
+
+Decision: proceed to foundation-model literacy and model-behavior evaluation, not production deployment.
+
+Next experiment: in Lesson 08, compare candidate model behavior on safe support-drafting cases.
 
 ## Failure modes and debugging
 
 | Symptom | Likely causes | Diagnostic evidence | Corrective action | Prevention |
 |---|---|---|---|---|
-| Proposal begins with a model | Technology-first planning | No measured workflow problem | Return to user and workflow interviews | Require problem statement before architecture |
-| ROI appears extremely high | Benefits double-counted or oversight omitted | Formula review | Separate capacity, labor, and error benefits | Independent finance review |
-| Baseline has one average | Variation and queue time hidden | Raw distribution differs | Use median, percentiles, and segments | Metric specification |
-| Users say they want full automation | Incentive or framing bias | Exceptions reveal risk | Observe real cases and map consequences | Ask about failures and approvals |
-| Pilot cannot define success | Vague business goal | No target or guardrail | Rewrite measurable problem | Require go/no-go criteria |
-| "Human in loop" adds no safety | Reviewer lacks evidence, time, or authority | High rubber-stamp rate | Show sources and exact action; train reviewers | Measure review quality |
-| AI improves speed but reopens rise | Local metric optimization | Outcome data | Add reopen guardrail and root-cause analysis | Metric hierarchy |
-| Search problem is called an LLM problem | Documentation is fragmented | Search-time evidence | Fix content governance and retrieval first | Root-cause analysis |
-| Vendor selected from demo | Operational needs ignored | Missing security and cost analysis | Run vendor assessment | Decision record |
-| Use case needs unavailable data | Feasibility assumption | Data owner rejects access | Redesign or stop | Data inventory during discovery |
-| Low adoption | Workflow friction or distrust | Agent feedback and usage | Improve UX, evidence, training, or scope | Co-design and pilot |
-| High-risk cases enter pilot | Eligibility rules incomplete | Incident or audit | Add deterministic routing and tests | Explicit exclusions |
-| Scoring tool decides automatically | False precision | Stakeholders defer to score | Separate score from decision authority | Document model limitation |
-| Stakeholders disagree on correctness | Undefined policy | Reviewer disagreement | Resolve domain policy before modelling | Rubric workshop |
-| Pilot result does not generalize | Sample too narrow | Segment performance differs | Expand representative evaluation carefully | Sampling plan |
-| Regulatory review arrives late | Constraint discovery omitted | Launch blocked | Include legal and domain owners early | Stakeholder map |
+| AI use case has no clear value | Started from model capability | No baseline or workflow step | Reframe around user task | Require baseline before model work |
+| ROI is implausibly high | Double-counted savings or omitted oversight | Cost review finds missing review work | Add conservative scenarios | Finance review |
+| Users reject pilot | Workflow not mapped from real work | Agents use workaround outside system | Re-interview and redesign | Include users from discovery |
+| High-risk action slips into scope | Poor human-control design | PRD allows auto-send or refund action | Move to prohibited or approval path | Control-mode review |
+| Pilot cannot be evaluated | Metrics not defined upfront | No go/revise/stop rules | Define metric hierarchy | Release gate |
+| Legal/security blocks late | Stakeholders missed | Review happens after implementation | Add early risk review | Stakeholder map includes governance |
 
 ## Security, privacy, and governance
 
-### Threats during discovery
+Controls tied to this lesson:
 
-- Sensitive customer examples copied into documents
-- Production data placed in uncontrolled spreadsheets
-- Vendor receives data before approval
-- Architecture assumes model output grants permission
-- High-risk use is disguised as a low-risk pilot
-- Risk owner is not assigned
+- Discovery artifacts use synthetic or aggregated examples.
+- Real customer tickets require approved access and retention policy.
+- Human approval is mandatory for refund commitments.
+- Authorization and approval are product controls, not model instructions.
+- Risk register must name owner, detection, prevention, and response.
+- Non-AI fallback is required.
+- Decision logs record who approved scope and when.
 
-### Controls
-
-- Use synthetic examples until access is approved.
-- Classify discovery artifacts.
-- Limit repository access.
-- Redact personal information.
-- Record data purpose and retention.
-- Enforce authorization in deterministic systems.
-- Require security and privacy review before external data transfer.
-- Define incident and disable procedures before pilot.
-
-### NIST alignment
-
-This lesson primarily supports:
-
-- **Map:** purpose, context, users, impacts, alternatives, human roles, requirements, and risk
-- **Measure planning:** metrics, limits, test procedures, affected groups, and documentation
-- **Govern preparation:** owners, decision rights, policies, and review
-- **Manage preparation:** prioritized controls, monitoring, and response
-
-Do not claim that completing this lesson alone constitutes AI RMF compliance.
-
-### Legal and regulatory constraints
-
-Discovery should identify:
-
-- Jurisdictions
-- Sector rules
-- Privacy requirements
-- Contract requirements
-- Employment or consumer-impact concerns
-- Accessibility obligations
-- Recordkeeping
-
-The engineering team should not invent legal conclusions. Route questions to authorized legal
-and compliance owners.
+Do not include real names, emails, phone numbers, account IDs, payment details, or proprietary customer content in the lesson package.
 
 ## Performance and cost
 
-### Discovery cost
+Discovery cost includes:
 
-Track:
+- stakeholder interview time;
+- workflow measurement;
+- analyst/engineering time;
+- legal/security review;
+- pilot planning.
 
-- Stakeholder hours
-- Data-analysis hours
-- Engineering spike hours
-- Security and privacy review
-- Vendor evaluation
-- Prototype and evaluation cost
+Future model operating cost should include:
 
-### Model operating cost
+- provider or infrastructure cost;
+- token usage;
+- evaluation and monitoring;
+- human review;
+- maintenance;
+- incident response;
+- retraining or prompt updates where relevant.
 
-Estimate:
+Measurement procedure:
 
-- Requests
-- Input and output volume
-- Retrieval
-- Model inference
-- Storage
-- Network
-- Monitoring
-- Human review
+1. Estimate current volume and handling time from baseline.
+2. Estimate adoption and minutes saved conservatively.
+3. Estimate error avoidance separately.
+4. Add implementation, recurring, and oversight costs.
+5. Run conservative, expected, and downside scenarios.
 
-### Latency budget
+## Deployment and operations
 
-For the pilot:
+This lesson's "deployment" is a discovery operating path:
 
-```text
-Request validation       0.1 s
-Authorized retrieval     1.5 s
-Reranking                0.5 s
-Model generation         5.0 s
-Output validation        0.3 s
-Network and margin       0.6 s
---------------------------------
-Target median            8.0 s
-```
+- store the package in version control;
+- require review before pilot approval;
+- run validation in CI;
+- keep decision logs;
+- run weekly pilot reviews;
+- track go/revise/stop metrics;
+- maintain fallback to the non-AI workflow.
 
-These are design allocations, not measured results.
-
-### Capacity assumptions
-
-Record:
-
-- Eligible monthly cases
-- Peak requests per minute
-- Average input and output size
-- Adoption ramp
-- Human-review capacity
-- Vendor rate limits
-
-### Cost guardrail
-
-Define:
+Operational practice, not production AI deployment:
 
 ```text
-Cost per successful approved draft =
-total system and review cost
-÷ drafts accepted and used successfully
+discovery package
+  -> validation
+  -> review
+  -> controlled pilot decision
+  -> next lesson/model investigation
 ```
 
-Cost per API request is insufficient because failed or rejected requests provide no business
-value.
+Rollback:
 
-## Deployment and operational path
+- stop the pilot;
+- disable AI-assisted step;
+- return to templates/search/manual review;
+- preserve incident and evaluation records;
+- revise risk controls before reattempting.
 
-The discovery package itself should follow a controlled approval workflow:
+## Bridge to the next lesson
 
-```text
-Draft
-→ domain review
-→ data review
-→ evaluation review
-→ security and privacy review
-→ finance review
-→ pilot approval
-```
+Lesson 08 assumes you can now:
 
-### Versioning
+- explain the selected support-drafting pilot;
+- state why autonomous refund action is out of scope;
+- define baseline, value, risk, and readiness assumptions;
+- identify non-AI alternatives;
+- explain why human approval is required;
+- describe what model behavior must be tested before integration.
 
-- Tag approved discovery package versions.
-- Record assumptions and data dates.
-- Link implementation work to the approved version.
-- Reopen discovery when scope, users, data, or actions change.
-
-### Change triggers
-
-Reassess when:
-
-- The model or provider changes materially.
-- A new user population is added.
-- Autonomous action is introduced.
-- New sensitive data is used.
-- Policy or regulation changes.
-- Metrics reveal unexpected impacts.
-
-### Rollback
-
-The pilot must support:
-
-- Feature disable
-- Return to the existing workflow
-- Reversal of reversible actions
-- Preservation of audit records
-- Notification of affected teams
-
-## Observability and operations plan
-
-Discovery defines what later production monitoring must include.
-
-### Logs
-
-- Request and workflow identifiers
-- User and tenant identity
-- Model, prompt, and retrieval versions
-- Evidence identifiers
-- Human approval
-- Escalation
-- Error category
-
-Do not log unnecessary customer content.
-
-### Metrics
-
-- Volume and eligibility
-- Adoption
-- Acceptance and edit effort
-- Abstention and escalation
-- Quality and guardrails
-- Latency
-- Availability
-- Cost
-- Security events
-
-### Feedback
-
-Capture:
-
-- Helpful or unhelpful
-- Accepted, edited, or rejected
-- Incorrect evidence
-- Missing policy
-- Unsafe or inappropriate behavior
-- Final case outcome
-
-### Ownership
-
-Every dashboard and alert must have an owner and response procedure.
+This is why Lesson 08 studies foundation-model behavior before Lesson 09 integrates hosted APIs.
 
 ## Practical assignment
 
 ### Scenario
 
-Choose one support workflow:
-
-- Billing question
-- Technical troubleshooting
-- Account closure
-- Quality review
-- Voice triage
-
-Produce a complete Applied AI discovery package.
+A regional healthcare support team wants to use AI to triage patient portal messages. Leaders ask for "an AI assistant that handles routine messages."
 
 ### Requirements
 
-- Interview at least three simulated or real authorized stakeholders.
-- Map the current workflow and failure paths.
-- Define baseline metrics and limitations.
-- Create at least five candidate interventions.
-- Include at least two non-AI alternatives.
-- Reject at least one AI use case with a documented reason.
-- Select one narrow pilot.
-- Define allowed, prohibited, abstention, and escalation behavior.
-- Create a risk register.
-- Create conservative, expected, upside, and downside cost scenarios.
-- Write product requirements.
-- Write an architecture decision.
-- Define offline, shadow, and limited-pilot stages.
-- Define go, revise, and stop criteria.
+- Map the current workflow.
+- Interview at least three stakeholder roles.
+- Define baseline metrics.
+- Propose at least four candidate interventions.
+- Reject at least two alternatives.
+- Define risk register and human-control boundaries.
+- Estimate value and cost.
+- Write PRD, ADR, and pilot plan.
+
+### Constraints
+
+- No autonomous medical advice.
+- No patient-facing output without clinician-approved workflow.
+- Use synthetic examples only.
+- Include non-AI fallback.
 
 ### Required artifacts
 
-- Stakeholder map
-- Interview notes with sensitive data removed
-- Current-state workflow
-- Baseline dataset or measurement plan
-- Root-cause analysis
-- Use-case register
-- Solution-selection matrix
-- Risk register
-- Human-control design
-- Product requirements
-- Metric specification
-- Cost model
-- Build-buy analysis
-- Architecture decision
-- Evaluation plan
-- Pilot plan
-- Go/no-go document
-- Executive summary
+- Stakeholder map.
+- Current-state workflow.
+- Baseline metric table.
+- Use-case register.
+- Risk register.
+- ROI scenario.
+- Build/buy/hybrid decision.
+- Pilot plan.
+- Go/revise/stop criteria.
 
 ### Acceptance criteria
 
-- The problem is supported by workflow evidence.
-- AI is not assumed to be the only solution.
-- The selected pilot is narrow and reversible.
-- High-consequence actions retain appropriate human authority.
-- Metrics connect model behavior to business outcomes.
-- Cost assumptions are reviewable.
-- Security, privacy, and domain constraints are identified.
-- Rejected ideas are documented.
-- The decision can be defended without showing a model demo.
+- AI use is tied to measurable workflow value.
+- High-impact actions retain human approval.
+- Non-AI fallback exists.
+- Rejected alternatives have rationale.
+- Metrics include safety and adoption.
 
 ### Stretch goals
 
-- Conduct a workshop with operations and security.
-- Add subgroup and accessibility considerations.
-- Create a vendor request-for-information checklist.
-- Build a small dashboard from synthetic baseline data.
-- Run a pre-mortem: imagine the pilot failed and identify why.
+- Add sensitivity analysis.
+- Create a second package for a non-AI search/template improvement.
+- Add CI validation for discovery package completeness.
 
 ## Interview preparation
 
 ### Concept questions
 
-**When should AI not be used?**
+1. When should AI not be used?
+   - Strong answer: when baseline is absent, deterministic/process fix suffices, data is unavailable, output cannot be reviewed, risk is high without control, or ownership is missing.
+2. What is a useful baseline?
+   - Strong answer: measured current-state value with source, window, owner, and known limitations.
+3. Difference between decision support and automation?
+   - Strong answer: decision support informs a human; automation takes action. Risk and approval requirements differ.
 
-A strong answer discusses lack of a real measured problem, deterministic alternatives, poor or
-unlawful data, high-consequence undetectable errors, weak ownership, poor economics, and lack of
-user recourse.
+### Coding or implementation questions
 
-**What is a useful baseline?**
+1. Design a schema for a use-case register.
+   - Include user, workflow step, value assumptions, risk dimensions, control mode, owner, and non-AI alternative.
+2. Write a function that flags high-risk automation.
+   - Strong answer separates risk score, control mode, and recommendation.
 
-A strong answer identifies the current process or simplest alternative, defines the metric,
-sample, segments, time period, limitations, and connection to the desired business outcome.
+### Debugging questions
 
-**What is the difference between decision support and automation?**
-
-A strong answer describes who retains authority, whether an action occurs automatically, and
-how review, approval, override, and accountability work.
-
-**Why is high model accuracy insufficient?**
-
-A strong answer connects operational context, error costs, subgroup performance, workflow
-integration, security, latency, adoption, and business outcomes.
-
-### Case questions
-
-**A manager asks for an AI agent to issue refunds automatically. How do you respond?**
-
-Clarify:
-
-- Refund policy
-- Value and volume
-- Authorization
-- Error cost
-- Reversibility
-- Fraud risk
-- Data access
-- Existing approval workflow
-- Evidence and evaluation
-
-Propose a staged path:
-
-```text
-Policy retrieval
-→ refund recommendation
-→ exact proposed action
-→ authorized approval
-→ limited execution
-→ evidence-based automation decision
-```
-
-**Agents spend time searching policies. Should you fine-tune a model?**
-
-Usually not first. Evaluate content governance, search, freshness, access control, hybrid
-retrieval, and citations. Fine-tuning is not an appropriate store for frequently changing
-policy facts.
-
-### Calculation question
-
-**How do you estimate ROI?**
-
-Explain:
-
-- Eligible volume
-- Adoption
-- Time or error benefit
-- Loaded labor cost
-- Implementation cost
-- Recurring infrastructure
-- Human review
-- Support and change management
-- Conservative and downside scenarios
-
-Avoid claiming that saved minutes automatically become cash savings.
+1. ROI is positive but pilot fails. What do you inspect?
+   - Adoption, workflow fit, baseline quality, review burden, quality failures, omitted costs.
+2. Scoring recommends pilot for every use case. What's wrong?
+   - Thresholds or inputs are not sensitive; risk/readiness not separated; recommendation logic is weak.
 
 ### System-design question
 
-**Design a first pilot for AI-assisted support.**
+Design the discovery-to-pilot process for AI-assisted support drafting.
 
-A strong answer includes:
+Strong answer includes:
 
-- Narrow eligible cases
-- Current baseline
-- Non-AI baseline
-- RAG and citations
-- Human approval
-- Deterministic authorization
-- Evaluation data
-- Shadow mode
-- Quality and guardrail metrics
-- Feedback
-- Cost limits
-- Stop and rollback controls
+- stakeholder discovery;
+- workflow map;
+- baseline;
+- candidate interventions;
+- AI suitability;
+- risk register;
+- human approval;
+- PRD/ADR;
+- pilot stages;
+- go/revise/stop metrics;
+- fallback and rollback.
 
-### Behavioral question
+### Tradeoff questions
 
-**Tell me about a time you recommended not building a requested AI feature.**
+- Build versus buy for support drafting?
+- RAG-assisted drafting versus direct LLM drafting?
+- Shadow pilot versus live pilot?
+- Human review versus human approval?
+- Spreadsheet ROI versus versioned discovery package?
 
-Use:
+## Mastery check
 
-- Context
-- Evidence
-- Stakeholder concern
-- Alternative
-- Decision
-- Outcome
-- What changed afterward
+### One-page memory model
 
-The goal is to show judgment rather than resistance to innovation.
+```text
+Request:
+  "Use AI"
+
+Discovery:
+  user -> workflow -> baseline -> bottleneck
+
+Options:
+  process -> deterministic -> rules/search -> ML/LLM/RAG/tools/agent -> human/hybrid
+
+Controls:
+  risk dimensions -> review/approval/abstention/prohibited
+
+Decision:
+  value + readiness + risk + adoption + fallback
+
+Artifacts:
+  workflow map + baseline + use-case register + risk register + PRD + ADR + pilot plan
+```
+
+### Retrieval bank
+
+- Explain why baseline comes before ROI.
+- Draw the discovery funnel from request to pilot.
+- Predict what happens if oversight cost is omitted.
+- Diagnose a use case with no rejected alternatives.
+- Compare decision support and automation.
+- Transfer the framework to healthcare triage.
+- Explain why non-AI fallback is mandatory.
+- Describe a stop condition for the support-drafting pilot.
+- Explain why high value does not erase high risk.
+- Name three fields required in a risk register.
+
+### Self-assessment
+
+Rate 1-5:
+
+- I can separate executive request from business problem.
+- I can map workflow and failure paths.
+- I can define baseline metrics.
+- I can compare AI and non-AI options.
+- I can design human-control boundaries.
+- I can calculate and challenge an ROI scenario.
+- I can write PRD/ADR/pilot artifacts.
+- I can explain when to stop a pilot.
+
+### Spaced-review plan
+
+| Time | Retrieval task |
+|---|---|
+| 1 day | Recreate the discovery funnel and define each artifact. |
+| 3 days | Recalculate ROI with a lower adoption scenario. |
+| 1 week | Write a new risk register for a different workflow. |
+| 3-4 weeks | Design a full discovery package for a new domain without looking at this lesson. |
 
 ## Production-readiness checklist
 
-- [ ] Users, operators, owners, and affected people are identified.
-- [ ] Current workflow and exception paths are documented.
-- [ ] Baseline definitions, sample, period, and limitations are recorded.
-- [ ] Root causes are separated from symptoms.
-- [ ] The problem statement defines inputs, outputs, and context.
-- [ ] Allowed and prohibited behavior are explicit.
-- [ ] Abstention and escalation behavior are explicit.
-- [ ] At least one non-AI alternative is evaluated.
-- [ ] Deterministic controls are separated from model behavior.
-- [ ] Candidate use cases include value, feasibility, and risk.
-- [ ] A high-risk use case is rejected or narrowed where appropriate.
-- [ ] Human review and approval authority are explicit.
-- [ ] Consequential actions remain appropriately controlled.
-- [ ] Business, product, model, operational, and guardrail metrics are defined.
-- [ ] Metric sources and owners are assigned.
-- [ ] Cost model includes implementation, operation, and human oversight.
-- [ ] Conservative and downside scenarios exist.
-- [ ] Build, buy, and hybrid options are compared.
-- [ ] Vendor data and exit conditions are reviewed.
-- [ ] Data access, privacy, retention, and deletion are identified.
-- [ ] Security and misuse risks have controls and owners.
-- [ ] Evaluation is designed before implementation.
-- [ ] Pilot is narrow, reversible, monitored, and stoppable.
-- [ ] Shadow mode is used where appropriate.
-- [ ] Go, revise, and stop criteria are approved.
-- [ ] Rollback to the existing workflow is possible.
-- [ ] Discovery assumptions are versioned.
-- [ ] Revisit triggers are defined.
-- [ ] An independent reviewer challenged the proposal.
-- [ ] Executive and technical summaries agree.
+- [ ] Business outcome is measurable.
+- [ ] User task and workflow step are named.
+- [ ] Current-state workflow includes failure paths.
+- [ ] Baseline metrics have source, window, and owner.
+- [ ] Candidate interventions include non-AI alternatives.
+- [ ] Rejected alternatives are documented.
+- [ ] Risk register has owners and controls.
+- [ ] Human review/approval/abstention/prohibited actions are explicit.
+- [ ] ROI scenario includes implementation, recurring, and oversight cost.
+- [ ] Adoption metrics are defined.
+- [ ] PRD and ADR are written.
+- [ ] Pilot has scope, stages, controls, and stop conditions.
+- [ ] Non-AI fallback exists.
+- [ ] Discovery package validates.
+- [ ] Decision owner and risk owner have reviewed.
+- [ ] Next-lesson handoff is clear.
 
 ## Lesson summary
 
-Applied AI problem discovery determines whether an AI project deserves to exist and how it can
-be introduced safely.
+You learned how to turn a broad AI request into a disciplined discovery package. The main result is not a model. It is an evidence-backed decision about whether to proceed, revise, or stop.
 
-You learned to:
+You built:
 
-- Start from users, workflow, and outcomes
-- Measure the current process
-- Identify root causes
-- Compare AI with simpler alternatives
-- Select the smallest sufficient solution
-- Separate model capability from business authority
-- Define human-control boundaries
-- Create value, risk, and readiness evidence
-- Design evaluation before implementation
-- Build a reversible pilot with stop criteria
+- typed discovery schemas;
+- ROI/risk/readiness scoring;
+- artifact completeness checks;
+- a CLI report;
+- a sample Northstar Support discovery package.
 
-The selected first use case is:
+Important tradeoffs:
 
-> Permission-aware, evidence-backed response drafting for eligible support cases, with mandatory
-> agent approval and no autonomous financial or account action.
+- AI versus process/search/template improvement;
+- decision support versus automation;
+- human review versus human approval;
+- ROI optimism versus conservative scenarios;
+- demo excitement versus go/no-go criteria.
 
-This lesson also rejected premature autonomous refund execution. Rejecting or narrowing a use
-case is a successful discovery outcome when evidence and controls are insufficient.
+What carries forward:
 
-The next lesson, **Foundation Models and LLM Fundamentals**, will explain how language models
-behave and how to select models for the pilot without confusing model capability with complete
-system quality.
+- Lesson 08 uses the selected support-drafting pilot to study foundation-model behavior.
+- Lesson 09 integrates model APIs only after the problem, risk, and human-control boundaries are explicit.
+- Lesson 10 turns prompt behavior into versioned, tested application components.
 
 ## Official references
 
-- NIST AI Risk Management Framework Playbook:
-  <https://airc.nist.gov/airmf-resources/playbook/>
-- NIST AI RMF Playbook — Map:
-  <https://airc.nist.gov/airmf-resources/playbook/map/>
-- NIST AI RMF Playbook — Measure:
-  <https://airc.nist.gov/airmf-resources/playbook/measure/>
-- NIST AI Risk Management Framework:
-  <https://www.nist.gov/itl/ai-risk-management-framework>
-- NIST Generative AI Profile:
-  <https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence>
+- NIST AI Risk Management Framework 1.0: https://www.nist.gov/itl/ai-risk-management-framework
+- NIST AI RMF Playbook: https://airc.nist.gov/AI_RMF_Knowledge_Base/Playbook
+- Local curriculum sources: `AI-Industry-Detailed-Lessons.md`, `AI-Industry-Detailed-Outline.md`, `AI-Industry-Complete-Lesson-Coverage-Map.md`, `AI-Industry-Curriculum.md`.
