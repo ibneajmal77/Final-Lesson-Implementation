@@ -1,0 +1,4 @@
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\ConsoleApp1\obj\Debug\net10.0\ConsoleApp1.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\ConsoleApp1\obj\Debug\net10.0\ConsoleApp1.AssemblyInfoInputs.cache
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\ConsoleApp1\obj\Debug\net10.0\ConsoleApp1.AssemblyInfo.cs
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\ConsoleApp1\obj\Debug\net10.0\ConsoleApp1.csproj.CoreCompileInputs.cache

@@ -1,0 +1,14 @@
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\bin\Debug\net10.0\Test3.exe
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\bin\Debug\net10.0\Test3.deps.json
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\bin\Debug\net10.0\Test3.runtimeconfig.json
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\bin\Debug\net10.0\Test3.dll
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\bin\Debug\net10.0\Test3.pdb
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\Test3.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\Test3.AssemblyInfoInputs.cache
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\Test3.AssemblyInfo.cs
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\Test3.csproj.CoreCompileInputs.cache
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\Test3.dll
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\refint\Test3.dll
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\Test3.pdb
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\Test3.genruntimeconfig.cache
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Test3\obj\Debug\net10.0\ref\Test3.dll

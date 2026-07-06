@@ -1,0 +1,14 @@
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\bin\Debug\net9.0\Concepts.exe
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\bin\Debug\net9.0\Concepts.deps.json
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\bin\Debug\net9.0\Concepts.runtimeconfig.json
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\bin\Debug\net9.0\Concepts.dll
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\bin\Debug\net9.0\Concepts.pdb
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\Concepts.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\Concepts.AssemblyInfoInputs.cache
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\Concepts.AssemblyInfo.cs
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\Concepts.csproj.CoreCompileInputs.cache
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\Concepts.dll
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\refint\Concepts.dll
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\Concepts.pdb
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\Concepts.genruntimeconfig.cache
+C:\Users\PC-Name\Downloads\CardGameInterviewPrep\csharp\Concepts\obj\Debug\net9.0\ref\Concepts.dll
