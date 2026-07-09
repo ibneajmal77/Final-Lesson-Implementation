@@ -1,6 +1,6 @@
 # Complete AI Industry Lesson Coverage and Production Plan
 
-Updated: June 25, 2026
+Updated: July 9, 2026
 
 ## Purpose
 
@@ -21,6 +21,7 @@ It defines:
 - Which AI roles use each lesson
 - Which project artifact proves completion
 - Where every major curriculum topic is covered
+- Where research-review improvements and missing topics are now assigned
 - How the specialization, interview, and readiness sections connect to the core
 
 This is not a replacement for the three source files. It is the traceability layer used to make
@@ -63,6 +64,29 @@ The missing entries from the supplied list are:
 - Lesson 54: Applied AI Case Interviews
 - Lesson 55: LLM and Model-Training Interviews
 
+The July 9, 2026 research review does not change the 57-lesson count. It adds missing topics to
+existing lesson owners, adds an explicit pre-core diagnostic and two entry ramps, and moves role
+branching earlier as a delivery rule while preserving Lessons 41-51 as the formal specialization
+lessons.
+
+## Research-review amendments
+
+The following amendments come from `deep-research-report.md` and must be honored when lesson files
+are generated.
+
+| Research-review gap | Roadmap treatment |
+|---|---|
+| Pre-core assumptions are implicit | Add a diagnostic and two entry ramps before Lesson 01; use the Entry Checkpoint to verify junior readiness. |
+| Statistics, experimentation, and causal reasoning are too thin | Strengthen Lessons 15, 37, 47, 54, and the readiness assessments with experiment design, uncertainty, causal/uplift reasoning, forecasting validation, and business decision readouts. |
+| Enterprise data-platform stack is underweighted | Add warehouse/lakehouse, dbt-style analytics engineering, batch/stream integration, feature freshness, event schemas, and open-table-format awareness to Lessons 06, 16, 34, 38, and 44. |
+| Benchmark datasets are not concrete enough | Define canonical benchmark packs across Lessons 12, 15-16, 20, 23, 26-27, 37, 49-50, and the portfolio/capstone. |
+| Specialization branching happens too late | Add an early role-branch checkpoint after Lesson 18; formal specialization lessons remain numbered 41-51. |
+| Product and UX realism is light | Strengthen Lessons 07, 11, 31, 41, 51, 54, and 57 with operator workflows, conversation UX, accessibility, instrumentation, adoption metrics, and executive readouts. |
+| Framework portability is mostly absent | Add one PyTorch-first interoperability thread across Lessons 37-39 and 47 covering TensorFlow, TF Decision Forests, TF Serving, ONNX, and cross-framework tradeoffs. |
+| Observability references need freshness checks | Update Lessons 18 and 31 to require current OpenTelemetry GenAI semantic-convention and MCP-aware telemetry references at generation time. |
+| Research-track preparation is implicit | Add optional paper reproduction, ablation design, math refresh, reading cadence, and replication reports to Lessons 43, 45, and 47. |
+| Domain transfer is too customer-support-centric | Add domain packs in Lesson 51 and the capstone for healthcare, finance/risk, search/recommendation, and industrial operations. |
+
 ## How individual lesson files will be written
 
 Every generated lesson must follow:
@@ -89,6 +113,10 @@ Every lesson file must contain:
 - Production implementation
 - Unit, integration, failure, security, and evaluation tests
 - Evaluation metrics
+- Quantitative evaluation report
+- Trade-off memo
+- Failure-analysis note
+- Oral defense prompts
 - Debugging guide
 - Security, privacy, and governance
 - Performance and cost
@@ -133,6 +161,48 @@ Lesson 01 already exists as:
 
 It can later be moved into `lessons/core/` when the full folder structure is created.
 
+## Entry ramps and early role branching
+
+Before Lesson 01, run a short diagnostic covering Python, Git, shell use, debugging, SQL basics,
+basic statistics, and environment setup.
+
+- **Ramp A: bridge path** for learners who need reinforcement in Python, Linux/shell, Git, SQL,
+  debugging, or statistics before entering the core sequence.
+- **Ramp B: fast-track path** for learners who already demonstrate Python, SQL, Git, testing,
+  basic cloud, and statistics competence.
+- **Early role branch checkpoint** after Lesson 18, where learners choose a provisional emphasis:
+  Applied AI/Product, ML Engineering/Data Science, LLM/Post-Training, MLOps/Platform,
+  Multimodal/Domain, or Security/Safety.
+- Formal specialization lessons remain Lessons 41-51, but specialization portfolio choices,
+  benchmark datasets, and interview practice should start after the Lesson 18 checkpoint.
+- Every major module must end with a working artifact, quantitative evaluation report, trade-off
+  memo, failure-analysis note, and short oral defense.
+
+Explicit delivery assumptions:
+
+- Later lessons require either cloud budget, local GPU access, or a documented low-cost substitute.
+- Evaluation lessons require annotation or human-review capacity, even if it is simulated with a
+  small controlled reviewer pool.
+- The customer-operations spine is the default business context, but domain-transfer packs must
+  prevent the curriculum from becoming support-only.
+- Learners who skip Ramp A must still pass the diagnostic evidence for Python, SQL, debugging,
+  shell/Git, and statistics.
+
+## Canonical benchmark pack
+
+Each generated lesson should still use the business context, but the following public benchmark
+anchors are required where relevant so learner results are comparable and harder to fake.
+
+| Area | Required benchmark anchor | Primary lesson owners |
+|---|---|---|
+| Retrieval and search | BEIR-style retrieval benchmark plus a business-labelled query set | 12, 14-15, 49 |
+| Document AI | FUNSD, DocVQA, or equivalent form/document understanding dataset | 15-16, 26, 50 |
+| Speech and voice | Common Voice or equivalent speech dataset | 15, 27, 50 |
+| Recommendation and ranking | MovieLens or equivalent public recommendation dataset | 15, 37, 49 |
+| Preference learning | OpenAssistant, UltraFeedback, HelpSteer, or equivalent preference data | 20, 23, 43, 45 |
+| Classical ML decision science | Public tabular business dataset with calibration, causal, forecasting, or time-aware validation | 37-38, 47 |
+| Capstone evidence | Public benchmark result plus domain-specific business evaluation | 40 |
+
 ## Cumulative business project
 
 The lessons use one evolving business context:
@@ -144,11 +214,13 @@ The lessons use one evolving business context:
 The platform grows through the curriculum:
 
 ```text
-Reproducible repository
+Diagnostic and entry ramp
+→ reproducible repository
 → production Python package
 → async processing
 → tested backend
 → database and storage
+→ analytics-to-serving data path
 → AI use-case design
 → LLM integration
 → RAG
@@ -452,6 +524,13 @@ streaming, authentication, and authorization.
 - Object storage
 - Redis caching
 - Data lineage
+- Warehouse and lakehouse patterns
+- Analytics schemas and marts
+- dbt-style transformation awareness
+- Batch versus event data
+- Event schemas and data contracts
+- Feature freshness for serving paths
+- Open table formats awareness
 - Retention and deletion
 - Multi-tenant data boundaries
 
@@ -463,11 +542,13 @@ streaming, authentication, and authorization.
 - Redis
 - Parquet
 - Object storage
+- DuckDB or warehouse equivalent
+- dbt-style transformation tool awareness
 
 **Business implementation**
 
 Create the data layer for users, tenants, tickets, documents, chunks, conversations, model
-runs, tool calls, and feedback.
+runs, tool calls, feedback, analytics marts, and feature-freshness checks.
 
 **Completion evidence**
 
@@ -475,6 +556,7 @@ runs, tool calls, and feedback.
 - Important queries use appropriate indexes
 - Deletion propagates to derived records
 - Migrations work on a fresh database
+- Analytics and serving data contracts are documented
 
 **Primary roles**
 
@@ -505,7 +587,10 @@ runs, tool calls, and feedback.
 - Risk classification
 - Product requirements
 - Success metrics
+- Metric hierarchy and guardrail metrics
 - Adoption metrics
+- Experiment hypotheses
+- Stakeholder readout structure
 - Cost and expected return
 - Domain and regulatory constraints
 
@@ -526,6 +611,7 @@ Produce an Applied AI discovery package for the customer-support organization.
 - AI use is tied to measurable workflow value
 - Rejected use cases are documented
 - High-impact actions retain human approval
+- Pilot and measurement plan is decision-ready
 - Non-AI fallback exists
 
 **Primary roles**
@@ -704,12 +790,17 @@ responses.
 - Draft generation
 - Human editing and approval
 - Streaming user experience
+- Conversation UX and failure states
+- Operator workflow UX
+- Accessibility for AI-assisted workflows
 - Conversation persistence
 - Feedback capture
+- Front-end telemetry and product instrumentation
 - Prompt and model version traceability
 - Cost tracking
 - Abstention
 - Product metrics
+- Experiment readouts for product decisions
 - Deployment of a model-backed feature
 
 **Primary tools**
@@ -721,6 +812,7 @@ responses.
 - Pydantic
 - OpenTelemetry
 - React or a minimal user interface
+- Product analytics or telemetry events
 
 **Business implementation**
 
@@ -731,6 +823,8 @@ Build the first complete AI support-ticket assistant.
 - Business and model metrics exist
 - Drafts require human approval
 - Feedback and edits are recorded
+- User actions and friction points are instrumented
+- Operator review workflow is observable
 - Every output is traceable
 
 **Primary roles**
@@ -764,6 +858,8 @@ Build the first complete AI support-ticket assistant.
 - Retrieval latency
 - Relevance labelling
 - Retrieval metrics
+- BEIR-style public retrieval benchmarks
+- Benchmark-to-business-query mapping
 
 **Primary tools**
 
@@ -781,6 +877,7 @@ Build a policy-search service and compare lexical, dense, hybrid, and reranked r
 
 - Labelled query set
 - Baseline comparison
+- Public benchmark and business-labelled query results
 - Permission filtering
 - Retrieval latency and quality report
 
@@ -913,9 +1010,13 @@ updates, and feedback.
 - Golden datasets
 - Representative sampling
 - Difficult-case mining
+- Canonical benchmark pack selection
 - Test contamination
 - Annotation guidelines
 - Inter-annotator agreement
+- Experiment design
+- Statistical power
+- Confidence intervals and uncertainty
 - Exact-match and schema checks
 - Retrieval metrics
 - Groundedness and citation checks
@@ -925,6 +1026,7 @@ updates, and feedback.
 - Human evaluation
 - Online feedback
 - A/B and canary evaluation
+- Offline versus online evaluation validity
 - Agent evaluation foundations
 - Cost and latency evaluation
 - CI regression gates
@@ -937,10 +1039,12 @@ updates, and feedback.
 - Ragas or DeepEval
 - promptfoo
 - Phoenix, LangSmith, or equivalent
+- Canonical public benchmark datasets
 
 **Business implementation**
 
-Build an evaluation platform for prompts, models, RAG changes, adapters, and agents.
+Build an evaluation platform for prompts, models, RAG changes, adapters, agents, and benchmark
+packs.
 
 **Completion evidence**
 
@@ -949,6 +1053,8 @@ Build an evaluation platform for prompts, models, RAG changes, adapters, and age
 - Human-review workflow
 - CI quality gates
 - Slice-level reporting
+- Benchmark cards document task fit, license, and contamination risk
+- Confidence intervals and uncertainty are reported
 
 **Primary roles**
 
@@ -969,6 +1075,10 @@ Build an evaluation platform for prompts, models, RAG changes, adapters, and age
 - Consent and licensing
 - Data contracts
 - Schema validation
+- Warehouse and lakehouse ingestion patterns
+- dbt-style analytics transformations
+- Batch and streaming pipelines
+- Event schemas
 - Cleaning and normalization
 - Deduplication
 - PII detection and redaction
@@ -983,6 +1093,8 @@ Build an evaluation platform for prompts, models, RAG changes, adapters, and age
 - Active learning
 - Difficult-example mining
 - Dataset versioning and lineage
+- Feature freshness checks
+- Open table formats awareness
 - Retention and deletion
 
 **Primary tools**
@@ -994,17 +1106,21 @@ Build an evaluation platform for prompts, models, RAG changes, adapters, and age
 - Parquet
 - DVC
 - Spark when required
+- DuckDB or warehouse equivalent
+- dbt or equivalent
+- Kafka or managed event stream awareness
 - Airflow or Dagster
 
 **Business implementation**
 
-Build an auditable training- and evaluation-data pipeline.
+Build an auditable training-, evaluation-, analytics-, and serving-data pipeline.
 
 **Completion evidence**
 
 - Source registry and data contracts
 - PII and deduplication reports
 - Leakage tests
+- Batch, streaming, and feature-freshness checks
 - Dataset card
 - Rebuildable versioned dataset
 
@@ -1090,6 +1206,7 @@ requires approval, and updates the ticket.
 - Server trust
 - Allowlists
 - Logging and audit
+- MCP-aware tool telemetry
 - Prompt injection through tool results
 - Agent-to-agent concepts
 - Workflow handoffs
@@ -1115,6 +1232,7 @@ workflow.
 - User identity reaches authorization
 - Capabilities are restricted
 - Every operation is traceable
+- Current GenAI and MCP telemetry references are checked during lesson generation
 
 **Primary roles**
 
@@ -1201,6 +1319,8 @@ trainers.
 - Sequence packing
 - Data collators
 - Token-length distribution
+- Open instruction and conversation datasets
+- Dataset license and contamination checks
 - Training-data validation
 
 **Primary tools**
@@ -1220,6 +1340,7 @@ Create and validate the support instruction dataset used by SFT and adapter trai
 - Labels cover only intended tokens
 - Length and truncation report exists
 - Test data remains isolated
+- Source datasets and licenses are documented
 
 **Primary roles**
 
@@ -1345,6 +1466,7 @@ baselines.
 - Chosen and rejected responses
 - Preference rubrics
 - Human and AI-generated preference data
+- Open preference datasets such as OpenAssistant, UltraFeedback, or HelpSteer
 - Pair validation
 - Bias and annotator disagreement
 - DPO intuition
@@ -1372,6 +1494,7 @@ Preference-optimize the support model for useful, policy-compliant, safe answers
 
 - Documented preference rubric
 - Audited pair quality
+- Public preference baseline and domain-specific preference set compared
 - SFT versus DPO comparison
 - Refusal and over-refusal results
 
@@ -1509,6 +1632,7 @@ Run a reproducible multi-device QLoRA or small-model training job with checkpoin
 - Computer-vision fundamentals
 - Classification, detection, segmentation, and tracking awareness
 - Multimodal datasets and evaluation
+- FUNSD and DocVQA-style document benchmarks
 
 **Primary tools**
 
@@ -1526,6 +1650,7 @@ Build an insurance claim-document review assistant using forms, receipts, and ph
 **Completion evidence**
 
 - Field extraction and visual understanding evaluated separately
+- Public document benchmark and business-domain document results are both reported
 - Evidence links to source page or region
 - Low-confidence cases reach human review
 - Sensitive images are protected
@@ -1561,6 +1686,7 @@ Build an insurance claim-document review assistant using forms, receipts, and ph
 - Consent and recording policy
 - Voice privacy
 - Speech and task evaluation
+- Common Voice-style speech benchmark
 
 **Primary tools**
 
@@ -1578,6 +1704,7 @@ Build a voice support-triage assistant with interruption handling and human esca
 - End-to-end latency measured
 - Turn-taking works
 - Transcription and task quality evaluated
+- Public speech benchmark and business-task voice results are both reported
 - Disclosure and retention policy implemented
 
 **Primary roles**
@@ -1770,6 +1897,9 @@ Harden the Applied AI platform against provider, retrieval, tool, worker, and st
 - Distributed traces
 - Correlation identifiers
 - OpenTelemetry Generative AI conventions
+- Current OpenTelemetry GenAI semantic-convention repository
+- GenAI spans, metrics, and events
+- MCP-aware telemetry references
 - Prompt and model versions
 - Retrieval and tool traces
 - Token usage
@@ -1782,6 +1912,8 @@ Harden the Applied AI platform against provider, retrieval, tool, worker, and st
 - Cost per request
 - Cost per successful task
 - Tenant and feature attribution
+- Operator workflow dashboards
+- Executive and product experiment readouts
 - Dashboards and alerts
 - Sensitive-telemetry redaction
 
@@ -1801,6 +1933,8 @@ Create operational, quality, safety, product, and cost dashboards for the enterp
 
 - One request is traceable end to end
 - Quality and business outcomes appear beside infrastructure metrics
+- Telemetry references are checked for freshness at generation time
+- Operator and executive dashboard views are usable
 - Cost is attributable
 - Sensitive content is protected
 
@@ -1927,6 +2061,11 @@ Deploy the model gateway, worker, GPU inference service, and training job to Kub
 - Dataset, prompt, model, adapter, and evaluation registries
 - Artifact lineage
 - Reproducibility
+- Warehouse and lakehouse orchestration
+- dbt-style analytics engineering integration
+- Batch and streaming pipeline monitoring
+- Feature freshness gates
+- Open table format lineage awareness
 - AI CI/CD
 - Prompt, retrieval, model, and safety gates
 - Continuous training
@@ -1959,6 +2098,7 @@ approval, canary release, monitoring, and rollback.
 
 - Complete lineage
 - Quality and safety gates
+- Data-contract and feature-freshness gates
 - Rollback demonstration
 - Reviewed feedback-data loop
 
@@ -2084,7 +2224,15 @@ cost report.
 **Topics covered**
 
 - Practical vectors, matrices, probability, and statistics
+- Experiment design
+- Statistical power
+- Confidence intervals and uncertainty
+- Bayesian reasoning
+- Causal inference and uplift modelling
 - Classification, regression, ranking, clustering, forecasting, and anomaly detection
+- Time-series validation
+- Survival analysis awareness
+- Decision-theoretic model selection
 - Features and labels
 - Baselines
 - Missing values and outliers
@@ -2108,6 +2256,7 @@ cost report.
 - Cross-validation
 - Error and subgroup analysis
 - A/B testing
+- Business experiment readouts
 
 **Primary tools**
 
@@ -2117,16 +2266,20 @@ cost report.
 - XGBoost, LightGBM, or CatBoost
 - Optuna
 - MLflow
+- Causal and forecasting libraries where appropriate
 
 **Business implementation**
 
-Build a service-level breach predictor and compare simple, linear, tree, and boosted baselines.
+Build a service-level breach predictor, compare simple, linear, tree, and boosted baselines, and
+write the experiment readout for whether the intervention should launch.
 
 **Completion evidence**
 
 - Production-realistic split
 - Leakage checks
 - Business-aligned metrics
+- Experiment design and uncertainty analysis
+- Causal and forecasting caveats documented
 - Calibration and error analysis
 
 **Primary roles**
@@ -2146,6 +2299,9 @@ Build a service-level breach predictor and compare simple, linear, tree, and boo
 
 - Feature pipelines
 - Feature-store awareness
+- Warehouse/lakehouse-to-serving paths
+- Batch and streaming feature updates
+- Feature freshness SLAs
 - Training pipelines
 - Hyperparameter optimization
 - Model registry
@@ -2165,6 +2321,8 @@ Build a service-level breach predictor and compare simple, linear, tree, and boo
 - scikit-learn or boosting library
 - MLflow
 - Airflow or Dagster
+- Feature store or warehouse/lakehouse equivalent
+- Streaming source or event-log substitute
 - FastAPI
 - Docker
 - Monitoring stack
@@ -2177,6 +2335,7 @@ retraining, and controlled release.
 **Completion evidence**
 
 - Feature consistency tests
+- Data-platform and serving freshness tests
 - Version-traceable predictions
 - Drift response procedure
 - Retraining and rollback demonstration
@@ -2211,12 +2370,17 @@ retraining, and controlled release.
 - Transfer learning
 - Frozen versus full fine-tuning
 - GPU training
+- TensorFlow/Keras interoperability awareness
+- ONNX export and runtime tradeoffs
+- TF Serving awareness
+- Cross-framework tradeoff memo
 - Export and serving
 - Deep-learning monitoring
 
 **Primary tools**
 
 - PyTorch
+- TensorFlow/Keras awareness
 - torchvision
 - Transformers
 - MLflow
@@ -2232,6 +2396,7 @@ transformer baselines.
 - Non-neural baseline
 - Reproducible training
 - Evaluation slices
+- PyTorch-first choice compared with TensorFlow and ONNX serving alternatives
 - Serving latency and cost report
 
 **Primary roles**
@@ -2256,7 +2421,9 @@ transformer baselines.
 - Workflow and architecture design
 - Authentication and tenant authorization
 - Ticket and document ingestion
+- Analytics-to-serving data path
 - Hybrid retrieval and reranking
+- Canonical benchmark pack
 - Evidence-backed generation
 - Structured extraction
 - Tool calling and MCP
@@ -2270,11 +2437,14 @@ transformer baselines.
 - Security and safety controls
 - Cloud deployment
 - Logs, metrics, and traces
+- Product and UX instrumentation
+- Experiment and statistical decision readout
 - Cost controls
 - Canary deployment
 - Feedback
 - Incident management
 - Technical and business documentation
+- Domain-transfer package
 
 **Primary tools**
 
@@ -2291,10 +2461,14 @@ Build and defend the enterprise customer-operations AI platform.
 - Threat model
 - API and data contracts
 - Evaluation dataset and report
+- Canonical benchmark results
+- Product instrumentation and adoption report
+- Statistics-backed launch or rollback decision
 - Dataset, adapter, and system cards
 - Deployment and rollback
 - Load and failure-injection reports
 - Business-outcome report
+- Design-doc bundle and incident/postmortem bundle
 - Technical presentation
 
 **Primary roles**
@@ -2322,6 +2496,10 @@ one role-specific production project.
 - Product discovery
 - Enterprise APIs and data integration
 - User-facing AI product design
+- Conversation UX
+- Operator workflow design
+- Accessibility
+- Front-end instrumentation
 - RAG and controlled agents
 - Evaluation and feedback loops
 - Model-adaptation decisions
@@ -2329,11 +2507,13 @@ one role-specific production project.
 - Cloud delivery
 - Security
 - Business metrics
+- Adoption and experiment readouts
 - Product ownership
 
 **Specialization project**
 
-Deploy a user-facing AI workflow to real infrastructure and measure user and business outcomes.
+Deploy a user-facing AI workflow to real infrastructure and measure user, operator, and business
+outcomes.
 
 **Roles additionally covered**
 
@@ -2389,10 +2569,14 @@ Build a multi-model, multimodal production GenAI product.
 - Distributed training
 - Quantization
 - Serving and performance
+- Paper reproduction cadence
+- Ablation design
+- Replication reports
+- Math refresh for training and scaling tradeoffs
 
 **Specialization project**
 
-Build a complete domain-model adaptation, evaluation, registry, and serving pipeline.
+Build a complete domain-model adaptation, evaluation, registry, serving, and ablation pipeline.
 
 **Roles additionally covered**
 
@@ -2412,6 +2596,10 @@ Build a complete domain-model adaptation, evaluation, registry, and serving pipe
 - Kubernetes
 - Terraform
 - Workflow orchestration
+- Warehouse and lakehouse platforms
+- dbt-style analytics engineering
+- Kafka or event-streaming patterns
+- Open table formats such as Delta, Iceberg, or Hudi
 - Registries and lineage
 - Training-job scheduling
 - Feature and data platforms
@@ -2421,10 +2609,11 @@ Build a complete domain-model adaptation, evaluation, registry, and serving pipe
 - CI/CD and continuous training
 - Developer experience
 - Platform APIs
+- Feature freshness SLAs
 
 **Specialization project**
 
-Build a self-service training, evaluation, approval, deployment, and monitoring platform.
+Build a self-service data, training, evaluation, approval, deployment, and monitoring platform.
 
 **Roles additionally covered**
 
@@ -2444,6 +2633,9 @@ Build a self-service training, evaluation, approval, deployment, and monitoring 
 - Human evaluation
 - Judge calibration
 - Statistics and uncertainty
+- Statistical power and confidence intervals
+- Evaluation contamination audits
+- Causal validity for online experiments
 - Agent evaluation
 - Safety taxonomies
 - Adversarial testing
@@ -2452,6 +2644,7 @@ Build a self-service training, evaluation, approval, deployment, and monitoring 
 - Capability and misuse evaluation
 - Release gates
 - Incident analysis
+- Research replication and ablation reports
 
 **Specialization project**
 
@@ -2504,6 +2697,9 @@ Build a secured agent execution environment with centralized policy enforcement.
 
 - Classical ML
 - Deep learning
+- Experiment design and causal inference
+- Forecasting and time-series validation
+- Bayesian and statistical uncertainty
 - Feature and training pipelines
 - Batch and online inference
 - Feature-store decisions
@@ -2511,12 +2707,16 @@ Build a secured agent execution environment with centralized policy enforcement.
 - Drift
 - Retraining
 - Experimentation
+- TensorFlow, TF Decision Forests, and TF Serving awareness
+- ONNX and cross-framework tradeoffs
+- Paper reproduction and ablation practice
 - ML system design
 - Applied LLM integration
 
 **Specialization project**
 
-Build a complete predictive ML product and platform.
+Build a complete predictive ML product and platform with causal, forecasting, and framework
+tradeoff analysis.
 
 **Roles additionally covered**
 
@@ -2576,12 +2776,15 @@ Build and benchmark a multi-GPU or multi-node inference service.
 - Exploration and exploitation
 - Feedback bias
 - Offline evaluation
+- MovieLens-style recommendation benchmark
 - A/B testing
+- Online/offline metric mismatch
 - Low-latency serving
 
 **Specialization project**
 
-Build a two-stage retrieval, recommendation, and ranking system with online metrics.
+Build a two-stage retrieval, recommendation, and ranking system with MovieLens-style offline
+benchmarks and online-style metrics.
 
 **Roles additionally covered**
 
@@ -2605,13 +2808,15 @@ Build a two-stage retrieval, recommendation, and ranking system with online metr
 - Multimodal retrieval
 - Streaming
 - Modality-specific evaluation
+- FUNSD, DocVQA, and Common Voice benchmark packs
 - Human review
 - Edge deployment awareness
 - Robotics and autonomy prerequisite bridge
 
 **Specialization project**
 
-Build a multimodal business workflow combining documents, images, audio, and human review.
+Build a multimodal business workflow combining documents, images, audio, public benchmarks, and
+human review.
 
 **Roles additionally covered**
 
@@ -2643,16 +2848,20 @@ lessons. These topics are not silently omitted; they are recorded as extensions.
 - API and system integrations
 - Cloud delivery
 - Security and compliance
+- Domain metrics and regulatory templates
 - Workflow redesign
 - User training
 - Stakeholder communication
+- Executive readouts
+- Domain packs for healthcare, finance/risk, search/recommendation, and industrial operations
 - Technical presentations
 - Reusable deployment patterns
 - Adoption and business metrics
 
 **Specialization project**
 
-Build a reusable customer deployment package for one industry.
+Build a reusable customer deployment package for one industry, including domain metrics, data
+constraints, regulatory assumptions, and adoption plan.
 
 **Roles additionally covered**
 
@@ -2710,6 +2919,9 @@ Build a reusable customer deployment package for one industry.
 - Transactions
 - Schema design
 - Analytics queries
+- Warehouse/lakehouse schema questions
+- dbt-style transformation reasoning
+- Event schema and freshness questions
 - Multi-tenant data questions
 - Model and feedback data queries
 
@@ -2719,6 +2931,7 @@ Build a reusable customer deployment package for one industry.
 - Result validation
 - Performance discussion
 - Data-model design
+- Analytics-to-serving path explanation
 
 ### Lesson 54 — Applied AI Case Interviews
 
@@ -2733,8 +2946,12 @@ Build a reusable customer deployment package for one industry.
 - Select prompting, RAG, tools, fine-tuning, or ML
 - Define human approval
 - Select metrics
+- Design an experiment and power/uncertainty plan
+- Choose business, guardrail, and adoption metrics
 - Estimate latency and cost
+- Model ROI and opportunity cost
 - Identify privacy and security risks
+- Explain UX, accessibility, and operator adoption tradeoffs
 - Plan pilot, rollout, feedback, and rollback
 - Communicate uncertainty
 
@@ -2744,6 +2961,7 @@ Build a reusable customer deployment package for one industry.
 - Build-versus-buy decisions
 - Whiteboard architecture
 - Executive and engineering explanation
+- Experiment readout and launch recommendation
 
 ### Lesson 55 — LLM and Model-Training Interviews
 
@@ -2766,6 +2984,7 @@ Build a reusable customer deployment package for one industry.
 - Quantization
 - Serving
 - Evaluation
+- Benchmark selection and contamination risks
 - Training and inference debugging
 
 **Practice format**
@@ -2774,6 +2993,7 @@ Build a reusable customer deployment package for one industry.
 - Training failure scenarios
 - Data and evaluation design
 - Adaptation decision cases
+- Ablation and replication discussion
 - Performance tradeoffs
 
 ### Lesson 56 — AI System-Design Interviews
@@ -2800,6 +3020,7 @@ Build a reusable customer deployment package for one industry.
 - Requirements
 - Scale
 - Data
+- Warehouse/lakehouse and event-streaming path
 - Models
 - Evaluation
 - APIs
@@ -2807,6 +3028,7 @@ Build a reusable customer deployment package for one industry.
 - Reliability
 - Security
 - Monitoring
+- Experimentation and decision science
 - Cost
 - Deployment
 - Rollback
@@ -2821,11 +3043,14 @@ Build a reusable customer deployment package for one industry.
 **Topics covered**
 
 - Business problem
+- Portfolio anchor selection
 - User and baseline
 - Architecture
 - Data
 - Model choice
 - Evaluation
+- Benchmark evidence
+- Experiment readout
 - Failure analysis
 - Security
 - Deployment
@@ -2834,6 +3059,8 @@ Build a reusable customer deployment package for one industry.
 - Scaling
 - Tradeoffs
 - Lessons learned
+- Design-doc bundle
+- Incident or postmortem bundle
 - Technical presentation
 - Behavioral examples
 
@@ -2853,9 +3080,11 @@ This is preserved as an entry checkpoint rather than counted among the five form
 
 **Required evidence**
 
+- Diagnostic passed or bridge path completed
 - Production Python
 - API development
 - SQL
+- Basic statistics and experiment literacy
 - Model API integration
 - Structured outputs
 - RAG
@@ -2878,6 +3107,7 @@ This is preserved as an entry checkpoint rather than counted among the five form
 
 - Business discovery
 - End-to-end product ownership
+- Product and UX instrumentation
 - Production RAG
 - Controlled agent
 - Evaluation platform
@@ -2886,6 +3116,7 @@ This is preserved as an entry checkpoint rather than counted among the five form
 - Reliability
 - Security
 - Cost analysis
+- Statistics-backed launch, iterate, or rollback decision
 - Model-adaptation project
 - Technical presentation
 
@@ -2909,6 +3140,8 @@ This is preserved as an entry checkpoint rather than counted among the five form
 - Open-model serving
 - Quality benchmarks
 - Performance benchmarks
+- Ablation or replication report
+- Benchmark contamination review
 
 **Minimum lesson coverage**
 
@@ -2926,6 +3159,8 @@ This is preserved as an entry checkpoint rather than counted among the five form
 - Kubernetes
 - CI/CD
 - Workflow orchestration
+- Warehouse or lakehouse integration
+- Data contracts and feature freshness gates
 - Registries
 - Monitoring
 - Terraform
@@ -2949,6 +3184,8 @@ This is preserved as an entry checkpoint rather than counted among the five form
 - Human evaluation
 - Model judges
 - Statistical analysis
+- Statistical power and confidence intervals
+- Benchmark contamination audit
 - Adversarial tests
 - Security tests
 - Regression gates
@@ -2965,14 +3202,18 @@ This is preserved as an entry checkpoint rather than counted among the five form
 **Required evidence**
 
 - Classical ML
+- Experiment design and causal reasoning
+- Forecasting or time-series validation
 - Deep learning
 - Data and feature pipelines
+- Warehouse/lakehouse-to-serving path
 - Training
 - Batch and online deployment
 - Monitoring
 - Drift
 - Retraining
 - ML system design
+- Framework interoperability tradeoff memo
 
 **Minimum lesson coverage**
 
@@ -2995,13 +3236,13 @@ required knowledge.
 | Model Training Engineer | 16, 19-25, 31, 33-36 | Lessons 43 and 48 |
 | Post-Training Engineer | 15-16, 19-25, 28-29, 34-36 | Lessons 43 and 45 |
 | Machine Learning Engineer | 01-07, 15-16, 19, 30-40 | Lesson 47 |
-| Data Scientist for ML | 06-07, 15-16, 31, 37-39 | Lesson 47 supports production depth |
-| Applied Scientist | 15-16, 19-25, 37-39 | Lessons 43 or 47; research depth may require further study |
+| Data Scientist for ML | 06-07, 15-16, 31, 37-39 | Lesson 47 supports production, causal, forecasting, and experiment depth |
+| Applied Scientist | 15-16, 19-25, 37-39 | Lessons 43, 45, or 47 add research reproduction, ablations, and replication reports |
 | MLOps Engineer | 01-06, 25, 30-39 | Lesson 44 |
 | ML Platform Engineer | 01-06, 16, 25, 30-39 | Lesson 44 |
 | AI Infrastructure Engineer | 01-06, 25, 30-36 | Lesson 48 |
 | AI Inference Engineer | 19, 22, 25, 30-36 | Lesson 48 |
-| AI Data Engineer | 03, 06, 13, 16, 32-34, 38 | Lesson 44 supports platform depth |
+| AI Data Engineer | 03, 06, 13, 16, 32-34, 38 | Lesson 44 supports warehouse, lakehouse, streaming, and platform depth |
 | AI Data or Annotation Engineer | 15-16, 20, 23, 26-27 | Lesson 45 supports evaluation depth |
 | AI Evaluation Engineer | 04, 15, 23, 28-31, 34 | Lesson 45 |
 | AI Safety Engineer | 15, 23-24, 28-31, 34 | Lesson 45 |
@@ -3016,7 +3257,7 @@ required knowledge.
 | Edge AI Engineer | 19, 22, 26-27, 35-36, 39, 48, 50 | Career bridge only; dedicated edge extension required |
 | Forward-Deployed AI Engineer | 01-18, 28-34, 40 | Lesson 51 |
 | AI Solutions Architect | 05-18, 28-36, 40-41, 51 | Architecture and customer-delivery route |
-| AI Product Manager | 07, 11, 15, 28-31, 40-41, 51 | Technical product route |
+| AI Product Manager | 07, 11, 15, 28-31, 40-41, 51 | Technical product, UX, metrics, and adoption route |
 | AI Governance Specialist | 15-16, 28-29, 31, 34, 40, 45-46 | Governance and assurance route |
 | AI UX or Conversation Designer | 07-11, 15, 17, 27-29, 40-42 | Interaction-design route |
 
@@ -3064,6 +3305,22 @@ required knowledge.
 | Deep-learning application | 39 |
 | Enterprise Applied AI capstone | 40 |
 
+The portfolio should not become a loose collection of small demos. The strongest learner-facing
+package should contain four anchor repositories and two supporting document bundles:
+
+- Deployed AI product repo with product instrumentation, UX evidence, cost tracking, and
+  business-outcome readout.
+- Evaluated RAG/search repo with BEIR-style retrieval benchmark, business query set, citations,
+  access-control tests, and failure analysis.
+- Classical ML system repo with experiment design, causal or forecasting caveats, calibration,
+  monitoring, and deployment evidence.
+- Post-training, serving, or MLOps repo with benchmark results, ablations, lineage, rollout,
+  rollback, and cost/performance evidence.
+- Design-doc bundle containing PRDs, architecture decisions, metric definitions, data contracts,
+  model/system/dataset cards, and domain-transfer pack.
+- Incident/postmortem bundle containing reliability, security, evaluation-regression, and
+  product-adoption failure analyses.
+
 # Source-topic traceability
 
 ## Detailed outline section mapping
@@ -3074,24 +3331,33 @@ required knowledge.
 | Related AI roles | 41-51 and role-to-lesson matrix |
 | Recommended learning sequence | 01-57 in this file |
 | Standard lesson and project structures | Applied to every generated lesson |
+| Diagnostic, entry ramps, and early branching | Entry ramps section; Entry Checkpoint; provisional branch after 18 |
 | Core industry tool stack | 01-39; consolidated in 40 |
 | Engineering foundations | 01-06 |
+| Enterprise data platforms and analytics engineering | 06, 16, 34, 38, 44 |
 | Applied AI product engineering | 07 and 11; deepened in 41 and 51 |
+| Product UX, operator workflows, instrumentation, and adoption | 07, 11, 31, 40-41, 51, 54, 57 |
 | Foundation-model and LLM engineering | 08-11 |
 | Embeddings, retrieval, and RAG | 12-14 |
+| Canonical benchmark packs | 12, 15-16, 20, 23, 26-27, 37, 40, 49-50 |
 | Evaluation and feedback engineering | 15 and 31; deepened in 45 |
+| Statistics, experimentation, causal reasoning, and forecasting | 15, 37-38, 45, 47, 54 |
 | AI data engineering | 16; platform extension in 44 |
 | Tool use, agents, and MCP | 17-18 |
 | Model adaptation and post-training | 19-25; deepened in 43 |
+| Research reproduction, ablations, and replication reports | 43, 45, 47 |
 | Multimodal, document, speech, and voice AI | 26-27; deepened in 50 |
 | AI safety, security, privacy, and governance | 28-29; deepened in 45-46 |
 | Production AI system engineering | 30-31 |
+| Current OpenTelemetry GenAI and MCP-aware observability | 18 and 31 |
 | Cloud, containers, and infrastructure | 01, 32-33 |
 | LLMOps and MLOps | 34; deepened in 44 |
 | Open-model serving and inference optimization | 35-36; deepened in 48 |
 | Classical machine learning | 37-38; deepened in 47 |
+| Framework interoperability and cross-framework tradeoffs | 37-39 and 47 |
 | Deep learning and complete ML engineering | 19, 25, 39; deepened in 47 |
 | Role-specific learning branches | 41-51 and role matrix |
+| Domain-transfer packs | 40 and 51 |
 | Portfolio sequence | Practical artifacts from 01-40 |
 | Specialist project options | 42-50 |
 | Capstone | 40 |
@@ -3109,6 +3375,7 @@ required knowledge.
 | Frontier-model pretraining from scratch | Architecture and decision awareness in 24-25 and 43; not a core implementation |
 | Reimplementing every research paper | Excluded; implement only methods required by a lesson or role |
 | Mathematical proofs unrelated to engineering | Excluded; practical mathematics appears in 19, 24-25, 37, and 39 |
+| Exhaustive statistics curriculum | Excluded; required decision science appears in 15, 37-38, 45, 47, and 54 |
 | Exotic PEFT algorithms | LoRA and QLoRA are implemented in 22; alternatives are awareness-only |
 | Custom CUDA kernels | Awareness in 36; advanced only in Specialization 48 |
 | Multi-agent systems without business need | Selection criteria and risks in 17-18; not a default architecture |
@@ -3117,16 +3384,22 @@ required knowledge.
 | Robotics outside autonomy roles | Career bridge in 50; dedicated extension required |
 | Every cloud provider | One cloud implemented deeply in 32; service mapping for others |
 | Every vector database | pgvector and OpenSearch implemented in 12-14; alternatives compared |
-| Every agent framework | Native workflows first in 17; one framework selected |
+| Every data warehouse or lakehouse vendor | One local or cloud-equivalent path implemented; vendor mapping handled in 06, 16, 34, 38, and 44 |
+| Full dual-framework ML implementation | PyTorch remains primary; TensorFlow, TF-DF, TF Serving, and ONNX are covered through comparison labs |
+| Every public benchmark dataset | Canonical benchmark packs are required; benchmark chasing without business value remains prohibited |
+| Full legal specialization by domain | Domain packs require metrics, data constraints, and regulatory assumptions; legal advice is outside scope |
+| Every agent framework | Native workflows first in 17-18; one framework selected |
 | Benchmark optimization without business evaluation | Explicitly prohibited in 15, 31, 36, and 40 |
 
 # Generation order and status
 
 | Lesson range | Status |
 |---|---|
+| Pre-core diagnostic and entry ramp | Add before Lesson 01 generation package |
 | Lesson 01 | Generated |
 | Lessons 02-40 | Generate sequentially |
-| Lessons 41-51 | Generate after the learner selects a role |
+| Early role branch checkpoint | Run after Lesson 18 to guide portfolio and specialization choices |
+| Lessons 41-51 | Generate after the learner selects a formal role path |
 | Lessons 52-57 | Generate after core projects exist |
 | Entry checkpoint | Run after the minimum junior lesson set |
 | Assessments 01-05 | Run after the corresponding specialization path |
@@ -3137,6 +3410,7 @@ The curriculum is complete only when:
 
 - All 40 core lessons have separate lesson files.
 - Every source topic in the traceability tables has a lesson location.
+- Every July 9, 2026 research-review amendment has a lesson owner and assessment evidence.
 - At least one specialization lesson is completed.
 - The six interview areas are practiced.
 - The appropriate readiness assessment is passed.
