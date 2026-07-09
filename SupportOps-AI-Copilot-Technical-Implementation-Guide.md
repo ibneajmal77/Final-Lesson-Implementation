@@ -14,6 +14,45 @@ organized as implementation chunks. Each chunk tells you:
 
 The goal is to build a production-style support-ticket AI copilot, not a demo chatbot.
 
+## How to use this guide if you have no experience
+
+Do not try to read the whole curriculum first. Use this project as the spine of your learning.
+For every part below, follow this loop:
+
+1. Learn only the minimum concepts needed for the current chunk.
+2. Build the smallest working version.
+3. Run it locally.
+4. Write a test.
+5. Break it once on purpose and debug it.
+6. Write a short note explaining what you built and what failed.
+7. Move to the next chunk only when the current chunk works.
+
+Your first goal is not elegance. Your first goal is a working vertical slice:
+
+```text
+Create ticket
+→ store in database
+→ run baseline analysis
+→ save recommendation
+→ approve or reject recommendation
+→ see result in API response
+```
+
+After that works, add the model, prompts, worker, UI, evals, observability, security, and
+deployment one layer at a time.
+
+Beginner rule:
+
+- If you do not understand a technology, implement the smallest possible version before reading
+  advanced material about it.
+- If a service feels hard, first build it without AI.
+- If the UI feels hard, first complete the workflow through API calls.
+- If deployment feels hard, first make Docker Compose work locally.
+- If evaluation feels hard, start with ten labelled synthetic tickets.
+
+The project is intentionally divided into chunks so you can learn by doing instead of reading for
+weeks without shipping anything.
+
 ## 0. Final system you are building
 
 The final project contains:
@@ -77,6 +116,60 @@ Do not start with the model. Build in this order:
 17. Pilot loop and continuous improvement.
 
 Each chunk should be merged only when its tests pass.
+
+## 1A. Beginner learning path through the project
+
+Use these milestones if you are new to the technologies. Each milestone produces something that
+runs.
+
+| Milestone | Build output | Learn while building | Curriculum lessons |
+|---|---|---|---|
+| M0 | Local Python repo with tests | Git, uv, Python packaging, pytest, Ruff | 01, 02, 04 |
+| M1 | FastAPI health API | HTTP, JSON, request/response, environment config | 02, 05 |
+| M2 | Docker Compose with Postgres and Redis | Containers, services, connection strings | 01, 05, 06 |
+| M3 | Database migrations and ticket tables | SQL, relational design, migrations, indexes | 06 |
+| M4 | Ticket CRUD API | Pydantic schemas, API contracts, error handling | 02, 05, 06 |
+| M5 | Dev auth and tenant isolation | authentication, authorization, multi-tenancy | 05, 06, 28 |
+| M6 | Non-AI baseline classifier | deterministic rules, baselines, measurable behavior | 04, 07, 15 |
+| M7 | Background worker | async jobs, queues, retries, idempotency | 03, 05, 30 |
+| M8 | Model gateway with mock provider | model API integration, provider abstraction, cost tracking | 08, 09 |
+| M9 | Prompt package and structured output | prompt design, schemas, prompt tests | 10 |
+| M10 | AI ticket analysis pipeline | full LLM product workflow | 09, 10, 11 |
+| M11 | Human approval API | workflow state, review gates, auditability | 07, 11, 17, 28 |
+| M12 | Simple agent UI | product UX, feedback capture, approval flow | 11, 31 |
+| M13 | Evaluation harness | golden datasets, safety cases, regression gates | 15, 16 |
+| M14 | Observability and cost | logs, metrics, traces, dashboards, cost attribution | 31 |
+| M15 | Security hardening | prompt injection, PII, tenant isolation, audit logs | 28, 29 |
+| M16 | Dockerized full stack | production architecture, readiness, rollback | 30, 32 |
+| M17 | Portfolio defense package | capstone evidence, documentation, interview defense | 40, 54, 56, 57 |
+
+The fastest practical path is M0 through M11 first. That gives you a complete backend workflow.
+Then add M12 through M17 to turn it into a credible portfolio project.
+
+## 1B. What to study at each stage
+
+For each milestone, study just enough to answer these questions.
+
+| Milestone | Study questions before building |
+|---|---|
+| M0 | What is a virtual environment? What is a dependency lock? How do tests run? |
+| M1 | What is an HTTP route? What is a request body? What is a response schema? |
+| M2 | What is a container? Why do API, DB, and Redis run as separate services? |
+| M3 | What is a table, primary key, foreign key, index, and migration? |
+| M4 | How does FastAPI validate input? How do API errors work? |
+| M5 | What is the difference between authentication and authorization? What is tenant isolation? |
+| M6 | Why do production ML/AI projects need a non-AI baseline? |
+| M7 | Why should slow AI work run in a background job instead of blocking the API? |
+| M8 | Why should provider-specific model code be isolated behind a gateway? |
+| M9 | Why are structured outputs safer than free-form model text? |
+| M10 | How do prompt version, model version, input, output, cost, and latency become traceable? |
+| M11 | Why does human approval matter before customer-facing action? |
+| M12 | What does an agent need to trust, edit, reject, or escalate an AI suggestion? |
+| M13 | How do you know the system improved instead of just feeling better? |
+| M14 | How would you debug one bad ticket from request to model call to approval? |
+| M15 | How can the system leak data or follow malicious ticket instructions? |
+| M16 | What must be true before this can run outside your laptop? |
+| M17 | How would you explain and defend this system in an interview? |
 
 ## 2. Target repository structure
 
@@ -1523,3 +1616,148 @@ Then they should be able to:
 10. Read the rollback runbook.
 
 That is the standard for calling this a complete implementation.
+
+## Part 24 - Curriculum coverage from the master map
+
+This project does not implement every lesson in
+`AI-Industry-Complete-Lesson-Coverage-Map.md`, but it uses a large part of the core curriculum.
+Use this table to learn the curriculum through the project instead of reading passively.
+
+| Lesson | How it appears in this project | Project parts |
+|---|---|---|
+| 01 - Learning Environment | Python pinning, uv, Docker Compose, env vars, CI, reproducible setup. | Parts 1, 16, 17 |
+| 02 - Python for Production AI | typed modules, Pydantic schemas, service boundaries, error handling. | Parts 2, 5, 8, 9 |
+| 03 - Asynchronous and Concurrent AI Services | background worker, queue, job status, retries, long-running AI analysis. | Part 10 |
+| 04 - Testing and Code Quality for AI Systems | pytest, linting, type checks, integration tests, eval smoke tests. | Parts 1, 3, 5, 13, 16 |
+| 05 - API and Backend Engineering | FastAPI routes, OpenAPI, validation, auth, idempotency, API errors. | Parts 2, 4, 5, 10, 11 |
+| 06 - SQL, Data Modelling, and Storage | PostgreSQL schema, Alembic migrations, indexes, tenant boundaries, audit records. | Parts 3, 5, 6, 11 |
+| 07 - Applied AI Problem Discovery | support workflow, baseline, success metrics, human approval boundaries. | Parts 7, 11, 18 |
+| 08 - Foundation Models and LLM Fundamentals | model behavior, structured generation, uncertainty, hosted model choice. | Parts 8, 9, 10 |
+| 09 - Model API Integration | provider adapter, model gateway, retries, timeout, fallback, cost tracking. | Part 8 |
+| 10 - Prompt and Context Engineering | prompt templates, prompt versions, untrusted ticket separation, regression tests. | Part 9 |
+| 11 - Applied LLM Product | complete support-ticket assistant with persistence, feedback, traceability, approval. | Parts 10, 11, 12 |
+| 12 - Embeddings and Semantic Retrieval | optional upgrade from keyword policy search to embedding/hybrid policy retrieval. | Part 6 optional upgrade |
+| 13 - Document Ingestion and Chunking | optional if policies come from PDFs, docs, emails, or knowledge-base exports. | Part 6 optional upgrade |
+| 14 - Production RAG | optional later version with citations, evidence packets, freshness, permissions. | Part 6 optional upgrade |
+| 15 - AI Evaluation Engineering | golden, difficult, and safety datasets; release gates and regression reports. | Part 13 |
+| 16 - AI Data Engineering | eval cases, feedback data, dataset versioning, leakage prevention, dataset cards. | Parts 13, 18 |
+| 17 - Tool Calling and Controlled Workflows | approval workflow, state transitions, idempotent actions, audit logs. | Parts 10, 11 |
+| 18 - MCP and Agent Integration | not required for the first version; optional future integration for external tools. | Optional future work |
+| 19 - PyTorch and Training Fundamentals | not required; this project uses hosted model APIs first. | Out of scope |
+| 20 - Tokenizers and Language-Model Training Data | token/cost awareness only; no training-data build in first version. | Part 8 awareness |
+| 21 - Supervised Fine-Tuning | not required; compare prompting and workflow quality before fine-tuning. | Out of scope |
+| 22 - LoRA and QLoRA | not required for first version. | Out of scope |
+| 23 - Preference Data and DPO | agent edits/rejections can later become preference data; not required first. | Future extension |
+| 24 - Advanced Post-Training Decisions | use only as decision awareness: do not train unless eval shows prompting is insufficient. | Future extension |
+| 25 - Distributed and Efficient Training | not used. | Out of scope |
+| 26 - Multimodal and Document AI | optional if tickets include screenshots, receipts, or scanned documents. | Future extension |
+| 27 - Speech, Audio, and Voice AI | not used unless adding voice support intake. | Future extension |
+| 28 - AI Security and Privacy | tenant isolation, prompt injection tests, PII policy, secrets, audit logs. | Parts 4, 15 |
+| 29 - Responsible AI and Governance | system card, dataset card, risk register, human oversight, incident process. | Parts 15, 18 |
+| 30 - Production Architecture and Reliability | API/worker separation, retries, fallback, readiness, rollback, failure handling. | Parts 10, 17 |
+| 31 - Observability, Feedback, and Cost | logs, metrics, traces, product dashboard, quality dashboard, cost tracking. | Part 14 |
+| 32 - Cloud Deployment and Infrastructure | staging deployment, secrets, managed DB, deployment checklist. | Part 17 |
+| 33 - Kubernetes for AI Workloads | not required for first version; optional platform upgrade. | Future extension |
+| 34 - LLMOps and MLOps | prompt/model versioning, eval gates, rollback; full registry later. | Parts 9, 13, 16, 18 |
+| 35 - Open-Model Serving | not required; hosted provider first. | Out of scope |
+| 36 - Inference Optimization | basic latency/cost tracking only; no self-hosted optimization first. | Part 14 awareness |
+| 37 - Classical Machine-Learning Foundations | baseline thinking, simple metrics, optional SLA/churn extension. | Part 7 awareness |
+| 38 - Production Machine Learning | not central; monitoring/retraining ideas appear in feedback loop. | Part 18 awareness |
+| 39 - Deep Learning for AI Engineers | not required. | Out of scope |
+| 40 - Enterprise Applied AI Capstone Implementation | this project becomes the first mandatory capstone-style anchor repo. | Whole project |
+| 41 - Applied AI Engineer Specialization | directly supported by the full project. | Whole project |
+| 42 - Generative AI Engineer Specialization | supported if you deepen prompts, model comparison, multimodal, or RAG. | Parts 8-13 |
+| 43 - LLM Engineer Specialization | not required unless adding open-model adaptation. | Future extension |
+| 44 - MLOps and ML Platform Specialization | supported if you deepen CI, eval gates, registries, deployment, monitoring. | Parts 13-18 |
+| 45 - AI Evaluation and Safety Specialization | supported if you deepen safety sets, judge calibration, red-team cases. | Parts 13, 15 |
+| 46 - AI Security Specialization | supported if you deepen prompt injection, tenant isolation, sandboxing, audit. | Parts 4, 15 |
+| 47 - Machine Learning Engineer Specialization | not the main path; optional if adding predictive SLA models. | Future extension |
+| 48 - AI Infrastructure and Inference Specialization | not required. | Future extension |
+| 49 - Search and Recommendation Specialization | optional if policy search becomes a deeper retrieval/ranking system. | Future extension |
+| 50 - Multimodal AI Specialization | optional if tickets include documents, screenshots, or voice. | Future extension |
+| 51 - Forward-Deployed AI Engineer Specialization | supported by packaging this as a reusable customer deployment. | Parts 17, 18 |
+| 52 - Coding and Python Interviews | prepare from the modules you write and tests you debug. | Whole project |
+| 53 - SQL Interviews | prepare from schema, migrations, tenant queries, metrics queries. | Parts 3, 5 |
+| 54 - Applied AI Case Interviews | prepare from PRD, metrics, build-vs-buy, pilot, rollout, rollback. | Parts 7, 18 |
+| 55 - LLM and Model-Training Interviews | prepare model API, prompting, eval, token/cost, adaptation decision questions. | Parts 8-13 |
+| 56 - AI System-Design Interviews | prepare from API, worker, DB, model gateway, eval, observability, deployment. | Whole project |
+| 57 - Portfolio and Project Deep-Dive Interviews | prepare demo, architecture, eval report, failure analysis, cost report. | Whole project |
+
+## Part 25 - Suggested weekly plan for a true beginner
+
+This timeline assumes you are learning the technologies while building. Move slower if needed, but
+do not skip the working outputs.
+
+| Week | Build target | Curriculum focus | Output |
+|---|---|---|---|
+| 1 | Repo, Python tooling, first tests | Lessons 01, 02, 04 | working repo with CI-style commands |
+| 2 | FastAPI health/readiness API | Lessons 02, 05 | local API with tests |
+| 3 | Docker Compose, Postgres, Redis | Lessons 01, 05, 06 | local services running |
+| 4 | Database schema and migrations | Lesson 06 | tenant/user/ticket tables |
+| 5 | Ticket CRUD API | Lessons 05, 06 | create/list/get tickets |
+| 6 | Dev auth and tenant isolation | Lessons 05, 06, 28 | cross-tenant tests |
+| 7 | Non-AI baseline | Lessons 04, 07, 15 | rule classifier and baseline report |
+| 8 | Worker queue | Lessons 03, 30 | async analysis job shell |
+| 9 | Model gateway with mock provider | Lessons 08, 09 | provider abstraction and cost record |
+| 10 | Prompt package and schemas | Lesson 10 | validated structured outputs |
+| 11 | Full AI analysis pipeline | Lessons 09, 10, 11 | AI output saved for ticket |
+| 12 | Approval workflow | Lessons 07, 11, 17, 28 | approve/edit/reject/escalate endpoint |
+| 13 | Simple UI or API workflow polish | Lessons 11, 31 | agent review flow |
+| 14 | Evaluation harness | Lessons 15, 16 | golden and safety eval reports |
+| 15 | Observability and cost | Lesson 31 | logs, metrics, traces, cost dashboard or export |
+| 16 | Security hardening | Lessons 28, 29 | threat model and security tests |
+| 17 | Dockerized full stack | Lessons 30, 32 | production-like local deployment |
+| 18 | Portfolio package and defense | Lessons 40, 54, 56, 57 | README, diagrams, eval, cost, rollback, demo |
+
+If 18 weeks is too long, compress by building API-only first and postponing the UI, dashboards, and
+cloud deployment. If you compress, keep the evaluation and security tests; those are what separate
+this from a demo.
+
+## Part 26 - How to learn each unfamiliar technology
+
+Use this pattern for every new tool:
+
+1. Read the official quickstart for only the feature you need.
+2. Implement the smallest example inside this project.
+3. Add one test.
+4. Write one paragraph in `docs/learning-notes.md`: what it does, why this project needs it, and
+   what broke.
+5. Continue building.
+
+Technology-by-technology focus:
+
+| Technology | Learn only this first | Build proof |
+|---|---|---|
+| Python packaging and uv | create project, add dependency, run command | `uv run pytest` works |
+| FastAPI | route, request schema, response schema, dependency | `/health` and `/tickets` work |
+| Pydantic | validate input and model output | invalid ticket/model output fails |
+| PostgreSQL | tables, foreign keys, indexes, transactions | migrations and repository tests pass |
+| Alembic | create and apply migrations | fresh DB can be built |
+| Redis/RQ | enqueue job and run worker | analysis job changes status |
+| Docker Compose | run API dependencies locally | Postgres and Redis healthy |
+| pytest | unit and integration tests | tests fail before fix and pass after |
+| LLM provider API | one structured model call | mock and real provider behind same gateway |
+| Prompts | template, version, schema, regression case | prompt tests pass |
+| Evaluation | labelled cases and scoring | eval report generated |
+| OpenTelemetry/metrics | trace one request and count events | one ticket trace and cost metric visible |
+| Security | auth, tenant isolation, injection tests | security tests pass |
+
+## Part 27 - First practical assignment
+
+Before doing any LLM work, complete this assignment:
+
+1. Create a new project folder named `supportops-ai-copilot`.
+2. Add Python tooling with `uv`.
+3. Add FastAPI.
+4. Add `GET /health`.
+5. Add pytest test for `/health`.
+6. Add Docker Compose with PostgreSQL and Redis.
+7. Add `GET /ready` that checks both dependencies.
+8. Add tests for ready and not-ready states.
+9. Write `docs/learning-notes.md` with:
+   - What FastAPI does.
+   - What PostgreSQL does.
+   - What Redis does.
+   - Why the project needs all three.
+
+After this, you are no longer just reading. You have started the production system.
