@@ -82,6 +82,7 @@ are generated.
 | Benchmark datasets are not concrete enough | Define canonical benchmark packs across Lessons 12, 15-16, 20, 23, 26-27, 37, 49-50, and the portfolio/capstone. |
 | Specialization branching happens too late | Add an early role-branch checkpoint after Lesson 18; formal specialization lessons remain numbered 41-51. |
 | Product and UX realism is light | Strengthen Lessons 07, 11, 31, 41, 51, 54, and 57 with operator workflows, conversation UX, accessibility, instrumentation, adoption metrics, and executive readouts. |
+| Forward-deployed delivery ownership is under-specified | Strengthen Lessons 07, 11, 15, 30-34, 40, 51, 54, 56, and 57 with customer embedding, ambiguous scoping, multi-workstream delivery state, internal/external stakeholder cadence, deployment tradeoffs, field-signal synthesis, and production handoff evidence. |
 | Framework portability is mostly absent | Add one PyTorch-first interoperability thread across Lessons 37-39 and 47 covering TensorFlow, TF Decision Forests, TF Serving, ONNX, and cross-framework tradeoffs. |
 | Observability references need freshness checks | Update Lessons 18 and 31 to require current OpenTelemetry GenAI semantic-convention and MCP-aware telemetry references at generation time. |
 | Research-track preparation is implicit | Add optional paper reproduction, ablation design, math refresh, reading cadence, and replication reports to Lessons 43, 45, and 47. |
@@ -172,7 +173,7 @@ basic statistics, and environment setup.
   basic cloud, and statistics competence.
 - **Early role branch checkpoint** after Lesson 18, where learners choose a provisional emphasis:
   Applied AI/Product, ML Engineering/Data Science, LLM/Post-Training, MLOps/Platform,
-  Multimodal/Domain, or Security/Safety.
+  Forward-Deployed Delivery, Multimodal/Domain, or Security/Safety.
 - Formal specialization lessons remain Lessons 41-51, but specialization portfolio choices,
   benchmark datasets, and interview practice should start after the Lesson 18 checkpoint.
 - Every major module must end with a working artifact, quantitative evaluation report, trade-off
@@ -2839,29 +2840,56 @@ lessons. These topics are not silently omitted; they are recorded as extensions.
 **Core prerequisites**
 
 - Lessons 01-18, 28-34, and 40
+- Companion interview and defense preparation: Lessons 54, 56, and 57
+
+**Readiness target**
+
+Prepare learners to own urgent frontier-model deployments where customer context, model behavior,
+full-stack implementation, security constraints, and delivery state must be managed together.
 
 **Topics deepened**
 
-- Customer discovery
-- Rapid prototyping
-- Enterprise data discovery
-- API and system integrations
-- Cloud delivery
-- Security and compliance
+- Customer embedding and problem mapping under ambiguity
+- Discovery interviews, workflow shadowing, and evidence capture
+- Rapid prototype-to-production sequencing
+- Multi-workstream delivery ownership and status operating rhythm
+- Enterprise data discovery, access constraints, and integration readiness
+- API, tool, workflow, and system integrations
+- Full-stack product implementation across frontend, backend, data, and model layers
+- Evaluation design for model behavior, task success, business value, and safety risk
+- Scope, speed, quality, and security trade-off decisions
+- Cloud delivery, release planning, rollback, and production handoff
+- Security, privacy, compliance, and customer approval paths
 - Domain metrics and regulatory templates
-- Workflow redesign
-- User training
-- Stakeholder communication
-- Executive readouts
+- Workflow redesign, user enablement, training, and adoption loops
+- Internal and external stakeholder communication
+- Executive readouts, decision memos, and escalation notes
+- Field-signal synthesis for Product, Research, and GTM
 - Domain packs for healthcare, finance/risk, search/recommendation, and industrial operations
-- Technical presentations
-- Reusable deployment patterns
-- Adoption and business metrics
+- Technical presentations and architecture walkthroughs
+- Reusable deployment patterns, playbooks, templates, and building blocks
+- Adoption, cost, reliability, and business-outcome metrics
+- Travel-ready customer workshop structure and hybrid delivery cadence
 
 **Specialization project**
 
-Build a reusable customer deployment package for one industry, including domain metrics, data
-constraints, regulatory assumptions, and adoption plan.
+Lead a simulated forward-deployed customer engagement from intake to stable production. Deliver a
+working full-stack AI system, discovery notes, scope sequence, delivery-state tracker, risk register,
+evaluation report, production runbook, executive readout, adoption plan, and reusable deployment
+pattern for one industry.
+
+**Completion evidence**
+
+- Customer problem map and stakeholder map
+- Prototype demo with measurable acceptance criteria
+- Sequenced delivery plan with blocked, at-risk, and shipped workstreams
+- Working full-stack production deployment
+- Model-behavior evaluation and failure analysis
+- Security, privacy, and compliance review notes
+- Launch, rollback, and handoff runbook
+- Adoption, cost, reliability, and business-value dashboard
+- Executive readout and Product/Research field-signal memo
+- Reusable playbook or code template extracted from the engagement
 
 **Roles additionally covered**
 
@@ -3255,7 +3283,7 @@ required knowledge.
 | Recommender Systems Engineer | 06, 15-16, 30-39 | Lesson 49 |
 | Robotics and Autonomy Engineer | 03, 19, 25-33, 36, 39, 50 | Career bridge only; dedicated robotics extension required |
 | Edge AI Engineer | 19, 22, 26-27, 35-36, 39, 48, 50 | Career bridge only; dedicated edge extension required |
-| Forward-Deployed AI Engineer | 01-18, 28-34, 40 | Lesson 51 |
+| Forward-Deployed AI Engineer | 01-18, 28-34, 40, 54, 56-57 | Lesson 51 is the role-defining path; Lessons 07, 11, 15, 30-34, and 40 should be completed with FDE-style delivery artifacts |
 | AI Solutions Architect | 05-18, 28-36, 40-41, 51 | Architecture and customer-delivery route |
 | AI Product Manager | 07, 11, 15, 28-31, 40-41, 51 | Technical product, UX, metrics, and adoption route |
 | AI Governance Specialist | 15-16, 28-29, 31, 34, 40, 45-46 | Governance and assurance route |
@@ -3304,9 +3332,10 @@ required knowledge.
 | Production ML platform | 38 |
 | Deep-learning application | 39 |
 | Enterprise Applied AI capstone | 40 |
+| Forward-deployed customer deployment package | 51 |
 
 The portfolio should not become a loose collection of small demos. The strongest learner-facing
-package should contain four anchor repositories and two supporting document bundles:
+package should contain four anchor repositories and three supporting document bundles:
 
 - Deployed AI product repo with product instrumentation, UX evidence, cost tracking, and
   business-outcome readout.
@@ -3318,6 +3347,8 @@ package should contain four anchor repositories and two supporting document bund
   rollback, and cost/performance evidence.
 - Design-doc bundle containing PRDs, architecture decisions, metric definitions, data contracts,
   model/system/dataset cards, and domain-transfer pack.
+- Forward-deployed delivery bundle containing customer discovery notes, scoped roadmap, delivery
+  tracker, risk register, executive readouts, launch/handoff runbook, and field-signal memo.
 - Incident/postmortem bundle containing reliability, security, evaluation-regression, and
   product-adoption failure analyses.
 
@@ -3337,6 +3368,7 @@ package should contain four anchor repositories and two supporting document bund
 | Enterprise data platforms and analytics engineering | 06, 16, 34, 38, 44 |
 | Applied AI product engineering | 07 and 11; deepened in 41 and 51 |
 | Product UX, operator workflows, instrumentation, and adoption | 07, 11, 31, 40-41, 51, 54, 57 |
+| Forward-deployed customer delivery and field execution | 07, 11, 15, 30-34, 40, 51, 54, 56-57 |
 | Foundation-model and LLM engineering | 08-11 |
 | Embeddings, retrieval, and RAG | 12-14 |
 | Canonical benchmark packs | 12, 15-16, 20, 23, 26-27, 37, 40, 49-50 |
