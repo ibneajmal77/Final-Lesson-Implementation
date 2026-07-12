@@ -1,43 +1,10 @@
-from dataclasses import dataclass
-from typing import Protocol
-
-from supportops_domain.baseline_classifier import BaselineTicketInput, classify_ticket
+from supportops_domain.services.baseline import BaselineTicketInput, classify_ticket
+from supportops_model_gateway.providers.base import TicketAnalysisInput, TicketAnalysisResult
 
 MOCK_PROVIDER_NAME = "mock"
 MOCK_SOURCE = "mock_llm_v1"
 MOCK_MODEL_NAME = "mock-ticket-analyzer"
 PROMPT_VERSION = "supportops_ticket_analysis_v1"
-
-
-@dataclass(frozen=True)
-class TicketAnalysisInput:
-    subject: str
-    body: str
-    customer_id: str | None = None
-
-
-@dataclass(frozen=True)
-class TicketAnalysisResult:
-    source: str
-    model_name: str
-    prompt_version: str
-    category: str
-    priority: str
-    requires_escalation: bool
-    confidence: float
-    summary: str
-    suggested_reply: str
-    extracted_fields: dict[str, object]
-    reasons: list[str]
-
-
-class TicketAnalysisProvider(Protocol):
-    def analyze_ticket(self, ticket: TicketAnalysisInput) -> TicketAnalysisResult:
-        """Analyze a support ticket and return structured output."""
-
-
-class UnsupportedModelProviderError(ValueError):
-    pass
 
 
 class MockTicketAnalysisProvider:
@@ -74,13 +41,6 @@ class MockTicketAnalysisProvider:
                 *baseline.reasons,
             ],
         )
-
-
-def build_ticket_analysis_provider(provider_name: str) -> TicketAnalysisProvider:
-    normalized = provider_name.strip().lower()
-    if normalized == MOCK_PROVIDER_NAME:
-        return MockTicketAnalysisProvider()
-    raise UnsupportedModelProviderError(f"unsupported model provider: {provider_name}")
 
 
 def _summary_for_category(
@@ -141,3 +101,4 @@ def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str)]
+

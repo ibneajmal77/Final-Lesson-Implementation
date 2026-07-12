@@ -1,4 +1,4 @@
-from supportops_domain.baseline_classifier import BaselineTicketInput, classify_ticket
+from supportops_domain.services.baseline import BaselineTicketInput, classify_ticket
 
 
 def test_baseline_classifier_detects_billing_order_context() -> None:

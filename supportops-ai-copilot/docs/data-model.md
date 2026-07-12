@@ -2,6 +2,10 @@
 
 This document explains the current database tables.
 
+The technical guide uses conceptual names like `ai_outputs` and `approvals`. Current table names
+are still `ticket_recommendations` and `recommendation_reviews`; see `docs/architecture.md` for the
+mapping.
+
 ## Tenants
 
 `tenants` represent the customer or business-unit boundary.

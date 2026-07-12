@@ -4,23 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from supportops_api.dependencies import Actor, get_current_actor, get_db_session
-from supportops_api.schemas.tickets import (
-    TicketCreate,
-    TicketRead,
-    TicketRecommendationRead,
-    TicketRecommendationReviewCreate,
-    TicketRecommendationReviewRead,
-)
+from supportops_api.schemas.ai import TicketRecommendationRead
+from supportops_api.schemas.tickets import TicketCreate, TicketRead
 from supportops_api.settings import Settings, get_settings
-from supportops_db.models import RecommendationReview, Ticket, TicketRecommendation
+from supportops_db.models import Ticket, TicketRecommendation
 from supportops_db.repositories.recommendations import (
     create_ticket_recommendation,
-    get_ticket_recommendation_by_id,
     list_ticket_recommendations,
-)
-from supportops_db.repositories.reviews import (
-    create_recommendation_review,
-    list_recommendation_reviews,
 )
 from supportops_db.repositories.tenants import get_tenant
 from supportops_db.repositories.tickets import (
@@ -29,12 +19,10 @@ from supportops_db.repositories.tickets import (
     get_ticket_by_id,
     list_tickets,
 )
-from supportops_domain.baseline_classifier import BaselineTicketInput, classify_ticket
-from supportops_domain.ticket_analysis_provider import (
-    TicketAnalysisInput,
-    UnsupportedModelProviderError,
-    build_ticket_analysis_provider,
-)
+from supportops_domain.services.baseline import BaselineTicketInput, classify_ticket
+from supportops_model_gateway.errors import UnsupportedModelProviderError
+from supportops_model_gateway.providers.base import TicketAnalysisInput
+from supportops_model_gateway.routing import build_ticket_analysis_provider
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -202,119 +190,9 @@ def list_ticket_recommendations_endpoint(
     return [_recommendation_to_read(recommendation) for recommendation in recommendations]
 
 
-@router.post(
-    "/{ticket_id}/recommendations/{recommendation_id}/reviews",
-    response_model=TicketRecommendationReviewRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_recommendation_review_endpoint(
-    ticket_id: str,
-    recommendation_id: str,
-    payload: TicketRecommendationReviewCreate,
-    actor: ActorDep,
-    session: SessionDep,
-) -> TicketRecommendationReviewRead:
-    _require_tenant(session, actor.tenant_id)
-    recommendation = _get_recommendation_for_ticket_or_404(
-        session,
-        tenant_id=actor.tenant_id,
-        ticket_id=ticket_id,
-        recommendation_id=recommendation_id,
-    )
-    final_summary, final_reply = _review_final_content(payload, recommendation)
-    review = create_recommendation_review(
-        session,
-        tenant_id=actor.tenant_id,
-        ticket_id=ticket_id,
-        recommendation_id=recommendation.id,
-        reviewer_user_id=actor.user_id,
-        decision=payload.decision,
-        final_summary=final_summary,
-        final_reply=final_reply,
-        notes=payload.notes,
-    )
-    session.commit()
-    session.refresh(review)
-    return _review_to_read(review)
-
-
-@router.get(
-    "/{ticket_id}/recommendations/{recommendation_id}/reviews",
-    response_model=list[TicketRecommendationReviewRead],
-)
-def list_recommendation_reviews_endpoint(
-    ticket_id: str,
-    recommendation_id: str,
-    actor: ActorDep,
-    session: SessionDep,
-) -> list[TicketRecommendationReviewRead]:
-    _require_tenant(session, actor.tenant_id)
-    _get_recommendation_for_ticket_or_404(
-        session,
-        tenant_id=actor.tenant_id,
-        ticket_id=ticket_id,
-        recommendation_id=recommendation_id,
-    )
-    reviews = list_recommendation_reviews(
-        session,
-        tenant_id=actor.tenant_id,
-        ticket_id=ticket_id,
-        recommendation_id=recommendation_id,
-    )
-    return [_review_to_read(review) for review in reviews]
-
-
 def _require_tenant(session: Session, tenant_id: str) -> None:
     if not get_tenant(session, tenant_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant not found")
-
-
-def _get_recommendation_for_ticket_or_404(
-    session: Session,
-    *,
-    tenant_id: str,
-    ticket_id: str,
-    recommendation_id: str,
-) -> TicketRecommendation:
-    ticket = get_ticket_by_id(session, tenant_id=tenant_id, ticket_id=ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ticket not found")
-
-    recommendation = get_ticket_recommendation_by_id(
-        session,
-        tenant_id=tenant_id,
-        ticket_id=ticket.id,
-        recommendation_id=recommendation_id,
-    )
-    if not recommendation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="recommendation not found",
-        )
-    return recommendation
-
-
-def _review_final_content(
-    payload: TicketRecommendationReviewCreate,
-    recommendation: TicketRecommendation,
-) -> tuple[str | None, str | None]:
-    if payload.decision == "rejected":
-        return None, None
-    if payload.decision == "approved":
-        return recommendation.summary, recommendation.suggested_reply
-    if not payload.edited_summary and not payload.edited_reply:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="edited decision requires edited_summary or edited_reply",
-        )
-    return (
-        payload.edited_summary if payload.edited_summary is not None else recommendation.summary,
-        (
-            payload.edited_reply
-            if payload.edited_reply is not None
-            else recommendation.suggested_reply
-        ),
-    )
 
 
 def _ticket_to_read(ticket: Ticket) -> TicketRead:
@@ -353,17 +231,3 @@ def _recommendation_to_read(recommendation: TicketRecommendation) -> TicketRecom
         created_at=recommendation.created_at,
     )
 
-
-def _review_to_read(review: RecommendationReview) -> TicketRecommendationReviewRead:
-    return TicketRecommendationReviewRead(
-        id=review.id,
-        tenant_id=review.tenant_id,
-        ticket_id=review.ticket_id,
-        recommendation_id=review.recommendation_id,
-        reviewer_user_id=review.reviewer_user_id,
-        decision=review.decision,
-        final_summary=review.final_summary,
-        final_reply=review.final_reply,
-        notes=review.notes,
-        created_at=review.created_at,
-    )

@@ -428,4 +428,41 @@ What you should understand before Stage 9:
 
 Next stage:
 
-- Add prompt contract and structured output design for the future real LLM provider.
+- Stage 8.5 below realigns the project structure with the technical implementation guide before
+  prompt work begins.
+
+## Stage 8.5 - Guide-Aligned Structure Realignment
+
+Status: complete.
+
+Built:
+
+- Moved baseline logic into `packages/domain/supportops_domain/services/baseline.py`.
+- Moved provider abstraction into `packages/model_gateway/supportops_model_gateway`.
+- Split model gateway code into provider base, mock provider, routing, client, errors, and cost.
+- Split recommendation response schemas into `apps/api/supportops_api/schemas/ai.py`.
+- Split approval/review schemas into `apps/api/supportops_api/schemas/approvals.py`.
+- Moved approval/review routes into `apps/api/supportops_api/routes/approvals.py`.
+- Added `packages/prompts` placeholder package for Stage 9.
+- Added `packages/evals` placeholder package for future evaluation stages.
+- Added `packages/observability` placeholder package for logging, metrics, and tracing.
+- Added `apps/worker`, `apps/web`, `infra`, and `.github/workflows` placeholders.
+- Added `docs/architecture.md`, `docs/eval-report.md`, and `docs/cost-report.md`.
+
+Decisions:
+
+- Kept current database table names for now:
+  - `ticket_recommendations` maps to the guide's `ai_outputs` concept.
+  - `recommendation_reviews` maps to the guide's `approvals` concept.
+- Public API behavior did not change.
+- Future stages should follow the guide structure unless there is a clear reason to document a
+  deviation.
+
+Verified:
+
+- `python -m pytest -q` passes with 43 tests.
+- `python -m ruff check --no-cache .` passes.
+
+Next stage:
+
+- Add prompt contract and structured output design in `packages/prompts`.

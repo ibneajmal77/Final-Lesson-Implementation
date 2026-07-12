@@ -1,13 +1,9 @@
 import pytest
 
-from supportops_domain.ticket_analysis_provider import (
-    MOCK_MODEL_NAME,
-    MOCK_SOURCE,
-    PROMPT_VERSION,
-    TicketAnalysisInput,
-    UnsupportedModelProviderError,
-    build_ticket_analysis_provider,
-)
+from supportops_model_gateway.errors import UnsupportedModelProviderError
+from supportops_model_gateway.providers.base import TicketAnalysisInput
+from supportops_model_gateway.providers.mock import MOCK_MODEL_NAME, MOCK_SOURCE, PROMPT_VERSION
+from supportops_model_gateway.routing import build_ticket_analysis_provider
 
 
 def test_mock_provider_returns_model_shaped_analysis() -> None:

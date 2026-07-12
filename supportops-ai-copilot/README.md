@@ -18,7 +18,26 @@ contract are working and tested.
 
 ## Current Stage
 
-Stage 8: review metrics and evaluation feedback.
+Stage 8.5: guide-aligned structure realignment.
+
+Next stage: Stage 9 - prompt contract and structured output design.
+
+## Project Structure
+
+The project now follows the main package boundaries from the technical implementation guide:
+
+```text
+apps/api                FastAPI application
+apps/worker             future background worker
+apps/web                future agent UI
+packages/domain         business rules
+packages/db             SQLAlchemy, repositories, migrations
+packages/model_gateway  provider-neutral model access
+packages/prompts        prompt templates and output schemas
+packages/evals          evaluation datasets and scoring
+packages/observability  logs, metrics, traces
+infra                   future deployment/monitoring assets
+```
 
 ## Local Setup
 

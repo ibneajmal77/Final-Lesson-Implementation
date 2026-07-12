@@ -84,3 +84,14 @@ Answer these after calling `/metrics/reviews`:
 5. Why do we break metrics down by source?
 6. Why do we break metrics down by category?
 7. How could these metrics help compare baseline, mock LLM, and future real LLM output?
+
+## Stage 8.5 - Guide-Aligned Structure Realignment
+
+Answer these after reviewing the folder structure:
+
+1. Why should model provider code live outside the API route layer?
+2. Why should prompt templates live in their own package?
+3. Why do approval schemas belong outside ticket schemas?
+4. Why did we keep database table names unchanged during this refactor?
+5. What future code belongs in `packages/evals`?
+6. What future code belongs in `packages/observability`?

@@ -1,6 +1,14 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["apps/api", "packages/db", "packages/domain"]
+pythonpath = [
+    "apps/api",
+    "packages/db",
+    "packages/domain",
+    "packages/model_gateway",
+    "packages/prompts",
+    "packages/evals",
+    "packages/observability",
+]
 addopts = "-p no:cacheprovider"
 
 [tool.ruff]
@@ -12,4 +20,12 @@ cache-dir = "ruff_cache"
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["supportops_api", "supportops_db", "supportops_domain"]
+known-first-party = [
+    "supportops_api",
+    "supportops_db",
+    "supportops_domain",
+    "supportops_model_gateway",
+    "supportops_prompts",
+    "supportops_evals",
+    "supportops_observability",
+]
