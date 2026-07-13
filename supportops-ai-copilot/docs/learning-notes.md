@@ -95,3 +95,25 @@ Answer these after reviewing the folder structure:
 4. Why did we keep database table names unchanged during this refactor?
 5. What future code belongs in `packages/evals`?
 6. What future code belongs in `packages/observability`?
+
+## Stage 9 - Prompt Contract and Structured Output Design
+
+Answer these after reviewing `packages/prompts`:
+
+1. Why should LLM output be parsed with Pydantic before it is saved?
+2. Why do unknown categories fail unless the model returns `other`?
+3. Why must confidence scores be constrained between `0` and `1`?
+4. Why does each prompt include an untrusted ticket text boundary?
+5. What is the purpose of a prompt changelog?
+6. What should happen in Stage 10 if a real model returns malformed JSON?
+## Stage 10 - Real Hosted LLM Provider Integration
+
+Answer these after running hosted analysis with a real API key:
+
+1. Why does the hosted provider live in `packages/model_gateway` instead of the FastAPI route?
+2. Why is `MODEL_PROVIDER=mock` still the default?
+3. Why should `MODEL_API_KEY` come from the environment and never be committed?
+4. What does strict structured output add beyond asking the model to return JSON?
+5. Why does the API validate the model output with Pydantic after the provider returns it?
+6. What should happen if the hosted model returns malformed JSON or schema-invalid output?
+7. Why do we store the prompt version and model name with every saved recommendation?

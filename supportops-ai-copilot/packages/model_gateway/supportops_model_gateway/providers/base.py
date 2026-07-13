@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 from typing import Protocol
 
 
@@ -7,6 +7,7 @@ class TicketAnalysisInput:
     subject: str
     body: str
     customer_id: str | None = None
+    policy_context: str = ""
 
 
 @dataclass(frozen=True)
@@ -22,9 +23,12 @@ class TicketAnalysisResult:
     suggested_reply: str
     extracted_fields: dict[str, object]
     reasons: list[str]
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: int = 0
+    raw_response_id: str | None = None
 
 
 class TicketAnalysisProvider(Protocol):
     def analyze_ticket(self, ticket: TicketAnalysisInput) -> TicketAnalysisResult:
         """Analyze a support ticket and return structured output."""
-

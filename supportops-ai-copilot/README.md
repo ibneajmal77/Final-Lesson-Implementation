@@ -18,9 +18,9 @@ contract are working and tested.
 
 ## Current Stage
 
-Stage 8.5: guide-aligned structure realignment.
+Stage 10: real hosted LLM provider integration.
 
-Next stage: Stage 9 - prompt contract and structured output design.
+Next stage: Stage 11 - background worker and asynchronous AI analysis.
 
 ## Project Structure
 
@@ -38,6 +38,11 @@ packages/evals          evaluation datasets and scoring
 packages/observability  logs, metrics, traces
 infra                   future deployment/monitoring assets
 ```
+
+Detailed stage docs:
+
+- `docs/stage-09-prompt-contract.md`
+- `docs/stage-10-hosted-llm-provider.md`
 
 ## Local Setup
 
@@ -202,6 +207,24 @@ Invoke-RestMethod -Method Post `
 ```
 
 Run mock AI analysis for a ticket:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:8765/tickets/$ticketId/ai-analysis" `
+  -Headers $headers
+```
+
+Run hosted OpenAI analysis instead of the mock provider:
+
+```powershell
+$env:MODEL_PROVIDER = 'openai'
+$env:MODEL_API_KEY = '<your-api-key>'
+$env:MODEL_NAME = 'gpt-5.6'
+
+python -m uvicorn supportops_api.main:app --reload --app-dir apps/api --host 127.0.0.1 --port 8765
+```
+
+Then call the same endpoint:
 
 ```powershell
 Invoke-RestMethod -Method Post `

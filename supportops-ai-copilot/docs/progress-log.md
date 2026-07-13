@@ -465,4 +465,116 @@ Verified:
 
 Next stage:
 
-- Add prompt contract and structured output design in `packages/prompts`.
+- Stage 9 below adds prompt contracts and structured output design in `packages/prompts`.
+
+## Stage 9 - Prompt Contract and Structured Output Design
+
+Status: complete in code.
+
+Built:
+
+- Strict Pydantic output schemas in `packages/prompts/supportops_prompts/schemas.py`.
+- Prompt registry in `packages/prompts/supportops_prompts/registry.py`.
+- Versioned Markdown templates:
+  - `classify_ticket.v1.md`
+  - `extract_fields.v1.md`
+  - `recommend_priority.v1.md`
+  - `draft_response.v1.md`
+  - `safety_check.v1.md`
+- Prompt metadata with name, version, template path, output schema, required variables, and
+  changelog.
+- Simple prompt renderer that injects ticket inputs, policy context, prompt ID, and JSON schema.
+- Billing regression fixture for prompt/model-gateway tests.
+- Detailed stage explanation in `docs/stage-09-prompt-contract.md`.
+
+Schema behavior:
+
+- Unknown fields are rejected.
+- Unknown categories fail unless category is `other`.
+- Confidence values must be between `0` and `1`.
+- Priority must be `low`, `normal`, `high`, or `urgent`.
+
+Prompt behavior:
+
+- Every prompt includes task, inputs, output schema, untrusted ticket boundary, abstention rule,
+  safety rule, and examples.
+- Missing required render variables fail before a prompt can be used.
+
+Verified locally:
+
+- `python -m pytest -q` passes with 53 tests.
+- `python -m ruff check --no-cache .` passes.
+
+Verified in Docker:
+
+- `docker compose up --build -d` rebuilds and starts the stack.
+- `http://127.0.0.1:8765/ready` returns ready.
+- In-container prompt render smoke test confirms `classify_ticket.v1` renders with the untrusted
+  ticket boundary and JSON schema.
+
+What you should understand before Stage 10:
+
+- Why structured output is safer than free-form model text.
+- Why prompt versions need to be tracked like code.
+- Why untrusted ticket text must be separated from developer instructions.
+- Why malformed model output should be rejected before persistence.
+
+Next stage:
+
+- Add real hosted LLM provider integration behind `packages/model_gateway`.
+## Stage 10 - Real Hosted LLM Provider Integration
+
+Status: complete in code.
+
+Built:
+
+- `full_ticket_analysis.v1.md` prompt template for one complete hosted-provider response.
+- Prompt registry entry for `full_ticket_analysis.v1` using the existing `FullTicketAnalysis` schema.
+- Hosted OpenAI provider in `packages/model_gateway/supportops_model_gateway/providers/hosted.py`.
+- OpenAI Responses API request payload using strict `text.format` JSON schema output.
+- Local Pydantic validation before hosted output can become a saved recommendation.
+- Provider routing for `MODEL_PROVIDER=openai`, with `hosted` as an alias.
+- Hosted provider configuration through environment-backed settings:
+  - `MODEL_API_KEY`
+  - `MODEL_NAME`
+  - `MODEL_BASE_URL`
+  - `MODEL_TIMEOUT_SECONDS`
+  - `MODEL_MAX_OUTPUT_TOKENS`
+- Runtime `httpx` dependency for hosted HTTP calls.
+- API error mapping for hosted provider failures.
+- Stage documentation in `docs/stage-10-hosted-llm-provider.md`.
+
+Provider behavior:
+
+- `MODEL_PROVIDER=mock` remains the default and makes no external calls.
+- `MODEL_PROVIDER=openai` requires `MODEL_API_KEY`.
+- Hosted calls send `store: false`.
+- Hosted calls store returned `model_name`, `prompt_version`, summary, suggested reply, source,
+  category, priority, escalation flag, confidence, extracted fields, and reasons through the
+  existing recommendation table.
+- Missing API key or unsupported provider maps to HTTP 503.
+- Hosted request timeout or HTTP failure maps to HTTP 503.
+- Malformed JSON, refused output, incomplete output, or schema-invalid output maps to HTTP 502.
+
+Verified locally:
+
+- `python -m pytest -q` passes with 56 tests.
+- `python -m ruff check --no-cache .` passes.
+
+Not verified yet:
+
+- A live hosted OpenAI call was not run because no API key was provided in this session.
+- Docker rebuild was not run after adding the `httpx` runtime dependency.
+
+What you should understand before Stage 11:
+
+- Why real model calls should sit behind the provider interface.
+- Why the mock provider remains useful after a real hosted provider exists.
+- Why strict structured output still needs local validation.
+- Why API keys must be environment configuration, not committed source code.
+- Why provider errors must become controlled API responses.
+
+Next stage:
+
+- Stage 11 should add the background worker and asynchronous AI analysis flow from the guide's
+  queue setup and analyze-ticket endpoint section.

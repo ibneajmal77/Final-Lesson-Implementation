@@ -20,7 +20,12 @@ from supportops_db.repositories.tickets import (
     list_tickets,
 )
 from supportops_domain.services.baseline import BaselineTicketInput, classify_ticket
-from supportops_model_gateway.errors import UnsupportedModelProviderError
+from supportops_model_gateway.errors import (
+    ModelProviderConfigurationError,
+    ModelProviderRequestError,
+    ModelProviderResponseError,
+    UnsupportedModelProviderError,
+)
 from supportops_model_gateway.providers.base import TicketAnalysisInput
 from supportops_model_gateway.routing import build_ticket_analysis_provider
 
@@ -136,20 +141,36 @@ def create_ai_analysis_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ticket not found")
 
     try:
-        provider = build_ticket_analysis_provider(settings.model_provider)
-    except UnsupportedModelProviderError as exc:
+        provider = build_ticket_analysis_provider(
+            settings.model_provider,
+            api_key=settings.model_api_key,
+            model_name=settings.model_name,
+            base_url=settings.model_base_url,
+            timeout_seconds=settings.model_timeout_seconds,
+            max_output_tokens=settings.model_max_output_tokens,
+        )
+        analysis = provider.analyze_ticket(
+            TicketAnalysisInput(
+                subject=ticket.subject,
+                body=ticket.body,
+                customer_id=ticket.customer_id,
+            )
+        )
+    except (UnsupportedModelProviderError, ModelProviderConfigurationError) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="model provider is not configured",
         ) from exc
-
-    analysis = provider.analyze_ticket(
-        TicketAnalysisInput(
-            subject=ticket.subject,
-            body=ticket.body,
-            customer_id=ticket.customer_id,
-        )
-    )
+    except ModelProviderRequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="model provider is unavailable",
+        ) from exc
+    except ModelProviderResponseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="model provider returned invalid output",
+        ) from exc
     recommendation = create_ticket_recommendation(
         session,
         tenant_id=actor.tenant_id,
@@ -230,4 +251,3 @@ def _recommendation_to_read(recommendation: TicketRecommendation) -> TicketRecom
         reasons=recommendation.reasons_json,
         created_at=recommendation.created_at,
     )
-

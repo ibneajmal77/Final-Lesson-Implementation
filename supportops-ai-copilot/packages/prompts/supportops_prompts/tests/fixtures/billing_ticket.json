@@ -1,0 +1,7 @@
+{
+  "subject": "Charged twice",
+  "body": "I was charged twice for order ORD-123 and need a refund.",
+  "customer_id": "customer-123",
+  "expected_category": "billing"
+}
+
