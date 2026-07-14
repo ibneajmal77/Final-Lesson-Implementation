@@ -1,2946 +1,3623 @@
-# Frends, .NET, APIs, and Power Platform
+# Frends Interview: Simple 8-Hour Study Guide
 
-## Complete 8-Hour Interview Preparation Guide
+## Read This First
 
-**Target:** Mid-level .NET integration developer interviewing for a Frends-focused role  
-**Study time:** Exactly 8 hours, including breaks  
-**Primary focus:** API/integration engineering, a hands-on Frends design, security, SDLC, DevOps, and production support  
-**Secondary focus:** Power Platform comparison  
-**Prepared:** July 13, 2026
+This guide uses simple English.
 
----
+You do not need to memorize every line.
 
-## Table of Contents
+Study the parts marked **MUST KNOW**.
 
-1. [How to Use This Guide](#1-how-to-use-this-guide)
-2. [Exact 8-Hour Schedule](#2-exact-8-hour-schedule)
-3. [Diagnostic and Essential .NET Refresh](#3-diagnostic-and-essential-net-refresh)
-4. [API, Protocol, Data, and Integration Engineering](#4-api-protocol-data-and-integration-engineering)
-5. [Frends Architecture and Development](#5-frends-architecture-and-development)
-6. [Hands-On Frends Order Integration](#6-hands-on-frends-order-integration)
-7. [Power Platform Essentials](#7-power-platform-essentials)
-8. [Security, SDLC, DevOps, and Production Support](#8-security-sdlc-devops-and-production-support)
-9. [Interview Question Bank and Mock Interview](#9-interview-question-bank-and-mock-interview)
-10. [Final Recall Sheet](#10-final-recall-sheet)
-11. [Official References](#11-official-references)
+Use the parts marked **REFERENCE** only when you need more detail.
 
----
+## Small Glossary
 
-# 1. How to Use This Guide
+| Word | Simple meaning |
+|---|---|
+| Contract | Agreed input, output, and behavior |
+| Schema | Rules for data shape |
+| Mapping | How source fields become target fields |
+| Authentication | Prove who is calling |
+| Authorization | Check what the caller may do |
+| Correlation ID | One ID used to trace a request |
+| Timeout | Stop waiting after a time limit |
+| Retry | Try the operation again |
+| Idempotency | Duplicate protection |
+| Rollback | Return code or settings to a safe version |
+| Replay | Run failed work again |
+| Reconciliation | Compare source and target records |
 
-This is not a book to read passively. It is an eight-hour interview workout. The goal is to **retrieve, apply, and explain** the important material tomorrow.
+## Use This Answer Pattern
 
-## The 20-15-10-5 study cycle
+For most questions, use four steps:
 
-For a normal 50-minute block:
-
-1. **20 minutes - Learn:** Read only the marked high-priority material.
-2. **15 minutes - Apply:** Trace a worked example or perform the exercise.
-3. **10 minutes - Retrieve:** Close the guide and answer aloud from memory.
-4. **5 minutes - Correct:** Check your answer and write only missing keywords.
-
-The longer API and lab blocks have their own timing instructions.
-
-## Confidence system
-
-- **Green:** I can define it, give an example, and discuss one failure mode.
-- **Yellow:** I recognize it but cannot explain it cleanly.
-- **Red:** I do not understand it or confuse it with another concept.
-
-Spend correction time on red and yellow items. Do not reread green items.
-
-## Technical-answer framework
-
-```text
-1. Definition
-2. Concrete example
-3. Main risk or tradeoff
-4. Mitigation
-5. Monitoring or testing
-```
+1. **What:** Give a simple meaning.
+2. **Why:** Explain why it is useful.
+3. **How:** Give one example or a few steps.
+4. **Safety:** Explain errors, security, or support.
 
 Example:
 
-> Idempotency means repeating the same logical request has no additional business effect. For an order API, I would use the order ID or an idempotency key with a durable unique record. The risk is that an HTTP timeout may occur after the downstream order was created. I would query the destination before retrying and keep retries bounded. I would monitor duplicates, unknown outcomes, and reconciliation differences.
+> XSD is a rule file for XML. It checks the structure and data types. I use it before sending final XML to another system. If validation fails, I stop the message and record a safe error.
 
-## Cognitive rules for today
+## The One Example Used in This Guide
 
-- Speak answers aloud. Recognition is not interview recall.
-- Draw architectures from memory rather than copying them.
-- Use one order-processing scenario across all topics to reduce cognitive load.
-- Stop a failed recall attempt after roughly two minutes, check the answer, and try again later.
-- Keep one final recall page. Do not create extensive separate notes.
-- During breaks, move away from the screen. Avoid social media and new technical material.
-- Finish at least one hour before sleep. A normal full night of sleep is more valuable than late-night passive rereading.
-
----
-
-# 2. Exact 8-Hour Schedule
-
-| Clock | Duration | Activity | Required output |
-|---|---:|---|---|
-| 00:00-00:10 | 10 min | Diagnostic | Red/yellow/green topic list |
-| 00:10-00:45 | 35 min | Essential C# and .NET | Explain async, DI, disposal, testing |
-| 00:45-00:55 | 10 min | Break | Move and hydrate |
-| 00:55-02:05 | 70 min | APIs, protocols, data, integration | Draw request flow and failure policy |
-| 02:05-02:15 | 10 min | Break | No technical input |
-| 02:15-03:00 | 45 min | Frends architecture | Redraw Frends mental model |
-| 03:00-03:15 | 15 min | Food and movement | Leave the desk |
-| 03:15-04:30 | 75 min | Hands-on Frends order exercise | Working design plus failure tests |
-| 04:30-04:40 | 10 min | Break | No technical input |
-| 04:40-05:45 | 65 min | Security, SDLC, DevOps, operations | Incident and deployment walkthrough |
-| 05:45-05:55 | 10 min | Break | Move and hydrate |
-| 05:55-06:25 | 30 min | Power Platform comparison | Two-minute Frends comparison |
-| 06:25-06:35 | 10 min | Break | No technical input |
-| 06:35-07:20 | 45 min | Mixed interview and system design | Timed spoken answers |
-| 07:20-07:30 | 10 min | Break | Reset before mock interview |
-| 07:30-08:00 | 30 min | Mock interview and consolidation | Final recall sheet |
-
-**Total: 480 minutes = 8 hours.**
-
----
-
-# 3. Diagnostic and Essential .NET Refresh
-
-## 3.1 Ten-minute diagnostic
-
-Close the rest of this document. Give yourself one minute per question.
-
-1. Explain `Process`, `Subprocess`, `Task`, `Trigger`, `Agent`, and `Agent Group` in Frends.
-2. What does `async`/`await` do, and why should library code accept a `CancellationToken`?
-3. Describe the OAuth 2.0 client-credentials flow.
-4. Differentiate a timeout, HTTP `429`, HTTP `400`, and HTTP `500`.
-5. A downstream `POST` times out. Is retrying safe?
-6. When should logic use a Frends Code Task, Custom Task, Subprocess, or external .NET service?
-7. What should never be written to production logs?
-8. How would you deploy and roll back a Frends Process?
-9. How would you detect that a scheduled integration did not run at all?
-10. Compare Frends with Power Automate in two minutes.
-
-### Diagnostic key
-
-| Question | Essential keywords |
-|---|---|
-| 1 | BPMN Process, reusable Subprocess, operation Task, event Trigger, runtime Agent, deployment target Agent Group |
-| 2 | Non-blocking wait, continuation, propagated cancellation, timeout/user shutdown |
-| 3 | Token endpoint, client identity/credential, scoped token, Bearer token, expiry |
-| 4 | Local/transport limit, throttling, caller/contract error, server/dependency error |
-| 5 | Outcome unknown; idempotency key or destination lookup before retry |
-| 6 | Small local mapping, reusable orchestration, packaged code, independently owned/scaled service |
-| 7 | Secrets, tokens, auth headers, private keys, connection strings, unnecessary personal data |
-| 8 | Test exact version/dependencies/configuration, Agent Group deployment, smoke test, older known-good version |
-| 9 | Expected-execution or missing-execution monitoring, not only error alerts |
-| 10 | Frends for hybrid backend integration; Power Platform for Microsoft/user-centric apps and workflows |
-
-## 3.2 C# and .NET essentials
-
-### `async` and `await`
-
-- An `async` method normally returns `Task`, `Task<T>`, `ValueTask`, or `ValueTask<T>`.
-- `await` asynchronously waits and later continues the method; it does not automatically create a thread.
-- Async I/O improves scalability because a thread is not blocked while network, file, or database I/O is pending.
-- Avoid `.Result`, `.Wait()`, and unnecessary `Task.Run` around I/O work.
-- Pass a `CancellationToken` through every supporting layer.
-- Use explicit timeouts as well as cancellation. They solve related but different problems.
-- Avoid `async void` except event handlers because callers cannot await or reliably observe failures.
-
-### Exception handling
-
-- Catch only when you can add context, translate, recover, or guarantee cleanup.
-- Preserve the stack trace with `throw;`, not `throw ex;`.
-- Do not use exceptions for ordinary validation branches.
-- Separate transient dependency failures from permanent business/contract failures.
-- Do not log the same exception at every layer; choose an ownership boundary.
-- Never swallow an exception without a deliberate, observable outcome.
-
-### Interfaces, dependency injection, and SOLID
-
-- **Single responsibility:** One component has one cohesive reason to change.
-- **Open/closed:** Extend behavior through abstractions instead of continually modifying one central conditional.
-- **Liskov substitution:** Implementations honor their abstraction's promises.
-- **Interface segregation:** Prefer focused interfaces over large dependency surfaces.
-- **Dependency inversion:** High-level behavior depends on abstractions, not infrastructure details.
-
-Dependency injection makes dependencies explicit and replaceable in tests. It does not mean every class needs an interface. Add abstractions at external boundaries or where multiple implementations/testing justify them.
-
-### Resource management
-
-- `IDisposable` represents deterministic cleanup of unmanaged or owned resources.
-- `using`/`await using` ensures cleanup on failure.
-- Do not create and dispose `HttpClient` per request. Use `IHttpClientFactory` or a deliberately long-lived client.
-- Open database connections late, close them early, and rely on pooling.
-- Know whether disposing a stream wrapper also closes its underlying source.
-
-### Configuration and secrets
-
-- Use typed options/configuration for normal settings.
-- Separate development, test, and production values.
-- Do not hard-code credentials or commit them to source control.
-- Validate required configuration during startup or deployment checks.
-- Common configuration keys may have different values in every environment.
-
-### Testing layers
-
-| Layer | What it proves | Example |
-|---|---|---|
-| Unit | Isolated logic | Invalid amount is rejected |
-| Component | One Process/API component | `400` is not retried |
-| Contract | Schema compatibility | Response matches OpenAPI |
-| Integration | Real boundary works | Test Agent reaches test SQL/API |
-| Smoke | Critical deployed path works | One test order completes |
-| Failure | Recovery policy works | `429` honors delay and stops |
-| Reconciliation | Business result is correct | Source/destination counts match |
-
-## 3.3 Async API client example
-
-```csharp
-using System.Net.Http.Json;
-using System.Text.Json;
-
-public sealed record CreateOrderRequest(
-    string OrderId, string CustomerId, decimal Amount, string Currency);
-
-public sealed record CreateOrderResponse(
-    string OrderId, string Status, string CorrelationId);
-
-public sealed class OrderClient(HttpClient httpClient)
-{
-    private static readonly JsonSerializerOptions JsonOptions =
-        new(JsonSerializerDefaults.Web);
-
-    public async Task<CreateOrderResponse> CreateAsync(
-        CreateOrderRequest request,
-        string accessToken,
-        string correlationId,
-        CancellationToken cancellationToken)
-    {
-        using var message = new HttpRequestMessage(HttpMethod.Post, "orders")
-        {
-            Content = JsonContent.Create(request, options: JsonOptions)
-        };
-        message.Headers.TryAddWithoutValidation("X-Correlation-ID", correlationId);
-        message.Headers.TryAddWithoutValidation("Idempotency-Key", request.OrderId);
-
-        using var response = await httpClient.SendAsync(
-            message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadFromJsonAsync<CreateOrderResponse>(
-                   JsonOptions, cancellationToken)
-               ?? throw new JsonException("The response body was empty.");
-    }
-}
+```text
+Order Portal
+  -> REST API
+  -> JSON request
+  -> Frends
+  -> XML transformation
+  -> SOAP request
+  -> Legacy ERP
 ```
 
-Be ready to explain injection, cancellation, correlation versus idempotency, unknown timeout outcomes, and typed failures.
+Use this example in the interview. Change it to match your real work.
 
-## 3.4 Closed-book .NET recall
-
-1. Does `await` create a new thread?
-2. When should you use `Task.Run`?
-3. Why is `.Result` undesirable?
-4. Cancellation versus timeout?
-5. Why use `IHttpClientFactory`?
-6. When should you catch an exception?
-7. How would you unit-test `OrderClient`?
-8. What should be tested without a network dependency?
-
-### Model answers
-
-1. No. It registers a continuation and releases the thread while asynchronous I/O is incomplete.
-2. Primarily for appropriate CPU-bound work, not to disguise synchronous I/O.
-3. It blocks a thread, reduces throughput, and can contribute to deadlocks in some contexts.
-4. Cancellation requests that work stop; a timeout stops waiting after a duration and is often implemented with cancellation.
-5. It manages handlers/connections while supporting named or typed configuration and injection.
-6. When you can recover, translate, add context at an ownership boundary, or guarantee cleanup.
-7. Inject a controlled `HttpMessageHandler`; assert method, headers, and body; return known responses; verify mapping and cancellation.
-8. Validation, mapping, status classification, idempotency decisions, and retry-decision logic.
+Do not say that you used a tool if you did not use it.
 
 ---
 
-# 4. API, Protocol, Data, and Integration Engineering
+# 1. Exact 8-Hour Plan
 
-## 4.1 Exact 70-minute routine
+This plan is exactly 480 minutes.
 
-| Minutes | Activity |
-|---:|---|
-| 0-4 | Closed-book pre-test |
-| 4-16 | HTTP and status codes |
-| 16-19 | Recall without notes |
-| 19-29 | Authentication and OAuth |
-| 29-32 | Draw OAuth from memory |
-| 32-43 | OpenAPI, YAML, SOAP/XML/XSLT, JSON |
-| 43-46 | Explain the data path aloud |
-| 46-59 | Patterns and reliability |
-| 59-64 | Work the failure matrix |
-| 64-70 | Deliver the final design answer |
+It is built for a 3:00 PM interview.
 
-Before reading, answer:
+Start at 6:40 AM.
 
-1. When is a retry unsafe?
-2. What is the difference between `401`, `403`, and `429`?
-3. How do you know whether a timed-out `POST` succeeded?
-4. Why should a database transaction not remain open during an HTTP call?
+Finish studying at 2:40 PM.
 
-## 4.2 HTTP request and response anatomy
+Use 2:40 PM to 3:00 PM to prepare your room, water, camera, notes, and breathing.
+
+| Time | Minutes | Study |
+|---|---:|---|
+| 06:40-06:55 | 15 | Quick test |
+| 06:55-07:50 | 55 | SDLC and a new integration |
+| 07:50-08:00 | 10 | Break |
+| 08:00-09:10 | 70 | HTTP, security, OpenAPI, and JSON |
+| 09:10-09:20 | 10 | Break |
+| 09:20-10:10 | 50 | XML, XSD, XPath, XSLT, and SOAP |
+| 10:10-10:25 | 15 | Food break |
+| 10:25-11:30 | 65 | Frends and project story |
+| 11:30-11:40 | 10 | Break |
+| 11:40-12:30 | 50 | Errors, release, and production support |
+| 12:30-12:40 | 10 | Break |
+| 12:40-13:10 | 30 | .NET and Power Platform |
+| 13:10-13:20 | 10 | Break |
+| 13:20-13:55 | 35 | Top interview questions |
+| 13:55-14:00 | 5 | Break |
+| 14:00-14:40 | 40 | Mock interview |
+
+If you start late, remove REFERENCE reading.
+
+Do not remove sleep, breaks, the project answer, or the mock interview.
+
+## What You Must Finish in Each Block
+
+### 06:55-07:50
+
+- Understand the SDLC diagram.
+- Learn the new-integration steps.
+- Speak the project answer once.
+
+### 08:00-09:10
+
+- Understand the HTTP request and response.
+- Learn the API security layers.
+- Read the OpenAPI tree.
+- Explain the four JSON checks.
+
+Use about:
+
+- 10 minutes for HTTP.
+- 20 minutes for security.
+- 20 minutes for OpenAPI.
+- 20 minutes for JSON.
+
+### 09:20-10:10
+
+- Learn the XML-family line.
+- Follow one XML value through XPath and XSLT.
+- Learn SOAP and WSDL.
+- Speak the XML answer once.
+
+### 10:25-11:30
+
+- Learn the Frends platform diagram.
+- Follow the Order Process diagram.
+- Learn the release path.
+- Speak the Frends project answer.
+
+### 11:40-12:30
+
+- Learn the retry decision.
+- Learn the timeout example.
+- Learn duplicate protection.
+- Learn the incident steps.
+
+### 12:40-13:10
+
+- Compare the JSON libraries.
+- Explain both meanings of middleware.
+- Compare Frends and Power Platform.
+
+### 13:20-13:55
+
+- Answer the top 20 questions.
+- Review only weak answers.
+
+### 14:00-14:40
+
+- Complete the mock interview.
+- Stop reading new information.
+
+## Quick Test
+
+Give yourself a score for each question:
+
+- `0`: I cannot answer.
+- `1`: I know some words.
+- `2`: I can explain it and give an example.
+
+Questions:
+
+1. How do you take a new integration to production?
+2. What does middleware do?
+3. How do you secure an API?
+4. What is inside an OpenAPI file?
+5. How do you validate required JSON fields?
+6. What are XML, XSD, XPath, and XSLT?
+7. What is inside a SOAP message?
+8. What do you do after a timeout?
+
+Study every `0` first. Then study every `1`.
+
+After each topic, close the file and speak for one minute.
+
+---
+
+# 2. Whole Interview Map - MUST KNOW
+
+Most integration questions follow this path:
+
+```text
+Understand the need
+  -> agree the contract
+  -> design the flow
+  -> build it
+  -> test it
+  -> release it
+  -> monitor it
+  -> fix and improve it
+```
+
+Remember these short lines:
+
+- **SDLC:** Plan -> Design -> Build -> Test -> Release -> Support.
+- **Middleware:** Receive -> Check -> Change -> Send -> Track.
+- **API security:** Connection -> Identity -> Permission -> Input -> Operations.
+- **OpenAPI:** Info -> Servers -> Paths -> Models -> Security.
+- **JSON checks:** Syntax -> Shape -> Business -> Outside data.
+- **XML family:** XML has data. XSD checks. XPath finds. XSLT changes.
+- **SOAP:** Envelope -> Header -> Body -> Fault.
+- **Timeout:** The result may be unknown. Check before retry.
+
+---
+
+# 3. SDLC and a New Integration - MUST KNOW
+
+## Simple Meaning
+
+SDLC means Software Development Life Cycle.
+
+It is the full life of a software change.
+
+It starts with a need. It continues through support and improvement.
+
+## SDLC Diagram
+
+```text
+Business need
+     |
+     v
+Plan
+Why do we need it?
+     |
+     v
+Design
+What must it do? How will it work?
+     |
+     v
+Build
+Create one complete path
+     |
+     v
+Test
+Check normal and failure cases
+     |
+     v
+Release
+Move it safely to production
+     |
+     v
+Support
+Monitor, recover, and improve
+     |
+     +--------------------+
+                          |
+                    feedback and change
+                          |
+                          v
+                         Plan
+```
+
+SDLC is a loop.
+
+Production learning can create a new requirement.
+
+## The Six Main Stages
+
+| Stage | Simple meaning | Main output |
+|---|---|---|
+| Plan | Understand the business need | Goal, owner, and scope |
+| Design | Agree how it should work | Contract, mapping, and flow |
+| Build | Create the integration | Reviewed Process and settings |
+| Test | Prove normal and error cases | Test results and UAT approval |
+| Release | Move it to production | Deployment and rollback plan |
+| Support | Monitor, recover, and improve | Alerts, runbook, and fixes |
+
+## SDLC Models
+
+### Waterfall
+
+Work moves through large stages in order.
+
+It can fit stable or strongly controlled requirements.
+
+### Agile
+
+Work is delivered in small parts.
+
+The team gets feedback often.
+
+### DevOps
+
+The team also owns release, automation, monitoring, and support.
+
+### Simple Interview Answer
+
+> Waterfall uses larger stages. Agile uses small deliveries and frequent feedback. DevOps adds automated release and operational ownership. Many teams use a mix of these models. The same SDLC work still needs to happen.
+
+## Questions to Ask for a New Integration
+
+### Business
+
+- What problem are we solving?
+- Who owns the source and target systems?
+- What does success look like?
+- Who will support it?
+
+### Contract
+
+- What starts the integration?
+- Is there an OpenAPI, WSDL, XSD, or file format?
+- Can I see real sample messages?
+- What response and error should the caller receive?
+
+### Data
+
+- Which fields are required?
+- What do null and empty values mean?
+- Who owns each important field?
+- How are dates, time zones, decimals, and currencies handled?
+- Does the data contain personal or secret information?
+
+### Scale
+
+- How many messages arrive normally?
+- What is the peak volume?
+- How large is each message?
+- How fast must the result be?
+
+### Failure
+
+- What happens if the target is down?
+- Can a message be retried?
+- How are duplicates prevented?
+- How will failed work be replayed?
+- How will we compare the source and target?
+
+## A New Project Versus a Change
+
+For a new project, create:
+
+- Owners.
+- Contracts.
+- Environments.
+- Security.
+- Release rules.
+- Monitoring and support.
+
+For a change, also check:
+
+- Existing users of the API.
+- Backward compatibility.
+- Old messages still waiting.
+- API or schema version.
+- Regression tests.
+- Migration and deprecation.
+
+Prefer adding an optional field.
+
+Use a new version for a breaking change.
+
+## From Request to Production
+
+1. Understand the goal and owners.
+2. Agree the contract and sample messages.
+3. Write the field mapping.
+4. Choose API, queue, file, database, or schedule.
+5. Design security, timeout, retry, and duplicate handling.
+6. Build one small end-to-end path.
+7. Add validation and error handling.
+8. Test normal, invalid, security, timeout, and duplicate cases.
+9. Complete UAT.
+10. Check production settings and secrets.
+11. Deploy with a smoke test and rollback plan.
+12. Monitor and compare the first real records.
+13. Give support a runbook and replay process.
+
+## Five Readiness Gates
+
+These gates help you decide when to move forward.
+
+```text
+Gate 1: Ready to design?
+Owners, goal, examples, volume, and security are clear.
+
+        |
+        v
+
+Gate 2: Ready to build?
+Contract, mapping, error rules, and test plan are agreed.
+
+        |
+        v
+
+Gate 3: Ready for UAT?
+Normal, invalid, security, duplicate, and timeout tests pass.
+
+        |
+        v
+
+Gate 4: Ready for production?
+UAT, settings, rollback, smoke test, alerts, and runbook are ready.
+
+        |
+        v
+
+Gate 5: Is release complete?
+The real target result is checked and the first records match.
+```
+
+## Detailed Order Example
+
+The portal must send an order to an old ERP.
+
+1. I confirm the business reason.
+2. I find the owners of both systems.
+3. I collect OpenAPI, WSDL, XSD, and sample messages.
+4. I agree each field mapping.
+5. I agree the volume and response-time goal.
+6. I agree authentication and permission.
+7. I agree invalid, duplicate, and timeout behavior.
+8. I design REST and JSON into Frends.
+9. I design Frends into SOAP and XML.
+10. I build one valid order from start to finish.
+11. I add validation, logs, and failure handling.
+12. I test security, duplicates, timeout, and SOAP Faults.
+13. I complete UAT.
+14. I deploy with the right settings and versions.
+15. I run a smoke test.
+16. I check the real ERP order.
+17. I monitor the first records.
+18. I give support a runbook.
+
+## Existing Feature Change Diagram
+
+```text
+Feature request
+      |
+      v
+Find users and affected steps
+      |
+      v
+Does the contract break old users?
+      |
+      +-- No --> Add optional behavior
+      |             |
+      |             v
+      |        Regression test
+      |
+      +-- Yes -> New version or migration
+                    |
+                    v
+              Test old and new users
+                    |
+                    v
+                  UAT
+                    |
+                    v
+           Controlled release and monitoring
+```
+
+## 60-Second Interview Answer
+
+> I start by understanding the business goal, owners, source, target, and success rules. I agree the API or message contract, sample data, field mapping, security, volume, and error behavior. I design the flow, including timeout, retry, duplicate protection, logs, and monitoring. I build a small end-to-end path and test normal and failure cases. I release through the approved environments with a smoke test and rollback plan. After release, I monitor the first records, reconcile the result, and give support a runbook.
+
+## If Requirements Change
+
+> I confirm the reason and impact. I update the contract, mapping, tests, estimate, and acceptance rules. I tell all affected owners. I do not hide the change inside the Process.
+
+## If UAT Finds a Defect
+
+> I reproduce it with the same data. I check code, settings, data, permissions, and the requirement. I fix the cause and add a regression test. I deploy through the normal path and ask the user to test again.
+
+## Definition of Done
+
+The work is done when:
+
+- The contract is approved.
+- Security and validation work.
+- Normal and failure tests pass.
+- UAT is approved.
+- Production settings are ready.
+- Smoke test and rollback steps exist.
+- Logs, alerts, replay, and reconciliation work.
+- A support owner and runbook exist.
+
+## Recall
+
+1. Say the six SDLC stages.
+2. Name five questions for a new integration.
+3. What is different about changing an existing API?
+4. What is needed before production?
+
+---
+
+# 4. Middleware and the Project Story - MUST KNOW
+
+## Simple Meaning
+
+Middleware sits between systems.
+
+It helps systems communicate.
+
+It can change protocol, format, security, or timing.
+
+## What Middleware Does
+
+Remember:
+
+**Receive -> Check -> Change -> Send -> Track**
+
+- Receive a request, file, or message.
+- Check the caller and data.
+- Change the data or protocol.
+- Send it to the correct system.
+- Track success, failure, and recovery.
+
+## Project Picture
+
+```text
+Order Portal sends REST and JSON
+  -> Frends checks security and data
+  -> Frends maps the order
+  -> Frends creates ERP XML
+  -> Frends validates the final XML with XSD
+  -> Frends sends a SOAP request
+  -> ERP returns a result
+  -> Frends logs and returns a safe response
+```
+
+## Detailed Middleware Diagram
+
+```text
+Order Portal
+REST + JSON
+     |
+     v
++----------------------+
+| Frends API Policy    |
+| Check caller         |
+| Check path and method|
+| Apply traffic rules  |
++----------------------+
+     |
+     v
++----------------------+
+| API Trigger          |
+| Start one Process    |
++----------------------+
+     |
+     v
++-------------------------------+
+| Order Process                 |
+| 1. Keep correlation ID        |
+| 2. Validate JSON              |
+| 3. Check business rules       |
+| 4. Check duplicate key        |
+| 5. Map to an internal order   |
+| 6. Create internal XML        |
+| 7. Transform to ERP XML       |
+| 8. Validate with ERP XSD      |
++-------------------------------+
+     |
+     v
+Legacy ERP
+SOAP + XML
+     |
+     v
+Check HTTP status and SOAP Fault
+     |
+     v
+Map the result to REST JSON
+     |
+     v
+Log, monitor, store result, and reconcile
+     |
+     v
+Order Portal
+```
+
+## Failure Paths
+
+```text
+Invalid data
+   -> Return safe 400
+   -> Do not call ERP
+
+No or bad identity
+   -> Return 401
+
+Identity has no permission
+   -> Return 403
+
+Permanent SOAP Fault
+   -> Record rejection
+   -> Do not retry
+
+Temporary target problem
+   -> Limited retry
+   -> Wait between attempts
+
+Timeout after sending order
+   -> Result is unknown
+   -> Search ERP before retry
+
+Same request again
+   -> Use idempotency key
+   -> Return known result
+```
+
+## Why Use Middleware?
+
+- The portal does not need to understand SOAP.
+- The ERP does not need to understand JSON.
+- Security rules can be in one place.
+- Mapping and error handling are easier to support.
+- Logs can connect the full flow.
+- One system can change with less effect on the other.
+
+## 60-Second Project Answer
+
+> One project connected an order portal to a legacy ERP. The portal used REST and JSON. The ERP used SOAP and XML. Frends checked the caller, validated the JSON, added a correlation ID, and prevented duplicate orders. It mapped the order, transformed it into the ERP XML format, and validated the final XML against the XSD. It then called the SOAP service and checked both the HTTP result and SOAP Fault. Temporary errors used limited retries only when duplicate handling was safe. Support could search by order ID and correlation ID.
+
+## Explain Your Role
+
+Use this sentence:
+
+> I owned [requirements, mapping, Process design, testing, release, or support]. The team owned [other work]. My hardest decision was [decision]. I proved it with [test, log, metric, or result].
+
+Use only real facts.
+
+## Synchronous Versus Asynchronous
+
+### Synchronous
+
+The caller waits for the final result.
+
+Use it when the work is fast and reliable.
+
+### Asynchronous
+
+The API accepts the work and finishes later.
+
+It may return `202 Accepted`.
+
+The caller needs a status URL, callback, or another result method.
+
+Use it when the work is slow or the target is not always available.
+
+## Recall
+
+1. Say the five middleware actions.
+2. Why use middleware?
+3. Tell the order story in one minute.
+4. When would you use `202 Accepted`?
+
+# 5. HTTP and REST - MUST KNOW
+
+## HTTP in Simple Words
+
+HTTP is how many APIs send requests and responses.
+
+An HTTP request has:
+
+- A method.
+- A URL.
+- Headers.
+- Sometimes a body.
+
+An HTTP response has:
+
+- A status code.
+- Headers.
+- Sometimes a body.
+
+## Request and Response Diagram
+
+```text
+Client
+  |
+  |  HTTP request
+  |  method + URL + headers + optional body
+  v
+API Policy or Gateway
+  |
+  v
+Frends Process
+  |
+  v
+Target system
+  |
+  |  HTTP response
+  |  status + headers + optional body
+  v
+Client
+```
+
+## Example Request
 
 ```http
-POST /api/v1/orders HTTP/1.1
-Host: integration.example.com
-Authorization: Bearer eyJ...
+POST /orders HTTP/1.1
+Authorization: Bearer <access-token>
 Content-Type: application/json
 Accept: application/json
-X-Correlation-ID: 563885df-e152-4d31-a64d-4819d97b9997
+X-Correlation-ID: abc-123
 Idempotency-Key: ORD-1001
 
 {
   "orderId": "ORD-1001",
-  "customerId": "CUS-101",
-  "amount": 249.95,
-  "currency": "USD"
+  "amount": 125.50
 }
 ```
+
+Line by line:
+
+- `POST` asks the API to create or start work.
+- `/orders` is the resource path.
+- `Authorization` carries the access token.
+- `Content-Type` says the body is JSON.
+- `X-Correlation-ID` connects logs.
+- `Idempotency-Key` helps stop duplicate orders.
+- The body contains the order data.
+
+## Example Asynchronous Response
 
 ```http
-HTTP/1.1 201 Created
+HTTP/1.1 202 Accepted
 Content-Type: application/json
-Location: /api/v1/orders/ORD-1001
-X-Correlation-ID: 563885df-e152-4d31-a64d-4819d97b9997
+Location: /operations/OP-9001
+X-Correlation-ID: abc-123
 
 {
-  "orderId": "ORD-1001",
-  "status": "accepted",
-  "correlationId": "563885df-e152-4d31-a64d-4819d97b9997"
+  "operationId": "OP-9001",
+  "status": "Pending"
 }
 ```
 
-An HTTP request has a method, target URI, headers, and optional body. A response has a status code, headers, and optional body.
+`202` means the API accepted the work.
 
-### Important headers
+It does not mean the ERP finished the order.
 
-| Header | Purpose |
+The `Location` gives the caller a place to check.
+
+## Common Methods
+
+| Method | Simple use |
 |---|---|
-| `Authorization` | Credential/token for the request |
-| `Content-Type` | Format of the body being sent |
-| `Accept` | Formats the client can receive |
-| `Location` | URI of a created or redirected resource |
-| `Retry-After` | Server guidance after throttling/unavailability |
-| `ETag` / `If-Match` | Conditional update and optimistic concurrency |
-| `Cache-Control` | Caching rules |
-| `X-Correlation-ID` | Cross-system trace identifier |
-| `Idempotency-Key` | Stable key suppressing duplicate business effects |
+| `GET` | Read data |
+| `POST` | Create data or start work |
+| `PUT` | Replace a known resource |
+| `PATCH` | Change part of a resource |
+| `DELETE` | Remove a resource |
 
-Do not put secrets or sensitive personal data in URLs because URLs are commonly logged.
+## Status Codes
 
-## 4.3 HTTP methods
+Remember the groups:
 
-| Method | Typical meaning | Safe? | Idempotent? |
-|---|---|---:|---:|
-| `GET` | Read a representation | Yes | Yes |
-| `HEAD` | Read headers without body | Yes | Yes |
-| `POST` | Create or execute a command | No | No |
-| `PUT` | Replace/create at a known URI | No | Yes |
-| `PATCH` | Partially update | No | Not guaranteed |
-| `DELETE` | Remove a resource | No | Yes |
+- `2xx`: success.
+- `4xx`: caller, access, or request problem.
+- `5xx`: server or target problem.
 
-**Safe** means the intended operation is read-only. **Idempotent** means repeating the same request has the same intended effect as performing it once. It does not mean every response is identical.
+| Code | Simple meaning |
+|---|---|
+| `200` | Success |
+| `201` | Created; often return a `Location` |
+| `202` | Accepted, but not finished |
+| `204` | Success with no body |
+| `400` | Bad request or invalid contract |
+| `401` | Login or token is missing or invalid |
+| `403` | Caller is known but not allowed |
+| `404` | Route or resource not found |
+| `405` | HTTP method is not allowed |
+| `409` | Conflict, such as a duplicate ID |
+| `415` | Body format is not supported |
+| `422` | Business validation failed, if the API uses this rule |
+| `429` | Too many requests |
+| `500` | Unexpected server error |
+| `502` | Gateway received a bad target response |
+| `503` | Service is unavailable |
+| `504` | Gateway waited too long |
 
-## 4.4 HTTP status codes
+First find which system returned the code.
 
-| Code | Meaning | Interview use/retry decision |
-|---:|---|---|
-| `200 OK` | Completed success | Read/update or replayed stored result |
-| `201 Created` | Resource created | Prefer a `Location` header |
-| `202 Accepted` | Accepted, not completed | Persist/queue first; expose status |
-| `204 No Content` | Success without body | Delete/update without representation |
-| `304 Not Modified` | Cache remains valid | Conditional GET |
-| `400 Bad Request` | Malformed/invalid request | Do not retry unchanged |
-| `401 Unauthorized` | Authentication missing/invalid | Renew/fix credential, not ordinary retry |
-| `403 Forbidden` | Identity lacks permission | Fix authorization |
-| `404 Not Found` | Resource absent | Usually permanent; context matters |
-| `405 Method Not Allowed` | Wrong method | Fix caller/contract |
-| `409 Conflict` | State/idempotency conflict | Query or resolve current state |
-| `412 Precondition Failed` | ETag/precondition failed | Reload and resolve concurrency |
-| `415 Unsupported Media Type` | Wrong `Content-Type` | Fix request |
-| `422 Unprocessable Content` | Semantic validation failed | Correct business data |
-| `429 Too Many Requests` | Rate limited | Bounded delay; honor `Retry-After` |
-| `500 Internal Server Error` | Unexpected server failure | Sometimes bounded retry |
-| `502 Bad Gateway` | Unusable upstream response | Often transient |
-| `503 Service Unavailable` | Temporarily unavailable | Often transient; honor delay |
-| `504 Gateway Timeout` | Upstream timed out | Outcome may be unknown |
+Do not retry every error.
 
-Never say "retry every `5xx`." Retry only when the operation is duplicate-safe, the error is plausibly transient, and delay/attempts are bounded.
-
-## 4.5 Authentication and authorization
-
-- **Authentication:** Who or what is calling?
-- **Authorization:** What may that identity do?
-
-| Mechanism | Typical use | Main concern |
-|---|---|---|
-| API key | Simple client identification | Long-lived shared secret; limited identity semantics |
-| Basic | Legacy username/password over TLS | Credential exposure and rotation |
-| OAuth 2.0 client credentials | Service-to-service access | Scope, audience, credential lifecycle |
-| JWT bearer token | Signed access-token format | Signature, issuer, audience, expiry, claims |
-| Client certificate/mTLS | Strong service/transport identity | Distribution and rotation |
-
-### OAuth 2.0 client-credentials flow
+## Status Decision Diagram
 
 ```text
-Frends Process/client
-    |
-    | POST token endpoint:
-    | client identity + credential + requested scope
-    v
-Authorization server
-    |
-    | short-lived access token
-    v
-Frends Process/client
-    |
-    | Authorization: Bearer <token>
-    v
-Resource API validates signature/issuer/audience/expiry/claims
+Response received
+       |
+       v
+Which layer returned it?
+Caller <- Gateway <- Frends <- Target
+       |
+       v
+What type is it?
+       |
+       +-- 2xx
+       |     -> Check the expected result
+       |
+       +-- Permanent 4xx
+       |     -> Correct request, identity, or permission
+       |
+       +-- 429
+       |     -> Follow Retry-After
+       |     -> Retry only when safe
+       |
+       +-- Temporary connection or selected 5xx
+       |     -> Limited retry
+       |     -> Wait between attempts
+       |
+       +-- Timeout after a write
+             -> Result is unknown
+             -> Search by business ID
+             -> Reconcile before retry
 ```
 
-Interview points:
+## Important Headers
 
-- Client credentials represents an application, not a signed-in user.
-- Cache a valid token until near expiry instead of requesting one per record.
-- Never log the token or client secret.
-- Validate issuer, signature, audience, expiry, and required permissions.
-- A valid token does not automatically authorize every business object.
-- JWT is a token format; OAuth is an authorization framework. OAuth tokens can be JWTs or opaque strings.
+### Request
 
-## 4.6 API contract design
+- `Authorization`: access token or credential.
+- `Content-Type`: format of the body.
+- `Accept`: response format wanted by the caller.
+- `X-Correlation-ID`: connects logs across systems.
+- `Idempotency-Key`: helps prevent duplicate work.
 
-A good API contract is explicit, consistent, bounded, versioned deliberately, independent from internal tables, and documented with realistic examples.
+### Response
 
-Usually backward compatible:
+- `Content-Type`: response format.
+- `Location`: new resource or status URL.
+- `Retry-After`: when the caller may try again.
+- `Cache-Control: no-store`: do not store a sensitive response.
 
-- Add an optional response property when consumers tolerate unknown fields.
-- Add an optional request property with default behavior.
-- Add a new endpoint.
+Never log a token, API key, password, or secret.
 
-Usually breaking:
+## REST Versus SOAP
 
-- Rename/remove a property or change its type.
-- Make an optional request property required.
-- Change enum/status/error semantics without consumer tolerance.
-- Change authentication or required permissions.
+### REST
 
-Use a consistent error model such as Problem Details-style fields:
+- Uses HTTP methods and URLs.
+- Often uses JSON.
+- Usually uses an OpenAPI contract.
 
-```json
-{
-  "type": "https://example.internal/problems/validation",
-  "title": "Order validation failed",
-  "status": 400,
-  "code": "validation_error",
-  "correlationId": "563885df-e152-4d31-a64d-4819d97b9997",
-  "errors": [
-    { "field": "amount", "message": "Amount must be greater than zero." }
-  ]
-}
+### SOAP
+
+- Uses XML messages.
+- Uses Envelope, Header, Body, and Fault.
+- Usually uses WSDL and XSD.
+
+Choose the style required by the systems and contract.
+
+## 30-Second Answer
+
+> An HTTP request has a method, URL, headers, and sometimes a body. The response has a status, headers, and sometimes a body. I use status codes to separate success, caller problems, and server problems. Before I retry, I find which system returned the error and whether the action is safe to repeat.
+
+---
+
+# 6. API Security - MUST KNOW
+
+## Simple Memory Map
+
+**Connection -> Identity -> Permission -> Input -> Operations**
+
+## Security Layers Diagram
+
+```text
+Internet or private network
+        |
+        v
+HTTPS or mTLS
+Protect the connection
+        |
+        v
+Authentication
+Who is calling?
+        |
+        v
+Authorization
+What may this caller do?
+        |
+        v
+Input checks
+Method, size, fields, values
+        |
+        v
+Traffic controls
+Rate limit and timeout
+        |
+        v
+Protected secrets and safe logs
+        |
+        v
+Monitoring and alerts
 ```
 
-Do not return stack traces, SQL, credentials, internal URLs, or raw downstream errors to callers.
+## 1. Protect the Connection
 
-## 4.7 Swagger and OpenAPI
+- Use HTTPS.
+- Use a trusted certificate.
+- Use mTLS when both systems must show certificates.
 
-**Swagger** originally named the description specification and tools. The specification became the **OpenAPI Specification (OAS)**. Today Swagger commonly names tools such as Swagger UI and Swagger Editor. Say "OpenAPI contract," while recognizing teams often say "Swagger file."
+mTLS proves certificate identity.
 
-Current Frends documentation primarily supports OpenAPI `3.0.1`, with `2.0` retained for legacy APIs. Confirm tenant/runtime support before using newer OAS features.
+It does not replace business permission checks.
 
-### OpenAPI/Swagger rules to remember
+## 2. Check Identity
 
-1. Use a platform-supported OAS version.
-2. Provide `info.title` and a semantic API version.
-3. Give each operation a stable, unique `operationId`.
-4. Choose paths/methods according to resource semantics.
-5. Document every expected success and error response.
-6. Quote YAML response keys such as `'200'` so they remain strings.
-7. Put reusable schemas and security schemes under `components`.
-8. Use `$ref` to avoid duplicated schemas.
-9. Define request and response media types explicitly.
-10. Mark required fields with the schema-level `required` array.
-11. Add constraints: length, range, pattern, enum, and format.
-12. Define security requirements, but enforce them with the platform/API Policy.
-13. Include realistic examples without secrets or real personal data.
-14. Validate the document using an OpenAPI validator/editor.
-15. Treat the contract as a reviewed, versioned SDLC artifact.
-16. Contract-test implementation responses.
-17. Coordinate breaking changes with a new version or migration plan.
+Authentication asks:
 
-### Common mistakes
+> Who is calling?
 
-- Using property-level `required: true` instead of schema `required: [field]`.
-- Documenting authentication but not enforcing it.
-- Returning undocumented codes or shapes.
-- Using a server URL incompatible with the deployed Frends route.
-- Reusing one vague object for every request and response.
-- Exposing database models directly.
-- Omitting error schemas/examples.
-- Assuming every consumer ignores added fields.
+Common choices:
 
-### Interview order API in OpenAPI 3.0.1
+- OAuth access token.
+- API key.
+- Client certificate.
+
+## 3. Check Permission
+
+Authorization asks:
+
+> Is this caller allowed to do this action on this record?
+
+A valid token does not give access to every order.
+
+Use least privilege.
+
+This means giving only the access that is needed.
+
+## 4. Check Input
+
+Check:
+
+- Method.
+- Content type.
+- Body size.
+- Required fields.
+- Data types and allowed values.
+- Business rules.
+- Resource ownership.
+
+Treat every request as untrusted.
+
+## 5. Protect Operations
+
+- Use rate limits.
+- Use timeouts.
+- Store secrets outside the Process.
+- Rotate secrets and certificates.
+- Return safe errors.
+- Mask sensitive log data.
+- Monitor failed access.
+
+## Authentication Versus Authorization
+
+- Authentication means identity.
+- Authorization means permission.
+
+`401` normally means identity is missing or invalid.
+
+`403` normally means the caller is known but not allowed.
+
+## OAuth Client Credentials
+
+This flow is common for one service calling another service.
+
+1. The client sends its credential to the identity provider.
+2. The identity provider returns a short-lived token.
+3. The client sends the token to the API.
+4. The API validates the token.
+5. The API checks the required scope or role.
+
+## OAuth Diagram
+
+```text
+Service client
+      |
+      | client ID + secret or certificate
+      v
+Identity provider
+      |
+      | short-lived access token
+      v
+Service client
+      |
+      | Authorization: Bearer <token>
+      v
+Frends API Policy or Gateway
+      |
+      | check token and route access
+      v
+Frends Process
+      |
+      | check business permission and input
+      v
+Target system
+```
+
+Important:
+
+- The client secret goes to the identity provider.
+- The client secret does not go to the Order API.
+- The access token may be a JWT.
+- Some access tokens are not JWTs.
+- The API follows the identity provider's validation method.
+
+The token is normally sent like this:
+
+```text
+Authorization: Bearer <token>
+```
+
+Cache the token until shortly before it expires.
+
+Do not request a new token for every API call.
+
+## Five JWT Questions
+
+JWT is a common token format.
+
+Ask:
+
+1. Who signed it?
+2. Who issued it?
+3. Which API is it for?
+4. Is it still valid now?
+5. What may it do?
+
+This means checking:
+
+- Signature and allowed algorithm.
+- Issuer.
+- Audience.
+- Expiry and not-before time.
+- Scope or role.
+
+Use a trusted token library.
+
+Decoding a token is not the same as validating it.
+
+## Frends API Policy
+
+OpenAPI describes the security requirement.
+
+The Frends API Policy helps enforce access at runtime.
+
+The Process may also check business permission.
+
+Tests prove that security works.
+
+Do not assume that YAML alone secures the API.
+
+## CORS
+
+CORS is a browser rule.
+
+It controls which websites may call an API from browser code.
+
+CORS is not authentication.
+
+## Security Tests
+
+Test:
+
+- No token.
+- Invalid token.
+- Expired token.
+- Wrong audience.
+- Missing scope or role.
+- Access to another customer's record.
+- Wrong content type.
+- Large or invalid body.
+- Too many requests.
+- Safe error and safe logs.
+
+## 60-Second Answer
+
+> I secure an API in layers. I use HTTPS, authenticate the caller, and check permission for the exact action and record. I validate the method, content type, size, fields, and business rules. I use rate limits, timeouts, protected secrets, safe errors, and safe logs. OpenAPI describes security, while the Frends API Policy and Process enforce it. I also test missing, invalid, expired, and under-permissioned tokens.
+
+---
+
+# 7. OpenAPI, YAML, JSON, Swagger, and RAML - MUST KNOW
+
+## Simple Meaning
+
+OpenAPI is a contract for an HTTP API.
+
+It tells people and tools:
+
+- Which URLs exist.
+- Which methods are allowed.
+- What data can be sent.
+- What responses can return.
+- What security is needed.
+
+## OpenAPI Tree Diagram
+
+```text
+openapi
+|
++-- info
+|   +-- title
+|   +-- API version
+|
++-- servers
+|   +-- DEV, TEST, or PROD base URL
+|
++-- paths
+|   +-- /orders
+|       +-- post
+|           +-- parameters
+|           +-- requestBody
+|           +-- responses
+|           +-- security
+|
++-- components
+|   +-- schemas
+|   +-- parameters
+|   +-- responses
+|   +-- securitySchemes
+|
++-- security
+    +-- global default
+```
+
+Think of it like a folder tree.
+
+The top tells you about the whole API.
+
+Each path tells you about one URL.
+
+Each method tells you about one action.
+
+Swagger is the old specification name.
+
+Swagger is also the name of API tools.
+
+## Main OpenAPI Parts
+
+Remember:
+
+**Info -> Servers -> Paths -> Models -> Security**
+
+| Part | Simple meaning |
+|---|---|
+| `openapi` | OpenAPI standard version |
+| `info` | API title and API version |
+| `servers` | Base URLs |
+| `paths` | URLs and HTTP methods |
+| `components` | Reusable models and security schemes |
+| `security` | Default security requirement |
+
+Inside an operation, look for:
+
+- `summary`.
+- `operationId`.
+- `parameters`.
+- `requestBody`.
+- `responses`.
+- `security`.
+
+Inside a data model, look for:
+
+- `type`.
+- `properties`.
+- `required`.
+- `items` for arrays.
+- `enum`.
+- Length and number limits.
+- `additionalProperties`.
+- `$ref` for reuse.
+
+## YAML Versus JSON
+
+YAML and JSON can describe the same OpenAPI contract.
+
+### YAML
+
+- Uses indentation.
+- Uses `key: value`.
+- Uses `-` for a list.
+- Uses spaces, not tabs.
+
+### JSON
+
+- Uses braces and brackets.
+- Uses double quotes.
+- Uses commas.
+
+`.yml` and `.yaml` are both YAML file names.
+
+RAML is another API description language.
+
+RAML means RESTful API Modeling Language.
+
+If the interviewer says RML, ask what they mean.
+
+RML may mean RDF Mapping Language.
+
+## Small OpenAPI Example
+
+Read this example. Do not memorize it.
 
 ```yaml
 openapi: 3.0.1
 info:
-  title: Interview Order API
+  title: Order API
   version: 1.0.0
-servers:
-  - url: /api/interview-orders
+
 paths:
   /orders:
     post:
-      operationId: submitOrder
-      summary: Validate and submit an order
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          required: true
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 100
-        - in: header
-          name: X-Correlation-Id
-          required: false
-          schema:
-            type: string
-            maxLength: 64
+      operationId: createOrder
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OrderRequest'
+              $ref: '#/components/schemas/Order'
       responses:
-        '200':
-          description: Previously completed result replayed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderResponse'
-        '201':
-          description: Order created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderResponse'
         '202':
-          description: Order already being processed
+          description: Order accepted
         '400':
           description: Invalid request
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-        '409':
-          description: Idempotency or state conflict
-        '503':
-          description: Temporary dependency failure
+        '401':
+          description: Invalid token
+
 components:
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    OrderRequest:
+    Order:
       type: object
-      additionalProperties: false
-      required: [orderId, customerId, amount, currency, requestedAt]
+      required: [orderId, amount]
       properties:
         orderId:
           type: string
           minLength: 1
-          maxLength: 50
-          example: ORD-1001
-        customerId:
-          type: string
-          minLength: 1
-          maxLength: 50
-          example: CUS-101
         amount:
           type: number
-          format: decimal
           minimum: 0.01
-          example: 249.95
-        currency:
-          type: string
-          pattern: '^[A-Z]{3}$'
-          example: USD
-        requestedAt:
-          type: string
-          format: date-time
-    OrderResponse:
-      type: object
-      required: [orderId, status, correlationId, replayed]
-      properties:
-        orderId:
-          type: string
-        status:
-          type: string
-          enum: [submitted, processing, rejected]
-        externalOrderId:
-          type: string
-          nullable: true
-        correlationId:
-          type: string
-        replayed:
-          type: boolean
-    Problem:
-      type: object
-      required: [title, status, code, correlationId]
-      properties:
-        type:
-          type: string
-          format: uri
-        title:
-          type: string
-        status:
-          type: integer
-        code:
-          type: string
-        correlationId:
-          type: string
-security:
-  - bearerAuth: []
 ```
 
-In Frends, API Policies determine actual access. The OpenAPI security section documents the intended scheme but does not replace enforcement.
+Frends commonly supports OpenAPI 3.0.1 and older Swagger 2.0.
 
-## 4.8 YAML, RAML, and RML
+Check the version supported by the real tenant.
 
-### YAML (`.yaml` or `.yml`)
+## How to Read the Example
 
-YAML is a human-readable data serialization language. OpenAPI documents are commonly written in YAML or JSON.
+Start at `paths`.
 
-- Indentation is significant; use spaces, not tabs.
-- A mapping is a key/value structure.
-- A sequence uses `-` items.
-- Quote ambiguous values where a parser may infer the wrong type.
-- Keep reusable definitions centralized and validate the document.
-- Never commit secrets merely because YAML is convenient.
+Find `/orders`.
 
-`.yaml` and `.yml` represent the same format; `.yaml` is often preferred for clarity.
+Then find `post`.
 
-### RAML
+The operation says:
 
-**RAML** means RESTful API Modeling Language. It is another YAML-based language for describing REST APIs, but it is not OpenAPI. Use RAML-aware tooling or a tested conversion rather than assuming an OpenAPI parser accepts it.
+1. The caller needs bearer security.
+2. The body is required.
+3. The body uses the Order model.
+4. `202` means accepted.
+5. `400` means invalid input.
+6. `401` means invalid identity.
 
-### RML
+Then go to `components`.
 
-"RML" can mean different technologies. In data integration it often means **RDF Mapping Language**, which describes mappings from heterogeneous data into RDF. It is not a normal synonym for RAML. If an interviewer says "RML," ask which meaning their project uses. If they mean RAML, confirm before answering.
+There you can find:
 
-## 4.9 XML fundamentals
+- How bearer security is described.
+- Which Order fields exist.
+- Which Order fields are required.
+- Which limits apply.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<ord:Order xmlns:ord="urn:example:orders:v1">
-  <ord:OrderId>ORD-1001</ord:OrderId>
-  <ord:CustomerId>CUS-101</ord:CustomerId>
-  <ord:Amount currency="USD">249.95</ord:Amount>
-</ord:Order>
-```
+## Where Headers Go
 
-- XML is case-sensitive, well-formed, and has one root element.
-- Start/end tags must nest correctly; reserved characters must be escaped.
-- Namespaces disambiguate elements with the same local name.
-- **XSD** defines allowed structure and data types.
-- **XPath** selects nodes.
-- **XSLT** transforms XML into XML, text, or HTML.
+### Authentication Header
 
-Common failures:
-
-- Ignoring namespaces in XPath.
-- Assuming element order is irrelevant when an XSD defines a sequence.
-- Culture-dependent decimal/date parsing.
-- Loading unbounded XML entirely into memory.
-- Enabling unsafe external-entity resolution.
-- Transforming without validating source and target contracts.
-
-## 4.10 XSLT
-
-XSLT is a declarative XML transformation language.
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="1.0"
-                xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:output method="xml" indent="yes"/>
-  <xsl:template match="/Order">
-    <PurchaseOrder>
-      <ExternalId><xsl:value-of select="OrderId"/></ExternalId>
-      <Total currency="USD"><xsl:value-of select="Amount"/></Total>
-    </PurchaseOrder>
-  </xsl:template>
-</xsl:stylesheet>
-```
-
-Interview points:
-
-- Use XSLT when XML mappings are declarative and schema-driven.
-- Handle namespaces explicitly.
-- Compile/cache stable transformations where supported.
-- Test missing/optional/repeating elements and target schemas.
-- Prevent uncontrolled extension functions or external resource access.
-
-## 4.11 SOAP, WSDL, and the SOAP envelope
-
-SOAP is an XML-based messaging protocol. It commonly uses HTTP but is not identical to HTTP or REST.
-
-- **WSDL:** Service contract describing operations, messages, bindings, and endpoints.
-- **XSD:** XML data types used in the messages.
-- **Envelope:** Required root container for a SOAP message.
-- **Header:** Optional cross-cutting metadata such as security or addressing.
-- **Body:** Operation payload.
-- **Fault:** Standard SOAP error structure inside the Body.
-
-### SOAP request envelope
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope
-    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-    xmlns:ord="urn:example:orders:v1">
-  <soapenv:Header>
-    <ord:CorrelationId>563885df-e152-4d31-a64d-4819d97b9997</ord:CorrelationId>
-  </soapenv:Header>
-  <soapenv:Body>
-    <ord:CreateOrderRequest>
-      <ord:OrderId>ORD-1001</ord:OrderId>
-      <ord:CustomerId>CUS-101</ord:CustomerId>
-      <ord:Amount>249.95</ord:Amount>
-      <ord:Currency>USD</ord:Currency>
-    </ord:CreateOrderRequest>
-  </soapenv:Body>
-</soapenv:Envelope>
-```
-
-### SOAP fault
-
-```xml
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
-  <soapenv:Body>
-    <soapenv:Fault>
-      <faultcode>soapenv:Client</faultcode>
-      <faultstring>Invalid order amount</faultstring>
-      <detail><errorCode>ORDER_001</errorCode></detail>
-    </soapenv:Fault>
-  </soapenv:Body>
-</soapenv:Envelope>
-```
-
-SOAP 1.1 and SOAP 1.2 have different namespaces/content types. Follow the WSDL binding rather than guessing. Some services also require `SOAPAction`, WS-Security, or WS-Addressing headers.
-
-### REST-style HTTP versus SOAP
-
-| Area | REST-style API | SOAP service |
-|---|---|---|
-| Contract | Often OpenAPI | WSDL plus XSD |
-| Payload | Usually JSON; other formats possible | XML envelope |
-| Operations | HTTP resource semantics | WSDL operations/messages |
-| Errors | HTTP status plus error body | SOAP Fault, often plus HTTP status |
-| Security ecosystem | OAuth/TLS/gateway conventions | May include WS-Security |
-| Best fit | Web/mobile/integration APIs | Established contract-heavy enterprise systems |
-
-Do not claim one is universally better. Choose based on existing systems, contract/security requirements, tooling, and operations.
-
-### SOAP interview checklist
-
-1. Locate the correct WSDL operation and binding.
-2. Confirm SOAP version, endpoint, content type, and `SOAPAction` requirements.
-3. Generate or validate the exact namespace-qualified envelope.
-4. Apply the required authentication/WS-Security mechanism.
-5. Set a finite timeout and correlation information.
-6. Parse both HTTP errors and SOAP Faults.
-7. Validate response elements/types and handle missing optional nodes.
-8. Redact credentials and sensitive XML from logs.
-9. Contract-test against representative fault messages.
-
-## 4.12 JSON in .NET: System.Text.Json and Newtonsoft.Json
-
-### `System.Text.Json`
-
-- Built into modern .NET and integrated with ASP.NET Core.
-- High-performance, UTF-8-focused APIs.
-- Supports attributes, converters, DOM APIs, and source generation.
-- Usually the default for new .NET code.
-- Its defaults differ from Newtonsoft.Json, so migrations require tests.
-
-```csharp
-using System.Text.Json;
-using System.Text.Json.Serialization;
-
-public sealed record OrderDto(
-    [property: JsonPropertyName("orderId")] string OrderId,
-    [property: JsonPropertyName("amount")] decimal Amount);
-
-var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
-{
-    PropertyNameCaseInsensitive = true,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-};
-
-OrderDto? order = JsonSerializer.Deserialize<OrderDto>(json, options);
-string output = JsonSerializer.Serialize(order, options);
-```
-
-Use `JsonDocument`/`JsonElement` for read-only traversal and `JsonNode` for a mutable DOM. Dispose `JsonDocument` because it owns pooled memory.
-
-### Newtonsoft.Json (`Json.NET`)
-
-- Mature external NuGet library.
-- Uses `JsonConvert`, `JsonSerializerSettings`, `JObject`, `JArray`, and `JToken`.
-- Common in older .NET systems and code requiring its established converters/features.
-- Flexible defaults can differ materially from `System.Text.Json`.
-
-```csharp
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-
-public sealed class LegacyOrderDto
-{
-    [JsonProperty("orderId")]
-    public string OrderId { get; init; } = string.Empty;
-
-    [JsonProperty("amount")]
-    public decimal Amount { get; init; }
-}
-
-var settings = new JsonSerializerSettings
-{
-    NullValueHandling = NullValueHandling.Ignore,
-    MissingMemberHandling = MissingMemberHandling.Error
-};
-
-var order = JsonConvert.DeserializeObject<LegacyOrderDto>(json, settings);
-var orderId = JObject.Parse(json)["orderId"]?.Value<string>();
-```
-
-### Comparison
-
-| Area | `System.Text.Json` | Newtonsoft.Json |
-|---|---|---|
-| Distribution | Included in modern .NET | NuGet package |
-| DOM | `JsonDocument`, `JsonElement`, `JsonNode` | `JObject`, `JArray`, `JToken` |
-| Attributes | `JsonPropertyName`, `JsonIgnore` | `JsonProperty`, `JsonIgnore` |
-| New-project choice | Usually preferred | Use when requirements justify it |
-| Legacy compatibility | May need converters/settings | Often already established |
-
-### JSON safety and correctness
-
-- Prefer typed DTOs for known contracts.
-- Validate business rules after syntactic deserialization.
-- Set naming, case, enum, null, date, unknown-member, and number behavior deliberately.
-- Avoid unsafe polymorphic type handling for untrusted JSON.
-- Do not log complete payloads by default.
-- Test null versus missing, unknown fields, large/decimal numbers, dates, and enums.
-- Do not switch libraries without contract tests.
-
-## 4.13 Related formats and mappings
-
-### CSV and flat files
-
-- Define delimiter, quoting/escaping, encoding, header, newline, decimal/date formats, and null representation.
-- Do not parse CSV with `Split(',')`; quoted delimiters and newlines exist.
-- Stream large files and checkpoint bounded batches.
-- Preserve the source row number for error reporting.
-- Decide whether one invalid row fails the file, is quarantined, or allows other rows to continue.
-
-### Date/time
-
-- Prefer ISO 8601 at API boundaries.
-- Preserve UTC or explicit offsets using `DateTimeOffset`.
-- Do not silently treat unspecified local time as UTC.
-- Identify timezone and daylight-saving rules for schedules/business timestamps.
-
-### Decimal and currency
-
-- Use `decimal` semantics for financial values in .NET.
-- Carry currency separately.
-- Define scale and rounding explicitly.
-- Avoid culture-dependent parsing at integration boundaries.
-
-### Mapping discipline
-
-| Source | Transformation | Destination |
-|---|---|---|
-| `orderId` | Trim; validate length/characters | `externalReference` |
-| `customerId` | Parameterized SQL lookup | `customer.id` |
-| `amount` | Decimal; validate range/scale | `total.amount` |
-| `currency` | Invariant uppercase; allow-list | `total.currency` |
-| `requestedAt` | Parse offset; output UTC ISO 8601 | `submittedAt` |
-| Correlation ID | Validate or generate | Header and metadata |
-| Idempotency key | Preserve unchanged | Downstream header |
-
-## 4.14 Integration patterns
-
-| Pattern | Use when | Main advantage | Main risk | Operational requirement |
-|---|---|---|---|---|
-| Request-response | Caller needs immediate result | Simple contract | Coupled latency/availability | Timeout, statuses, idempotency |
-| Queue/message | Work can complete later | Buffering/isolation | Duplicates/backlog | DLQ, age metric, consumer health |
-| Webhook | Source can push events | Low polling cost | Duplicate/out-of-order delivery | Authentication, retry, dedupe |
-| Polling | Source cannot push | Broad compatibility | Delay/repeated reads | Watermark, overlap, rate limit |
-| Schedule | Work follows time | Predictable | Missed/duplicate runs | Missing-run alert, timezone |
-| File/batch | Bulk legacy exchange | Efficient bulk transfer | Partial rows/large payload | Control totals, quarantine, archive |
-| Publish-subscribe | Multiple consumers | Loose coupling | Schema/order/consumer lag | Versioned events and monitoring |
-| Passthrough/proxy | No logic/transformation needed | Minimal implementation | Extra hop without value | Policy, latency, upstream health |
-
-Use synchronous processing only when the full path reliably fits inside caller/gateway deadlines. For slow or variable work, persist or enqueue first, return `202`, and expose status/callback behavior.
-
-### Orchestration versus choreography
-
-- **Orchestration:** A central Process controls sequence. It is visible and coordinated but can become a large central dependency.
-- **Choreography:** Services react to events without one controller. It reduces central coupling but makes end-to-end reasoning/consistency harder.
-
-Frends is naturally strong at orchestration. Do not force every domain event into one giant Process.
-
-## 4.15 Reliability patterns
-
-### Timeouts
-
-Every network call needs a finite timeout aligned to the caller's total deadline. Inner dependency timeouts must leave time for error mapping and cleanup. A connection timeout, operation/read timeout, caller timeout, and business completion deadline are different concerns.
-
-### Retry rules
-
-Retry only when all are true:
-
-1. Failure is plausibly transient.
-2. Operation is idempotent or duplicate-protected.
-3. Delay and attempts are bounded.
-4. Total time fits the deadline/SLA.
-5. Retrying will not amplify dependency overload.
-
-Use exponential backoff and jitter to avoid synchronized retry storms. Honor `Retry-After` when practical.
-
-### Circuit breaker
-
-A circuit breaker temporarily stops calls after repeated failures, allowing the dependency and caller resources to recover. It is not a retry mechanism. States are closed, open, and half-open recovery probes.
-
-### Idempotency
-
-1. Receive a stable idempotency/business key.
-2. Atomically create a durable processing record with a unique constraint.
-3. If the same key completed, return the recorded result.
-4. If in progress, return/await according to the contract.
-5. Forward the same key downstream.
-6. Record the final outcome and external identifier.
-7. Use identical controls during reprocessing.
-
-If the same idempotency key arrives with different normalized request content, return a conflict. Never reinterpret a key as a new operation.
-
-### Unknown outcome
-
-A timeout after sending a request does not prove failure. The server may have completed the operation and lost the response. Query by idempotency/business key before resubmitting a non-idempotent action.
-
-### Dead-letter/quarantine
-
-Do not repeatedly retry deterministic bad data. Quarantine it with business key, correlation ID, redacted error, source/schema version, attempt history, owner/status, and a controlled replay path.
-
-### Reconciliation
-
-Reconciliation compares expected business state across systems. It finds lost responses, silent omissions, duplicates, and partial completion that technical success metrics miss.
-
-### Exactly-once reality
-
-Exactly-once processing is rarely guaranteed across independent systems. A practical design combines at-least-once delivery, idempotent consumers, unique keys, checkpoints, and reconciliation.
-
-## 4.16 SQL and transaction essentials
-
-- Use parameterized SQL; never concatenate untrusted input.
-- Grant minimum database permissions.
-- Keep transactions short; do not hold locks while calling HTTP services.
-- Understand atomicity, consistency, isolation, and durability.
-- Index actual lookup/filter/join patterns; indexes add write/storage cost.
-- Distinguish zero rows from database failure.
-- Use deterministic keyset pagination for large growing tables.
-- Monitor slow queries, locks, deadlocks, pool exhaustion, and connectivity.
-
-A database transaction cannot atomically include an unrelated HTTP API. For database-plus-message reliability, know the **outbox pattern**: commit business data and an outbound-event row together, then publish the event separately and idempotently.
-
-### Minimal idempotency registry
-
-```sql
-CREATE TABLE dbo.IntegrationOrder
-(
-    IdempotencyKey  nvarchar(100) NOT NULL PRIMARY KEY,
-    OrderId         nvarchar(50)  NOT NULL UNIQUE,
-    RequestHash     char(64)      NOT NULL,
-    Status          varchar(24)   NOT NULL,
-    HttpStatus      smallint      NULL,
-    ResponseBody    nvarchar(max) NULL,
-    ExternalOrderId nvarchar(100) NULL,
-    CorrelationId   varchar(64)   NOT NULL,
-    AttemptCount    int           NOT NULL DEFAULT 0,
-    LastError       nvarchar(2000) NULL,
-    CreatedUtc      datetime2(3)  NOT NULL DEFAULT SYSUTCDATETIME(),
-    UpdatedUtc      datetime2(3)  NOT NULL DEFAULT SYSUTCDATETIME()
-);
-```
-
-The claim must be atomic. A separate unprotected "check then insert" permits two concurrent requests to pass the check. Use a transaction/locking pattern plus unique constraints.
-
-| Existing state | Decision |
-|---|---|
-| No row | Insert `PROCESSING`; continue |
-| Same key/hash, `COMPLETED` | Return stored result; do not call downstream |
-| Same key/hash, `PROCESSING` | Return `202` or expose status |
-| Same key/order, different hash | Return `409` |
-| `FAILED_RETRYABLE` | Use controlled reprocessing policy |
-| `REJECTED` | Return stored permanent rejection |
-
-## 4.17 Batching and large data
-
-1. Read a deterministic page, for example `WHERE Id > @LastId ORDER BY Id`.
-2. Process a bounded batch with bounded concurrency.
-3. Record each item outcome.
-4. Advance the checkpoint only after the defined success boundary.
-5. Quarantine poison records with source position/reason.
-6. Continue independent records if business rules permit.
-7. Reconcile counts and totals afterward.
-
-Set concurrency from downstream limits, database pool capacity, Agent CPU/memory, ordering requirements, and business tolerance. Do not log entire large payloads or every successful row.
-
-## 4.18 Failure matrix
-
-| Failure | Retry? | Immediate action | Alert? | Recovery |
-|---|---:|---|---:|---|
-| Validation/`422` | No | Return/quarantine reason | Trend only | Correct data, controlled replay |
-| `401` | Usually no | Stop repeated attempts; fix identity | Yes | Verify credential, then replay |
-| `403` | No | Fix scope/permission | Yes | Replay after authorization fix |
-| `404` | Context dependent | Decide eventual/permanent absence | Threshold | Replay only if record later exists |
-| `409` | No blind retry | Query canonical state | Usually no | Reconcile result |
-| `429` | Bounded | Honor delay; reduce concurrency | If sustained | Queue/delay safely |
-| Timeout | Maybe | Outcome is unknown | Threshold | Query destination before retry |
-| `500`/`502`/`503` | Often bounded | Back off; protect dependency | Threshold | Retry/replay same key |
-| Invalid JSON/XML response | Usually no | Preserve safe sample; investigate contract | Yes | Replay after producer/mapping fix |
-| Database unavailable | Bounded | Prevent connection/retry storm | Yes | Restore, resume, drain backlog |
-| Downstream success/local failure | No new operation | Reconciliation required | Yes | Repair local state by same key |
-| Poison record | No repeated retry | Quarantine and continue safe work | Summary | Correct and audited replay |
-
-## 4.19 Two-minute end-to-end answer
+Put bearer, OAuth, or API-key rules in:
 
 ```text
-Caller
-  -> OAuth/API Policy + contract validation
-  -> correlation ID + durable idempotency claim
-  -> parameterized SQL enrichment
-  -> explicit mapping
-  -> downstream token + finite timeout + same idempotency key
-  -> status/exception classification
-  -> durable final result or recoverable failure
-  -> safe response + logs/metrics/alerts/reconciliation
+components -> securitySchemes
 ```
 
-Say aloud:
+Do not model `Authorization` as a normal parameter.
 
-> I would expose a contract-first order API in Frends, authenticate it with an API Policy, establish correlation and idempotency identifiers, validate contract and business rules, and atomically claim the request in SQL. I would enrich and map it, then call the downstream service with the same idempotency key. Only classified transient failures are retried within a deadline. The result is stored for duplicate replay. Ambiguous timeouts and downstream-success/local-failure cases are reconciled instead of blindly resubmitted. Logs are structured and redacted, with searchable identifiers and alerts for failure rates and missing executions.
+### Normal Request Header
 
-## 4.20 API and integration interview questions
+Put a correlation header in operation `parameters`.
 
-### 1. What makes an API RESTful?
+### Response Header
 
-It uses HTTP semantics and resource-oriented representations through a uniform, stateless interface. Focus on meaningful methods/statuses, stable contracts, cache/idempotency behavior, and avoid claiming every HTTP API is strictly REST.
+Put a response header under the response:
 
-### 2. `PUT` versus `PATCH`?
+```yaml
+'429':
+  description: Too many requests
+  headers:
+    Retry-After:
+      schema:
+        type: integer
+```
 
-`PUT` conventionally replaces/creates the representation at a known URI and is idempotent. `PATCH` applies a partial change and is idempotent only if its patch semantics are designed that way.
+## Security Rules
 
-### 3. `201` versus `202`?
+- Global `security` applies to operations by default.
+- An operation can override the global rule.
+- Two security entries mean either one can be used.
+- Two schemes in one entry mean both are needed.
+- Runtime policy still decides real access.
 
-Return `201` after creation is complete. Return `202` when work is only accepted; persist or enqueue first and provide status/callback behavior.
+## Good OpenAPI Rules
 
-### 4. How do you make `POST` idempotent?
+- Use a unique `operationId`.
+- Make every path parameter required.
+- Give every response a description.
+- Quote YAML status codes such as `'200'`.
+- Use reusable models with `$ref`.
+- Define required fields at every object level.
+- Add normal and error responses.
+- Never put a real token or personal record in an example.
+- Lint the file.
+- Test the real API against the contract.
+- Version a breaking change.
 
-Require a key, atomically store it with a hash of normalized request content, and save the final response. Replay the stored result for the same content and return `409` for changed content under the same key.
+## 60-Second Answer
 
-### 5. Why is a timeout ambiguous?
-
-The caller only knows it did not receive a response. The server may have failed, still be processing, or committed successfully; recovery requires lookup, idempotency, or reconciliation.
-
-### 6. Which failures should be retried?
-
-Only plausibly transient failures such as throttling, selected `5xx`, and network faults, when the operation is duplicate-safe, attempts/delays are bounded, and the deadline permits it.
-
-### 7. How do you handle `429`?
-
-Honor `Retry-After`, use bounded delayed retries, reduce concurrency/calls, and alert on sustained throttling because retries alone can amplify load.
-
-### 8. What is exponential backoff with jitter?
-
-Delay grows after failures and randomness prevents many workers from retrying simultaneously. It reduces pressure on a recovering dependency.
-
-### 9. What is a circuit breaker?
-
-It stops calls after repeated failures and later admits limited recovery probes. It protects resources but does not replace retry, queues, idempotency, or monitoring.
-
-### 10. Authentication versus authorization?
-
-Authentication establishes identity. Authorization decides which actions/resources that identity may access.
-
-### 11. Explain OAuth client credentials.
-
-A confidential service authenticates to an authorization server and receives an application access token for approved scopes. It is service-to-service and contains no end-user identity.
-
-### 12. Why use OpenAPI?
-
-It makes paths, inputs, responses, schemas, and security explicit; supports documentation/tooling; and enables validation and contract tests. Frends links its API operations to Processes.
-
-### 13. Does OpenAPI security secure the endpoint?
-
-No. It documents the requirement. The gateway/platform/API Policy must enforce it.
-
-### 14. YAML versus JSON for OpenAPI?
-
-Both represent the same model. YAML is concise but indentation/type inference can cause errors; JSON is explicit but verbose. Validate either.
-
-### 15. RAML versus OpenAPI?
-
-They are different API-description specifications. Both may use YAML syntax, but their structures/tools are not interchangeable.
-
-### 16. What is a SOAP envelope?
-
-The required SOAP XML root container with an optional Header and required Body. Standard SOAP errors appear as Faults.
-
-### 17. WSDL versus XSD?
-
-WSDL describes service operations, messages, bindings, and endpoints. XSD defines XML element/type structures used by the messages.
-
-### 18. Why does an XPath often miss apparently matching XML?
-
-Namespaces. Elements in a namespace must be selected using a correctly bound prefix even if the source uses a default namespace.
-
-### 19. When use XSLT?
-
-For declarative repeatable XML transformations, especially schema-driven mappings. Test namespaces, edge cases, safe resolver settings, and the target schema.
-
-### 20. `System.Text.Json` versus Newtonsoft.Json?
-
-Prefer `System.Text.Json` for new modern .NET work unless established behavior/features require Newtonsoft.Json. Defaults, DOMs, attributes, converters, and polymorphism differ, so migration needs contract tests.
-
-### 21. Why not parse CSV with `Split(',')`?
-
-CSV supports quoting, escaped quotes, embedded delimiters, and sometimes embedded newlines. Use a parser with an explicit dialect.
-
-### 22. Why use parameterized SQL?
-
-It separates values from executable SQL syntax, preventing injection and improving data-type/quoting correctness.
-
-### 23. Why not keep a transaction open during HTTP?
-
-Network latency is unbounded and holds locks/connections, causing blocking/deadlocks. Commit short local state, call externally, then update or reconcile.
-
-### 24. What is the outbox pattern?
-
-Commit a business change and an outbound-message record in one database transaction, then publish the message separately and idempotently.
-
-### 25. How do you process a large table or file?
-
-Use deterministic pagination/streaming, bounded batches and concurrency, durable checkpoints, per-item outcomes, quarantine, control totals, and reconciliation.
-
-### 26. Queue or synchronous API?
-
-Use synchronous processing when short work requires an immediate result. Use a queue for buffering, load smoothing, dependency isolation, and independent retry when eventual completion is acceptable.
-
-### 27. Polling or webhook?
-
-Use webhooks when a source can push reliably. Poll with a durable watermark, overlap, and deduplication when it cannot.
-
-### 28. Correlation ID versus idempotency key?
-
-Correlation connects telemetry for one end-to-end attempt/transaction. Idempotency identifies one logical business operation across repeated attempts.
-
-### 29. What is a dead-letter queue?
-
-It isolates messages that exhausted retry or cannot be processed. It requires ownership, alerting, diagnostic context, correction, and controlled replay.
-
-### 30. Can distributed processing guarantee exactly once?
-
-Usually not across independent systems. Use at-least-once delivery plus idempotency, unique constraints, checkpoints, and reconciliation.
+> OpenAPI is the contract for an HTTP API. I remember Info, Servers, Paths, Models, and Security. Operations describe parameters, request bodies, responses, and security. Models describe properties, required fields, types, and limits. YAML and JSON are only two ways to write the same OpenAPI model. The file helps documentation and testing, but the runtime still has to enforce validation and security.
 
 ---
 
-# 5. Frends Architecture and Development
+# 8. JSON Validation - MUST KNOW
 
-## 5.1 Exact 45-minute routine
+## Four Checks
 
-| Minutes | Activity |
-|---:|---|
-| 0-8 | Learn the runtime mental model |
-| 8-18 | Process/Subprocess/Task/Trigger/shapes |
-| 18-25 | References and error handling |
-| 25-32 | API management and policies |
-| 32-38 | Deployment, versions, logging, monitoring |
-| 38-45 | Redraw and explain everything closed-book |
+Remember:
 
-## 5.2 Frends mental model
+**Syntax -> Shape -> Business -> Outside data**
+
+## Validation Flow Diagram
 
 ```text
-Frends Tenant / Control Panel
-  |
-  +-- Development Environment
-  |     +-- Agent Group
-  |           +-- Agent(s)
-  |
-  +-- Test Environment
-  |     +-- Agent Group
-  |           +-- Agent(s)
-  |
-  +-- Production Environment
-        +-- Agent Group
-              +-- Agent(s)
-
-Trigger -> Process -> Tasks / Code Tasks / Subprocesses -> Return or Throw
-                         |
-                         +-> Process Instance logs and promoted values
+JSON text
+   |
+   v
+Can it be parsed?
+   |
+   +-- No --> Safe 400 error
+   |
+   v
+Does the shape match?
+required fields, types, limits
+   |
+   +-- No --> Safe field errors
+   |
+   v
+Do business rules pass?
+   |
+   +-- No --> Safe business error
+   |
+   v
+Do outside facts pass?
+customer exists and caller is allowed
+   |
+   +-- No --> Safe not-found or permission error
+   |
+   v
+Continue with the integration
 ```
 
-- **Tenant/Control Panel:** Central place to develop, administer, deploy, and monitor integrations.
-- **Environment:** Logical lifecycle boundary such as Development, Test, or Production. Environment Variables supply target-specific values under common names.
-- **Agent Group:** Deployment/execution target inside an Environment. Its Agents share deployed versions/settings.
-- **Agent:** Runtime software that registers active Triggers and executes compiled Processes.
-- **Hybrid architecture:** Frends Cloud Agents and customer-managed Self Service Agents can coexist so execution occurs near cloud or protected on-premises systems.
-- **High availability:** Multiple Agents can participate in one Agent Group; coordinated workloads require suitable shared state and traffic/load-balancing design.
-
-Processes are deployed to an Agent Group, not to a single chosen Agent.
-
-## 5.3 Choosing a Frends construct
-
-| Construct | Use it for | Key behavior |
-|---|---|---|
-| Process | Complete externally/automatically triggered integration | Begins with Trigger; flow ends in Return/Throw; BPMN plus C#, compiled to .NET |
-| Subprocess | Reusable orchestration/shared logic | Manual Trigger defines interface; called synchronously; own Instance; caller waits |
-| Standard Task | Supported connector/common operation | Packaged C# action; output through `#result` |
-| Code Task | Small process-local mapping/filter/calculation | Multi-line C# inside Process; keep cohesive |
-| Custom Task | Reusable tested code/libraries/package ownership | .NET 8 class library packaged as NuGet and imported |
-| External service | Separately scaled/owned/security-bounded domain capability | Independent lifecycle from Frends |
-
-A Custom Task method must be public/static, return a value, and not be overloaded. Use tests, XML documentation, supported metadata, and secret-sensitive parameter attributes; package it with `dotnet pack`.
-
-## 5.4 Triggers and shapes
-
-Common Triggers:
-
-- **Manual:** User or Run once invocation; only Trigger for a Subprocess.
-- **File:** Watches a mapped directory.
-- **Schedule:** Starts at configured time/interval.
-- **Conditional:** Periodically calls a Subprocess whose result controls starting.
-- **HTTP:** Standalone endpoint without OpenAPI/API Management.
-- **API:** Linked to an OpenAPI operation and API Management.
-- **Messaging:** Options include AMQP, Azure Service Bus, RabbitMQ, Event Hub, and TCP depending on installed capabilities.
-
-Non-manual Triggers must be active to respond.
-
-Shape categories:
-
-- **Events:** Trigger, Return, Intermediate Return, Throw, Catch.
-- **Decisions:** Exclusive selects one true path; Inclusive can select multiple matches.
-- **Activities:** Task, Call Subprocess, Assign Variable, Code Task, Shared State Task, DMN Task.
-- **Scopes:** Named Scope, Foreach, While. While includes a maximum-iteration safeguard.
-- **Sequence Flow:** Executable connection between shapes.
-- **Long running:** Checkpoint plus scheduled/signal resume can persist dormant state.
-
-## 5.5 Reference values
-
-| Reference | Meaning |
-|---|---|
-| `#trigger` | Input and metadata from the Trigger |
-| `#var` | Mutable Process variables |
-| `#env` | Central environment configuration, such as `#env.CRM.BaseUrl` |
-| `#result` | Most recently completed Task/Scope output |
-| `#result[HTTP Request]` | Named result from a particular executed shape |
-| `#process` | Environment, Agent Group, Agent, version, execution ID, cancellation token, etc. |
-| `#var.error` | Exception details in Catch/error-handler context |
-
-Do not read a named result from a branch that may not have executed. Initialize a variable before the branch and assign into it on each applicable path.
-
-## 5.6 Error handling
-
-- Use **Catch** when the current flow can map, compensate, record, continue safely, or return a controlled failure.
-- An **unhandled-error Subprocess** runs after the failed Process stops. It supports alerting/cleanup, not resuming that execution.
-- A Task's **Retry on failure** uses increasing delays. Enable it only for transient, duplicate-safe operations.
-- Timeouts, `429`, and selected `5xx` may be transient. Validation, authentication/configuration, and most `4xx` need correction.
-- Always design a safe reprocessing route; retry alone is not recovery.
-- Do not convert every error into a successful Process instance. Preserve truthful operational status.
-
-## 5.7 API Management
-
-1. Define/import an OpenAPI specification. Current guidance centers on OAS `3.0.1`; OAS `2.0` supports legacy APIs.
-2. Link each operation to a Process through an API Trigger, or generate a matching Process from API Management.
-3. Implement and validate contract-compliant responses.
-4. Add an API Policy.
-5. Deploy the API and its linked Processes together.
-6. Activate linked Process Triggers.
-
-API Policies can target URLs, methods, and Agent Groups and configure authentication, throttling, and request logging. Current documented access methods include OAuth, Private Application, API key, and explicit public access.
-
-**Important:** No Policy/access configuration does not mean public access. Access must be explicitly allowed.
-
-API connection logging and Process execution logging are separate. Deploy linked Processes through API deployment to avoid version mismatches. A passthrough API proxies to an upstream API where no Process transformation/orchestration is needed and can still use policies.
-
-### HTTP Trigger versus API Trigger
-
-| HTTP Trigger | API Trigger |
-|---|---|
-| Standalone endpoint | Linked to OpenAPI operation |
-| No API Management contract | Contract-driven input/output |
-| Simpler internal endpoint | Policy, grouped deployment, API monitoring |
-| Use for limited standalone scenarios | Prefer for governed external APIs |
-
-## 5.8 Lifecycle and rollback
-
-- Develop in Development; deploy selected versions to Test/Production Agent Groups.
-- Saving increments the build/patch version; major/minor are developer controlled.
-- Use Changelog and Diff during review.
-- Deploy referenced Subprocesses and define every target Environment Variable first.
-- Choose Deploy or Deploy and activate Triggers deliberately.
-- Runtime rollback: deploy an older known-good version to the affected Agent Group.
-- To continue development from an old definition, Switch version creates a new latest version without deleting history.
-- For an API, deploy/roll back the API and linked Processes as one release unit.
-
-## 5.9 Logging and monitoring
-
-One **Process Instance** represents one execution and records status, duration, results, and step details according to log settings.
-
-| Log level | Use |
-|---|---|
-| Only Errors | Minimum data and overhead |
-| Default | Step results with input/large-data restrictions |
-| Everything | Inputs, outputs, expressions; temporary development/investigation use |
-
-- Agent Group defaults can be overridden per Process.
-- Use **Skip logging result and parameters** for tokens, secrets, personal information, or large data.
-- **Promoted values** are searchable Instance columns and can drive Monitoring Rules. Promote small non-sensitive business identifiers only.
-- **Monitoring Rules** detect repeated errors, unexpected/missing executions, or excessive duration and can email or trigger a Process.
-- **API Monitoring** covers inbound request events/statuses.
-- **Agent/system logs** cover wider runtime problems.
-
-To detect a schedule that never ran, monitor expected execution count/absence. No run means there is no failed Process Instance to alert on.
-
-## 5.10 Testing in Frends
-
-- Use Task test for an isolated Task with concrete inputs; it cannot depend on prior `#trigger`/`#result` context.
-- Use Run once for the saved complete Process and inspect the Process Instance.
-- Test Custom Tasks using normal .NET unit and controlled integration tests.
-- Test contract, authentication, happy path, invalid data, duplicate, timeout, throttling, downstream failure, logging/redaction, and reprocessing.
-
-## 5.11 Frends interview questions
-
-### 1. What is a Frends Process?
-
-An end-to-end integration flow modeled with supported BPMN, enhanced by C# expressions/Code Tasks, converted to C#, compiled with .NET, and executed by an Agent. It begins with a Trigger and normally finishes through Return or Throw.
-
-### 2. Process versus Subprocess?
-
-A Process is the externally or automatically started boundary. A Subprocess is reusable internal orchestration with a Manual Trigger defining parameters. It gets a separate Instance/execution context, but its caller waits, so it is not a concurrency tool.
-
-### 3. Standard Task versus Code Task versus Custom Task?
-
-Start with an official Task for supported common operations. Use Code Task for small process-specific logic. Use Custom Task for reusable/tested packaged code or additional libraries. Use an external service for independent ownership, scaling, or security boundaries.
-
-### 4. How does execution work?
-
-An active Trigger is registered by an Agent. Its event starts a Process Instance and the Agent runs the compiled Process in the .NET runtime. Results/failures go to Instance logging according to configured levels.
-
-### 5. Environment, Agent Group, and Agent?
-
-An Environment represents lifecycle/configuration context. Its Agent Group is the deployment/execution target and physical placement. Agents are the runtime processes executing definitions deployed to that group.
-
-### 6. How does Frends support hybrid integration?
-
-One tenant can manage Frends Cloud Agents and Self Service Agents in customer infrastructure/other clouds. Place execution near protected systems, expose only required network paths, and use Environment Variables for target-specific endpoints/credentials.
-
-### 7. How would you design high availability?
-
-Use multiple Agents in an Agent Group with appropriate shared state and load-balancer/gateway design. Monitor shared dependencies because they may remain single failure points. Deployments still target the group, not one Agent.
-
-### 8. Explain the key references.
-
-`#trigger` is invocation data, `#var` mutable flow state, `#env` environment configuration, `#result` shape output, and `#process` execution metadata. Avoid named results from branches that may not run; initialize a variable across branches.
-
-### 9. HTTP Trigger versus API Trigger?
-
-HTTP Trigger creates a standalone endpoint without OpenAPI/API Management. API Trigger links a Process to an OpenAPI operation, enabling contract-driven behavior, API Policies, grouped deployment, and API monitoring.
-
-### 10. How do you create and secure a Frends API?
-
-Create/import OpenAPI, link a Process per operation, implement contract responses, add a scoped API Policy, deploy API and Processes together, and activate Triggers. Use TLS, least-privilege OAuth/keys, throttling, validation, and safe logging.
-
-### 11. What happens if an API has no Policy?
-
-It is not automatically public. Current documented behavior requires a Policy to permit access, including explicit public access. The incomplete configuration therefore fails closed.
-
-### 12. How do you deploy safely?
-
-Test in Development, deploy dependent Subprocesses first, verify target Environment Variables, deploy the selected version to Test, execute happy/failure smoke tests, promote the same version, activate deliberately, and monitor initial Instances.
-
-### 13. How do you roll back?
-
-Deploy the previous known-good version to the Agent Group, confirm Trigger state and health, and reconcile external side effects. Use Switch version only when development should continue from an older definition. Roll back an API with linked Processes as a unit.
-
-### 14. How do you troubleshoot a failure?
-
-Identify impact, Environment, Process version, execution/correlation/business IDs. Inspect the first failed shape, classify data/auth/config/network/dependency/code, check Agent/API logs, stop unsafe retries, recover, reprocess idempotently, and verify business outcomes.
-
-### 15. What are promoted values?
-
-Searchable Process Instance columns that can drive Monitoring Rules. Promote order/correlation/outcome identifiers, never secrets or sensitive payloads, because promotion remains logged despite normal level suppression.
-
-### 16. How do you choose a production log level?
-
-Use the minimum needed for operations/privacy/audit. Temporarily raise one Process during an incident and then restore it. Secret-bearing shapes skip parameters/results regardless of overall level.
-
-### 17. Catch versus unhandled-error Subprocess?
-
-Catch handles an exception inside the active flow and can map/compensate/return/rethrow. An unhandled-error Subprocess runs after the original Process stops, so it supports alerting/cleanup rather than resume.
-
-### 18. How do you detect a scheduled Process that silently stopped?
-
-Create a Monitoring Rule for expected execution count/absence in a time window. Then check Trigger activation, schedule/timezone, Agent health, deployment, and source availability.
-
-### 19. How do you test Frends work?
-
-Use isolated Task tests, Run once plus Process Instance review, automated .NET tests for Custom Tasks, contract/integration tests, and deliberate failure tests. Verify business outcomes and log redaction, not only a green status.
-
-### 20. How do you prevent retry duplicates?
-
-Classify the failure, bound retries, carry a stable durable idempotency key, and treat a timeout as unknown. Query/reconcile destination state before resubmitting and apply the same controls to reprocessing.
-
-## 5.12 Closed-book Frends checkpoint
-
-Draw the mental model from memory, then answer in two minutes:
-
-> A request reaches a policy-protected OpenAPI operation and starts an API-triggered Process on an Agent in the deployed Agent Group. The Process uses `#trigger`, `#env`, variables, Tasks, and Subprocesses; it returns or throws. One Process Instance captures the execution. Promoted identifiers make it searchable. Versions move through Environment/Agent Group deployments, and an older known-good version supports runtime rollback. Monitoring covers both failures and missing executions.
-
----
-
-# 6. Hands-On Frends Order Integration
-
-## 6.1 Lab goal and definition of done
-
-Build and explain:
-
-```text
-API Trigger
-  -> initialize correlation and normalized request
-  -> validate
-  -> atomically claim idempotency key
-  -> enrich customer
-  -> map downstream request
-  -> call downstream with OAuth + same idempotency key
-  -> classify result
-  -> store final response/failure
-  -> return consistent HTTP response
+## 1. Syntax
+
+Ask:
+
+- Is it valid JSON?
+- Is the content type correct?
+- Is the body size allowed?
+
+## 2. Shape
+
+Ask:
+
+- Is the root the correct type?
+- Are required fields present?
+- Are nested required fields present?
+- Are data types correct?
+- Are values inside allowed limits?
+- Are unknown fields allowed?
+
+## 3. Business Rules
+
+Examples:
+
+- Amount must be greater than zero.
+- End date cannot be before start date.
+- Currency must be allowed.
+
+## 4. Outside Data
+
+Examples:
+
+- Does the customer exist?
+- Is the product active?
+- May the caller submit for this customer?
+- Was the order already completed?
+
+## Required Fields Example
+
+```yaml
+type: object
+required:
+  - orderId
+  - customer
+properties:
+  orderId:
+    type: string
+    minLength: 1
+  customer:
+    type: object
+    required:
+      - customerId
+    properties:
+      customerId:
+        type: string
 ```
 
-By minute 75 you need:
+Important:
 
-- One linked API operation or Manual Trigger fallback.
-- Correlation and idempotency identifiers.
-- Validation and consistent errors.
-- Durable claim, or clearly labeled simulation.
-- Customer enrichment and explicit mapping.
-- One outbound HTTP call with timeout.
-- Bounded retry and Catch handling.
-- Success, duplicate, permanent, and transient branches.
-- Promoted operational identifiers.
-- A two-minute closed-book explanation.
+- `properties` describes possible fields.
+- `required` makes selected fields mandatory.
+- A nested object needs its own `required` list.
+- Missing, null, and empty are different.
+- Required means present. It does not always mean non-null.
+- In OpenAPI 3.0, use `nullable: true` when null is allowed.
+- `additionalProperties: false` rejects unknown fields.
+- A strict unknown-field rule can reduce future compatibility.
+- `format` may not be checked by every validator.
+- `default` may not be added automatically.
 
-Task names and parameter labels vary by installed package/version. Use the tenant's installed HTTP/database Tasks and inspect their result objects through autocomplete/documentation.
+## Four Similar Requests
 
-## 6.2 Exact 75-minute schedule
-
-| Time | Work |
-|---|---|
-| 00:00-00:05 | Create Process and choose real/simulated dependencies |
-| 00:05-00:13 | Import API, link Process, configure access |
-| 00:13-00:20 | Add environment variables |
-| 00:20-00:29 | Initialize, normalize, hash, validate |
-| 00:29-00:39 | Add idempotency claim |
-| 00:39-00:47 | Enrich customer and map payload |
-| 00:47-00:59 | Configure OAuth/HTTP, retries, Catch |
-| 00:59-01:06 | Persist outcome and return responses |
-| 01:06-01:12 | Run intentional failure tests |
-| 01:12-01:15 | Close editor and explain from memory |
-
-If SQL or OAuth endpoints are unavailable, simulate only those boundaries. Do not spend the lab debugging infrastructure. State exactly what the real Task would do.
-
-## 6.3 Input contract
-
-Use the OpenAPI document from Section 4 and this payload:
+### Valid
 
 ```json
 {
   "orderId": "ORD-1001",
-  "customerId": "CUS-101",
-  "amount": 249.95,
-  "currency": "USD",
-  "requestedAt": "2026-07-13T14:30:00Z"
-}
-```
-
-Validation rules:
-
-| Field | Rule |
-|---|---|
-| `Idempotency-Key` | Required; bounded printable value |
-| `orderId` | Required; 1-50 allowed characters; business unique |
-| `customerId` | Required; 1-50 allowed characters |
-| `amount` | Decimal greater than zero; agreed upper bound |
-| `currency` | Supported uppercase ISO currency code |
-| `requestedAt` | ISO 8601 timestamp with offset |
-| Correlation ID | Accept safe bounded header or create GUID |
-
-## 6.4 Preflight and environment variables
-
-Choose:
-
-- **Full:** Reachable SQL and downstream test API.
-- **Hybrid:** SQL plus mock HTTP endpoint.
-- **Simulation:** Static customer/configurable mock status while retaining production design.
-
-Create:
-
-| Variable | Type | Example/purpose |
-|---|---|---|
-| `OrderDemo.DownstreamBaseUrl` | Text | Downstream base URL |
-| `OrderDemo.TokenUrl` | Text | OAuth token endpoint |
-| `OrderDemo.ClientId` | Text/secret per policy | Application ID |
-| `OrderDemo.ClientSecret` | Secret | Never log |
-| `OrderDemo.Scope` | Text | Downstream scope |
-| `OrderDemo.SqlConnectionString` | Secret | SQL connection |
-| `OrderDemo.TimeoutSeconds` | Number | `10` |
-| `OrderDemo.MaxAttempts` | Number | `3` |
-
-Reference them through `#env`, for example `#env.OrderDemo.DownstreamBaseUrl`.
-
-## 6.5 Create and secure the API
-
-1. In Development API Management, create the API from Section 4's OAS `3.0.1` contract.
-2. Link `POST /orders` to a new Process so API Trigger/Return shapes match.
-3. Create/select an API Policy.
-4. For a lab, use a development-only key if OAuth policy setup is unavailable.
-5. In the interview, state production would use approved OAuth/claims plus least privilege.
-6. Deploy/activate only after configuration is ready.
-
-If permissions are missing, use a Manual Trigger with the same payload and preserve the API Trigger in your architecture explanation.
-
-## 6.6 Name the Process shapes
-
-```text
-Submit Order API
-|- Initialize Request
-|- Validate Order
-|- Valid Request?
-|- Claim Order
-|- Claim Outcome?
-|- Get Customer
-|- Customer Valid?
-|- Map Downstream Order
-|- Submit Downstream Order
-|- Classify Downstream Response
-|- Complete Order / Record Failure
-+- Return HTTP Response
-```
-
-Meaningful names make references such as `#result[Get Customer]` understandable.
-
-## 6.7 Initialize and normalize
-
-Create variables:
-
-| Variable | Initial value |
-|---|---|
-| `CorrelationId` | Valid incoming header or new GUID |
-| `IdempotencyKey` | Required header |
-| `RequestHash` | SHA-256 of normalized request |
-| `AttemptCount` | `0` |
-| `Outcome` | Empty structured object |
-| `DownstreamPayload` | Empty object |
-
-The API Trigger exposes the defined body/headers under `#trigger.data`. Use editor autocomplete because generated names and hyphenated headers may require bracket/dictionary syntax.
-
-A Code Task can normalize and hash. Adapt trigger references to the actual generated model:
-
-```csharp
-var normalized = Newtonsoft.Json.Linq.JObject.FromObject(new
-{
-    orderId = ((string)#trigger.data.body.orderId)?.Trim(),
-    customerId = ((string)#trigger.data.body.customerId)?.Trim(),
-    amount = System.Convert.ToDecimal(#trigger.data.body.amount),
-    currency = ((string)#trigger.data.body.currency)?.Trim().ToUpperInvariant(),
-    requestedAt = System.DateTimeOffset.Parse(
-        (string)#trigger.data.body.requestedAt,
-        System.Globalization.CultureInfo.InvariantCulture)
-        .ToUniversalTime()
-        .ToString("O")
-});
-
-var bytes = System.Text.Encoding.UTF8.GetBytes(
-    normalized.ToString(Newtonsoft.Json.Formatting.None));
-
-var hash = System.Convert.ToHexString(
-    System.Security.Cryptography.SHA256.HashData(bytes));
-
-return new { Payload = normalized, RequestHash = hash };
-```
-
-Equivalent logical requests must produce the same hash. Do not include volatile values such as correlation ID or current time.
-
-## 6.8 Validate
-
-Collect validation errors rather than failing at the first field:
-
-- Required and bounded idempotency key.
-- Required order/customer identifiers.
-- `amount > 0` and within supported range/scale.
-- Supported currency.
-- Valid offset timestamp.
-- Allowed identifier characters.
-- Acceptable body/collection size.
-
-Use an Exclusive Decision:
-
-```text
-errors.Count == 0?
-  Yes -> Claim Order
-  No  -> Return 400 Problem response
-```
-
-Schema validation is useful, but Process validation remains defense in depth and implements business rules.
-
-Promote only small safe values: `OrderId`, `CorrelationId`, `Outcome`, and possibly `AttemptCount`.
-
-## 6.9 Atomically claim the idempotency key
-
-Use a database Task named `Claim Order`:
-
-- Connection: `#env.OrderDemo.SqlConnectionString`
-- Parameters: idempotency key, order ID, request hash, correlation ID
-- Retry: bounded only for known transient connection failures
-- Logging: suppress connection string and complete payload
-
-Conceptual atomic claim:
-
-```sql
-SET XACT_ABORT ON;
-BEGIN TRANSACTION;
-
-DECLARE @ExistingKey nvarchar(100);
-SELECT @ExistingKey = IdempotencyKey
-FROM dbo.IntegrationOrder WITH (UPDLOCK, HOLDLOCK)
-WHERE IdempotencyKey = @IdempotencyKey OR OrderId = @OrderId;
-
-IF @ExistingKey IS NULL
-BEGIN
-    INSERT dbo.IntegrationOrder
-        (IdempotencyKey, OrderId, RequestHash, Status, CorrelationId)
-    VALUES
-        (@IdempotencyKey, @OrderId, @RequestHash, 'PROCESSING', @CorrelationId);
-END;
-
-SELECT * FROM dbo.IntegrationOrder
-WHERE IdempotencyKey = COALESCE(@ExistingKey, @IdempotencyKey);
-
-COMMIT TRANSACTION;
-```
-
-Branch:
-
-| Outcome | Behavior |
-|---|---|
-| New row | Continue |
-| Same key/hash, completed | Return stored response with `replayed: true` |
-| Same key/hash, processing | Return `202` or status reference |
-| Same key/order, different hash | Return `409` |
-| Rejected | Return stored rejection |
-| Retryable failure | Use controlled reprocessing policy |
-
-Do not implement separate unprotected "check then insert." Unique constraints remain the final race defense.
-
-Simulation fallback may use a Shared State Task/static object, but state clearly that it is not the durable production design.
-
-## 6.10 Enrich the customer
-
-Use a parameterized query:
-
-```sql
-SELECT ExternalCustomerId, IsActive
-FROM dbo.Customer
-WHERE CustomerId = @CustomerId;
-```
-
-| Result | Behavior |
-|---|---|
-| One active customer | Continue |
-| No customer | `422 customer_not_found` |
-| Inactive customer | `422 customer_inactive` |
-| Multiple rows | Data-integrity failure and alert |
-| Database unavailable | Retryable dependency failure, then `503` |
-
-Simulation object:
-
-```json
-{
-  "customerId": "CUS-101",
-  "externalCustomerId": "EXT-CUS-8801",
-  "isActive": true
-}
-```
-
-## 6.11 Map the downstream contract
-
-Use Assign Variable or a small Code Task:
-
-```json
-{
-  "externalReference": "ORD-1001",
-  "customer": { "id": "EXT-CUS-8801" },
-  "total": { "amount": 249.95, "currency": "USD" },
-  "submittedAt": "2026-07-13T14:30:00Z",
-  "metadata": {
-    "correlationId": "563885df-e152-4d31-a64d-4819d97b9997"
+  "customer": {
+    "customerId": "C-100"
   }
 }
 ```
 
-Verify amount remains numeric, timestamp has UTC/offset semantics, internal fields do not leak, correlation is forwarded, and the idempotency key remains unchanged.
-
-## 6.12 Obtain an OAuth token
-
-Preferred choices:
-
-- Approved reusable authentication Subprocess.
-- Task/package capability accepting OAuth configuration/token.
-- Direct token endpoint call when necessary.
-
-```http
-POST <TokenUrl>
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=client_credentials&
-client_id=<client-id>&
-client_secret=<secret>&
-scope=<scope>
-```
-
-Do not put the secret/token into logged Process results. Production should cache/reuse a valid token until shortly before expiry. Obtaining once per Process is acceptable only as a time-boxed demonstration; explain the inefficiency.
-
-## 6.13 Submit downstream
-
-Configure `Submit Downstream Order`:
-
-| Setting | Value |
-|---|---|
-| Method | `POST` |
-| URL | `#env.OrderDemo.DownstreamBaseUrl + "/orders"` |
-| Content type | `application/json` |
-| Body | Mapped payload |
-| Authorization | Bearer access token |
-| Header | `Idempotency-Key: #var.IdempotencyKey` |
-| Header | `X-Correlation-Id: #var.CorrelationId` |
-| Timeout | `#env.OrderDemo.TimeoutSeconds` |
-| Transport retries | Bounded and duplicate-safe |
-| HTTP error throwing | Disable when manually classifying statuses |
-
-Classify:
-
-```text
-2xx       -> parse and complete
-400/422   -> permanent rejection; no retry
-401/403   -> identity/scope failure; alert
-409       -> inspect/query idempotent state
-429       -> honor Retry-After; bounded delay
-500-599   -> bounded retry when duplicate-safe
-other     -> unexpected contract response
-```
-
-For the lab, implement transport retry and status classification. Describe a reusable Subprocess/bounded loop for precise `429`/`5xx` policy rather than duplicating a large group of shapes.
-
-Attach Catch to the downstream Scope. In Catch:
-
-1. Classify the exception.
-2. Set a safe preinitialized `Outcome`.
-3. Update durable state to retryable failure where appropriate.
-4. Promote failure category/attempt count.
-5. Return a safe `503` or rethrow after recording.
-
-Do not access the failed Task's result from Catch; use Catch error context and variables initialized before the call.
-
-## 6.14 Persist and return the outcome
-
-Success update:
-
-```sql
-UPDATE dbo.IntegrationOrder
-SET Status = 'COMPLETED',
-    HttpStatus = 201,
-    ResponseBody = @SafeResponseBody,
-    ExternalOrderId = @ExternalOrderId,
-    AttemptCount = @AttemptCount,
-    LastError = NULL,
-    UpdatedUtc = SYSUTCDATETIME()
-WHERE IdempotencyKey = @IdempotencyKey;
-```
-
-Use analogous updates for `REJECTED` and `FAILED_RETRYABLE`. Store only safe bounded response/error data.
-
-If downstream succeeds but this update fails:
-
-- Do not create a new idempotency key.
-- Record/alert an ambiguous partial-completion condition.
-- Query downstream using order/key or replay the same key only if its contract guarantees idempotency.
-- Repair local state through reconciliation.
-
-Success response:
+### Missing Field
 
 ```json
 {
-  "orderId": "ORD-1001",
-  "status": "submitted",
-  "externalOrderId": "EXT-84721",
-  "correlationId": "563885df-e152-4d31-a64d-4819d97b9997",
-  "replayed": false
+  "customer": {
+    "customerId": "C-100"
+  }
 }
 ```
 
-Duplicate replay has the same business result with `"replayed": true`.
+The `orderId` property is not present.
 
-Temporary failure:
+### Null Field
 
 ```json
 {
-  "type": "https://example.internal/problems/dependency-unavailable",
-  "title": "Order processing is temporarily unavailable",
-  "status": 503,
-  "code": "dependency_unavailable",
-  "correlationId": "563885df-e152-4d31-a64d-4819d97b9997"
+  "orderId": null,
+  "customer": {
+    "customerId": "C-100"
+  }
 }
 ```
 
-Return correlation ID in the response header and body.
+The property is present.
 
-## 6.15 Intentional failure tests
+The value is null.
 
-Run as many as possible and reason through the rest:
+The schema must say whether null is allowed.
 
-| Test | Expected behavior | Retry? | Evidence |
-|---|---|---:|---|
-| Missing `orderId` | `400`; downstream not called | No | Validation outcome |
-| Amount `-1` | `400/422`; downstream not called | No | Field-safe error |
-| Same request/key | Stored result replayed | No | One downstream submission |
-| Same key, changed amount | `409` | No | Conflict metric/log |
-| SQL unavailable before claim | `503`; no downstream call | Bounded | Database category |
-| Downstream timeout | Same key on safe retry, then `503` | Bounded | Attempts/duration |
-| Downstream `401` | Stop and alert identity owner | At most one token refresh | Auth category |
-| Downstream `429` | Honor delay; `503` if exhausted | Yes | Throttle count |
-| Downstream `500` | Bounded retry with same key | Yes | Attempts/status |
-| Invalid downstream JSON | `502`; no blind repeat | Usually no | Contract category |
-| Success then DB update failure | Reconciliation required | No new operation | Ambiguous state evidence |
-| Customer missing | `422`; no downstream call | No | Business rejection |
+### Empty Field
 
-For each test answer:
-
-1. Caller, Frends, configuration, or dependency failure?
-2. Could repeating create a duplicate?
-3. What response should the caller receive?
-4. What may be logged safely?
-5. Is automatic or human recovery required?
-6. How will support locate every affected order?
-
-## 6.16 Production extensions
-
-- Reusable OAuth-token Subprocess with safe caching.
-- Retry Subprocess honoring `Retry-After` and jitter.
-- Queue-based replay of `FAILED_RETRYABLE` work.
-- Reconciliation Process for stale `PROCESSING` rows.
-- Status endpoint for asynchronous orders.
-- Contract tests against OpenAPI.
-- Monitoring Rules for sustained failures and missing runs.
-- Bounded batch reprocessing.
-- Dashboard using promoted outcome/duration.
-- Explicit log redaction and retention policy.
-
-## 6.17 Two-minute lab explanation
-
-Close the editor and deliver:
-
-> The API Trigger is linked to an OpenAPI operation and protected by an API Policy. The Process normalizes and validates the order, establishes correlation, and hashes normalized content. It atomically claims the idempotency key in SQL so concurrent duplicates cannot both continue. A completed duplicate replays its result; changed content under the same key conflicts. It enriches the customer with parameterized SQL, maps a downstream contract, obtains a client-credentials token, and forwards correlation and idempotency headers. Only safe transient failures are retried within a deadline. The final response is stored for replay. If downstream succeeds but local completion fails, reconciliation uses the same key rather than creating another order. Promoted values and structured redacted logs let support trace and recover work.
-
-## 6.18 Post-lab recall
-
-Answer without opening the Process:
-
-1. Where is the idempotency race prevented?
-2. Which value remains unchanged across retries?
-3. Why normalize before hashing?
-4. Why finish the SQL transaction before HTTP?
-5. Which failures are permanent?
-6. How does `429` differ from `401`?
-7. What happens when the same key carries a different amount?
-8. How does support recover a stale `PROCESSING` row?
-9. Which values are promoted?
-10. Which values never appear in logs?
-11. Why can Catch not assume a failed Task produced a result?
-12. What changes across Development, Test, and Production?
-
-### Answer key
-
-1. Atomic database claim plus unique constraints.
-2. The idempotency key for the same logical operation.
-3. Semantically equivalent requests need the same stable hash.
-4. Avoid long locks/connections around unbounded network latency.
-5. Validation/business rejection, most `4xx`, permission/configuration/contract defects until corrected.
-6. `429` requests delayed load reduction; `401` indicates missing/invalid authentication.
-7. `409 Conflict`; never reinterpret the key.
-8. Reconcile downstream by order/key, repair state, and replay only if confirmed safe.
-9. Small non-sensitive order/correlation/outcome/attempt identifiers.
-10. Secrets, tokens, auth headers, connection strings, private keys, unnecessary customer data.
-11. The Task failed, so only Catch error context and preinitialized variables are reliable.
-12. Endpoints, identities/secrets, Agent Groups, policies, capacity, log level, and monitoring values; Process logic/artifact should remain controlled.
-
----
-
-# 7. Power Platform Essentials
-
-## 7.1 Exact 30-minute routine
-
-- **0-8:** Platform mental model and app types.
-- **8-16:** Power Automate, connectors, Dataverse.
-- **16-23:** Environments, solutions, DLP, ALM, limits.
-- **23-30:** Comparison and closed-book questions.
-
-```text
-User -> Power App -> Connector/Connection -> Power Automate -> Dataverse/service
+```json
+{
+  "orderId": "",
+  "customer": {
+    "customerId": "C-100"
+  }
+}
 ```
 
-- **Power Apps:** Low-code user interfaces.
-- **Power Automate:** Workflow orchestration.
-- **Dataverse:** Structured business data, relationships, security, solution-aware metadata.
-- **Connector:** Typed triggers/actions for a service.
-- **Connection:** Authenticated instance/context for a connector.
-- **Connection reference:** Solution component binding to the correct target-environment connection.
-- **Environment:** Isolation boundary for apps, flows, connections, data, security, governance.
-- **Solution:** Package for ALM and deployment.
+The property is present.
 
-## 7.2 Canvas versus model-driven apps
+The string is empty.
 
-| Area | Canvas app | Model-driven app |
-|---|---|---|
-| Starts from | Screen/user experience | Dataverse model |
-| Layout | Highly customizable | Generated from forms/views/tables/navigation |
-| Data | Dataverse and connector sources | Dataverse |
-| Best fit | Tailored task interface | Data-dense process application |
-| Main risk | Complex formulas/design maintainability | Less precise layout control |
-| Security | App sharing plus source permissions | Dataverse roles/record access |
+Use `minLength: 1` when empty text is not allowed.
 
-## 7.3 Power Automate
+## Example Error Result
 
-Cloud flows can be automated/event-triggered, instant/user-triggered, or scheduled.
-
-- Use expressions for small transformations.
-- Use **Scopes** to group validation, processing, failure, and cleanup.
-- Use **Configure run after** for try/catch/finally-style paths.
-- Use **child flows** for cohesive reusable workflow behavior; parent/child should be solution-aware.
-- Concurrency raises throughput but can break ordering, create races, and exceed downstream limits.
-- Retry policies do not make writes safe; idempotency still matters.
-- Filter with trigger conditions before starting unnecessary runs.
-
-## 7.4 Dataverse
-
-Prepare standard/custom tables, columns, choices, relationships, calculated/rollup fields, business rules, user/team/organization ownership, security roles/privileges, record sharing, column security, and auditing.
-
-Effective access is composed from license, environment access, security role, table privilege/access depth, ownership, teams, sharing, and column security. Sharing the app does not automatically grant underlying data access.
-
-## 7.5 Connectors and gateway
-
-- A **custom connector** exposes a stable API, often from OpenAPI, when no suitable connector exists.
-- The **on-premises data gateway** provides supported Power Platform cloud services with connectivity to on-premises sources.
-- A gateway is not equivalent to a Frends Agent: the Agent executes Processes; the gateway mainly provides connectivity.
-- Production gateway design needs ownership, patching, capacity, recovery, and clustering where required.
-
-## 7.6 Environments, solutions, ALM, and DLP
-
-Recommended lifecycle:
-
-1. Develop inside an unmanaged solution in Development.
-2. Include apps/flows/tables/connectors/connection references/environment variable definitions.
-3. Deploy a versioned managed solution to Test.
-4. Bind target connections and configuration values.
-5. Run integration, security, and smoke tests.
-6. Promote the same release artifact to Production.
-7. Verify ownership, sharing, roles, connections, and monitoring.
-
-**Unmanaged solution:** Editable source in Development.  
-**Managed solution:** Controlled package normally installed downstream.
-
-DLP/data policies classify/restrict connectors and combinations to reduce accidental data movement. They do not replace API authorization or source-system permissions.
-
-Designs must account for premium licensing, connection ownership, expired identities, platform request allocation, connector throttling, Dataverse service-protection limits, and trigger/loop concurrency. `429` can come from a connector even when overall platform allocation remains.
-
-## 7.7 Frends comparison
-
-These are conceptual, not exact equivalences.
-
-| Need | Frends | Power Platform |
-|---|---|---|
-| Workflow | Process | Power Automate flow |
-| Reuse | Subprocess | Child flow |
-| Packaged operation | Task | Connector action |
-| Pro-code | Code/Custom Task/external service | Custom connector/plug-in/Function/API |
-| Runtime | Agent in Agent Group | Microsoft cloud runtime |
-| On-prem connectivity | Self Service Agent | On-premises gateway |
-| Configuration | Environment Variable | Solution environment variable |
-| API contract | OpenAPI-backed API/Tasks | Connector/custom connector |
-| Execution history | Process Instances | Flow run history |
-| Promotion | Process version to Agent Group | Solution through pipeline |
-
-Choose **Frends** when enterprise/hybrid backend integration, files/APIs, and operationally managed orchestration dominate. Choose **Power Platform** for Microsoft 365/Dynamics, user-facing low-code apps, approvals, Dataverse, and citizen-development governance. A solution may use Power Apps for UI and Frends for durable backend integration.
-
-## 7.8 Power Platform interview questions
-
-### 1. Canvas versus model-driven app?
-
-Canvas starts with a tailored user experience across Dataverse/connectors. Model-driven starts with Dataverse and generates a consistent data-dense interface from tables, forms, views, and relationships.
-
-### 2. Connector, connection, and connection reference?
-
-A connector defines service operations. A connection is an authenticated instance. A connection reference is solution metadata binding components to the appropriate target-environment connection.
-
-### 3. When use a child flow?
-
-For cohesive reusable workflow behavior with clear input/output contracts. Keep parent and child solution-aware and avoid creating a catch-all shared flow.
-
-### 4. What does an on-premises gateway do?
-
-It gives supported cloud services secure connectivity to on-premises sources. It still requires source authorization, ownership, patching, monitoring, capacity, and HA planning.
-
-### 5. How do you promote a solution?
-
-Build in an unmanaged Development solution and deploy a versioned managed artifact through Test to Production. Bind connection references/configuration per target and run checks, approvals, smoke tests, and monitoring.
-
-### 6. What do DLP policies do?
-
-They govern allowed connectors and which connector groups can be combined, reducing accidental data movement. They do not replace user/API/data-source authorization.
-
-### 7. How do you handle Power Automate throttling?
-
-Identify platform, connector, or Dataverse limits; reduce/filter calls, batch, cap concurrency, honor delays, and keep retries idempotent.
-
-### 8. How does Dataverse security work?
-
-Effective access combines environment/license, roles, table privileges/access depth, record ownership, teams/sharing, and optional column security. App sharing alone is insufficient.
-
-### 9. When build a custom connector?
-
-When a stable reusable API needs typed triggers/actions and no adequate connector exists. Start from OpenAPI, define authentication, solution-package it, classify it in DLP, and test deployment/errors/throttling.
-
-### 10. Frends or Power Automate?
-
-Decide from runtime location, systems, volume, support ownership, reliability, governance, licensing, and user interaction. Frends is commonly stronger for hybrid integration backends; Power Automate for Microsoft/user-centric automation.
-
-## 7.9 Closed-book comparison
-
-Give a two-minute comparison without the table. Include at least one case where both platforms belong in the same architecture and state why a Power Platform gateway is not a Frends Agent equivalent.
-
----
-
-# 8. Security, SDLC, DevOps, and Production Support
-
-## 8.1 Exact 65-minute routine
-
-| Minutes | Activity |
-|---:|---|
-| 0-10 | Threat model and trust boundaries |
-| 10-22 | Identity, secrets, network, input, logging |
-| 22-34 | SDLC, YAML pipelines, tests, deployment |
-| 34-45 | Observability and monitoring |
-| 45-57 | Incident method and failure runbooks |
-| 57-65 | Closed-book production drill |
-
-## 8.2 Reference architecture and trust boundaries
-
-```text
-External caller
-      |
-      | HTTPS + authenticated request
-      v
-Frends API endpoint / policy boundary
-      |
-      | validated internal model
-      v
-Frends Process on Agent Group
-      |                    |
-      | parameterized SQL  | HTTPS + service identity
-      v                    v
-Customer database     Downstream order API
-      |                    |
-      +--------+-----------+
-               |
-               v
-      logs, metrics, alerts,
-      idempotency and reprocessing data
+```json
+{
+  "status": 400,
+  "correlationId": "abc-123",
+  "errors": [
+    {
+      "path": "$.orderId",
+      "code": "required",
+      "message": "orderId is required"
+    }
+  ]
+}
 ```
 
-At every boundary ask:
+This helps the caller fix the request.
 
-1. Who calls?
-2. How is identity verified?
-3. What is it authorized to do?
-4. Is transport encrypted?
-5. Is input validated and bounded?
-6. What timeout/rate limit applies?
-7. What is safely logged?
-8. How is failure detected and recovered?
+It does not show internal code or secrets.
 
-Trust boundaries include caller-to-API, Process-to-database, Process-to-downstream API, Agent-to-control plane, execution-to-log store, operator-to-production, and Custom Task-to-package dependency.
+Parsing JSON is not full validation.
 
-## 8.3 Lightweight threat model
+Creating a .NET object is not full validation.
 
-| Threat | Example | Controls |
-|---|---|---|
-| Spoofing | Stolen client credential | OAuth/certificate, short-lived token, rotation, least privilege |
-| Broken authorization | Client submits for another tenant | Scope/tenant/ownership checks, deny by default |
-| Replay | Same valid order repeated | Idempotency key, unique constraint |
-| Tampering | Amount changed in transit | TLS, validation, authorization |
-| Injection | Customer ID concatenated into SQL | Parameterization, allow-list, restricted DB account |
-| Information disclosure | Token/customer payload logged | Allow-list logging, redaction, restricted retention/access |
-| Repudiation | Untracked production configuration change | Named accounts, audit, approvals/change record |
-| Denial of service | Excess calls exhaust capacity | Rate/body/concurrency limits, queues, scaling |
-| Privilege escalation | Runtime account is DB owner | Separate identities and minimum permissions |
-| Dependency compromise | Unsafe NuGet in Custom Task | Approved feeds, locked/scanned dependencies, review |
-| Poison payload | Deterministic repeated failure | Validation, retry classification, quarantine |
-| Egress abuse | Process sends data to unapproved host | Network allow-list/egress controls, reviewed config |
-| Schema confusion | Changed response silently misread | Contract tests, versions, defensive parsing |
-| Availability loss | One Agent stops all work | Health checks and justified HA design |
+## What to Test
 
-## 8.4 Identity and secrets
+For each important field, test:
 
-- Give each integration a named owner and non-personal service identity.
-- Separate identities by environment and, where valuable, by integration.
-- Grant only required API scopes, database rights, folders, and queues.
-- Runtime Processes must not use administrator credentials.
-- Define who may edit, deploy, activate, deactivate, and reprocess.
-- Use secret Environment Variables or approved secret storage.
-- Never hard-code secrets in Process logic, Code Tasks, source, payloads, or logs.
-- Track credential owner, purpose, issue date, expiry, and rotation procedure.
-- Overlap old/new credentials during rotation where supported; verify new before revoking old.
-- Alert before expiry. If a secret appears in logs, treat it as compromised and rotate it.
+- Missing.
+- Null.
+- Empty.
+- Wrong type.
+- Too small or too large.
+- Unknown value.
+- Extra field.
+- Valid boundary.
 
-## 8.5 Transport, input, and data protection
+## Safe Error
 
-- Use TLS; validate certificate chain and host name. Never disable validation as an incident fix.
-- Restrict Agent ingress/egress to required hosts/ports; document DNS/proxy/firewall/allow-list dependencies.
-- Put internet ingress behind approved gateway/firewall/load-balancer controls.
-- Set request/file/body/concurrency limits.
-- Validate type, format, length, range, enum, cross-field rule, collection size, and content type.
-- Treat downstream responses as untrusted input.
-- Parameterize database commands and encode for the destination.
-- Minimize sensitive data storage/logging and apply retention/deletion policy.
-- Do not use personal data/secrets in URLs, correlation IDs, or idempotency keys.
+Return:
 
-## 8.6 Secure logging
+- HTTP status.
+- Field path.
+- Simple error code.
+- Safe message.
+- Correlation ID.
 
-Log an allow-listed operational summary:
+Do not return a stack trace or secret.
 
-```text
-timestamp, environment, processName, processVersion,
-processInstanceId, correlationId, non-sensitive businessKey,
-sourceSystem, destinationSystem, operation, outcome,
-durationMs, attemptNumber, httpStatus, errorCategory
-```
+## 60-Second Answer
 
-Never intentionally log passwords, client secrets, tokens, private keys, full Authorization headers, connection strings, or unrestricted personal payloads.
+> I validate JSON in four steps. First, I check syntax, content type, and size. Second, I check the contract shape, including required fields, nested fields, types, limits, and unknown fields. Third, I check business rules. Finally, I check outside facts and permission. I test missing, null, empty, wrong-type, extra, and boundary values. I return a safe field-level error with a correlation ID.
 
-## 8.7 SDLC for low-code integrations
+## Recall
 
-**SDLC** means Software Development Life Cycle. Low-code changes still require engineering controls.
+1. Say the five OpenAPI parts.
+2. YAML versus JSON?
+3. Where is bearer security defined?
+4. What is the difference between `properties` and `required`?
+5. Say the four JSON checks.
 
-| Phase | Integration activities | Evidence/output |
-|---|---|---|
-| Discover | Business outcome, source/target owners, SLA, data classification | Problem statement, owners, NFRs |
-| Analyze | Contracts, volume, latency, failure/recovery, licensing/network | Requirements and risk decisions |
-| Design | Process diagram, schemas, security, idempotency, monitoring | Reviewed technical design/OpenAPI |
-| Build | Process/Subprocess/Tasks/config and Custom Task code | Versioned artifacts/change history |
-| Test | Unit, contract, integration, failure, security, reconciliation | Automated/manual test evidence |
-| Release | Approval, dependencies, configuration, deployment, smoke test | Release record and known-good version |
-| Operate | Logs, metrics, alerts, incidents, replay, capacity | Dashboards/runbooks/SLA reports |
-| Improve/retire | Root-cause fixes, deprecation, data/archive/access cleanup | Change or retirement record |
+# 9. XML, XSD, XPath, XSLT, WSDL, and SOAP - MUST KNOW
 
-Core principles:
+## One-Line Meaning
 
-- Develop, test, and operate as different environments/Agent Groups.
-- Peer-review visual Process changes as seriously as code.
-- Version OpenAPI, Process/Subprocess, Custom Task NuGet, and configuration requirements together.
-- Treat configuration as controlled data, not an undocumented production edit.
-- Separate duties where risk requires it: builder, reviewer, approver, operator.
-- Maintain traceability from requirement to design, version, tests, deployment, and incident.
-
-## 8.8 Source control and release inventory
-
-Keep Custom Task source, tests, project files, dependency declarations, and pipeline YAML in Git. For Process/API artifacts, use Frends version history/diff and the organization's approved export/source-control automation.
-
-A release inventory identifies:
-
-- Process/Subprocess and API contract versions.
-- Custom Task NuGet versions.
-- Required Environment Variable keys.
-- Database/downstream contract changes.
-- Monitoring Rule changes.
-- Test evidence and approval.
-- Deployment/rollback instructions.
-- Reprocessing/reconciliation implications.
-
-## 8.9 YAML (`.yml`) CI example
-
-YAML pipelines describe stages/jobs/steps as configuration. Syntax varies by CI product. This illustrative GitHub Actions pipeline builds/tests/packs a .NET Custom Task; adapt commands and approved Frends deployment automation to the organization.
-
-```yaml
-name: custom-task-ci
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-    tags: ['v*']
-
-permissions:
-  contents: read
-
-jobs:
-  build-test-pack:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore
-        run: dotnet restore --locked-mode
-
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Test
-        run: >-
-          dotnet test --configuration Release --no-build
-          --collect:"XPlat Code Coverage"
-
-      - name: Pack
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: dotnet pack --configuration Release --no-build --output artifacts
-
-      - name: Upload package
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: nuget-package
-          path: artifacts/*.nupkg
-```
-
-YAML rules:
-
-- Spaces, not tabs; indentation defines hierarchy.
-- Quote versions/patterns/ambiguous strings.
-- Pin or deliberately govern third-party actions/templates.
-- Give pipeline identities minimum permissions.
-- Store secrets in CI secret storage, never YAML.
-- Keep build/test/pack deterministic and fail on warnings according to team policy.
-- Produce immutable artifacts once and promote the same artifact.
-- Require approval for production, not a developer-local command.
-- Add dependency/vulnerability scanning where supported.
-
-## 8.10 Testing strategy
-
-| Test | Purpose | Order example |
-|---|---|---|
-| Unit | Isolated C#/Custom Task logic | Normalize/hash/validate amount |
-| Process/component | Branch behavior | `400` is not retried |
-| Contract | Producer/consumer schema | OpenAPI response matches |
-| Integration | Real test dependencies | Agent reaches test DB/API |
-| Security | Auth, authorization, redaction | Token absent from logs |
-| Failure | Recovery policy | `429` delay/limit works |
-| Smoke | Deployed critical path | One test order completes |
-| Reconciliation | No loss/duplicates | Source/destination totals agree |
-
-Test happy path plus missing authentication, forbidden scope, invalid body, duplicate key, timeout, `429`, `500`, malformed response, database outage, redaction, rollback, and replay.
-
-## 8.11 Deployment checklist
-
-1. Identify exact Process, Subprocess, API, and Custom Task versions.
-2. Confirm peer review and automated test results.
-3. Verify OpenAPI/data-contract compatibility.
-4. Verify target Environment Variable definitions.
-5. Confirm secrets/certificates are valid without exposing values.
-6. Deploy required Subprocess/Custom Task dependencies first.
-7. Sequence database changes backward-compatibly.
-8. Deploy to the Test Agent Group.
-9. Run happy, validation, timeout, auth, throttling, duplicate, and replay tests.
-10. Verify useful logs and redaction.
-11. Verify Monitoring Rules and alert recipients.
-12. Obtain production approval.
-13. Record previous production version and recovery steps.
-14. Deploy selected version to Production.
-15. Keep Triggers inactive until prerequisites are verified when appropriate.
-16. Run a controlled smoke test.
-17. Activate Triggers deliberately.
-18. Monitor initial executions, failure rate, latency, and downstream effects.
-19. Reconcile expected/actual business outcomes.
-20. Close the change only after acceptance checks pass.
-
-## 8.12 Rollback versus roll-forward
-
-Use **rollback** when the prior version is compatible, no irreversible migration blocks it, the fault is release-related, and restoration speed dominates.
-
-Use **roll-forward** when external side effects or irreversible data changes make reversal unsafe, the old release is insecure/incompatible, or a controlled correction is safer.
-
-> Rolling back a Process does not undo orders, payments, files, messages, or database changes already produced.
-
-After either approach, identify affected records and reconcile/reprocess idempotently.
-
-## 8.13 Observability: logs, metrics, traces
-
-| Signal | Answers | Example |
-|---|---|---|
-| Logs | What happened in one execution? | Downstream `429` on attempt 2 |
-| Metrics | How does behavior trend? | Failure rate, throughput, p95 duration |
-| Correlation/trace | Which calls belong together? | API, SQL, downstream share one ID |
-
-A Process Instance is the first Frends execution view. Inspect version, Agent/Group, first failing shape, timing, status, and safe promoted values.
-
-Promote correlation ID, non-sensitive order ID, source/destination, business outcome, error category, and replay state. Do not promote secrets or raw payloads.
-
-### Correlation-ID rules
-
-1. Accept a valid bounded incoming ID or create one.
-2. Return it to the caller.
-3. Put it in every structured event.
-4. Forward it in an agreed header/message property.
-5. Store it with replay records.
-6. Never derive it from a secret/personal value.
-7. Keep business key separate so one item can have several attempts.
-
-### Useful metrics
-
-- Received, succeeded, failed, rejected, duplicate counts.
-- Processing duration and dependency latency percentiles.
-- Retry/throttle counts and status distribution.
-- Queue depth, oldest-item age, replay backlog.
-- Batch input/success/failure/control totals.
-- Scheduled runs observed versus expected.
-- Agent/runtime host health where team-managed.
-- Certificate/credential days to expiry.
-
-### Alert design
-
-| Condition | Response |
+| Name | Simple meaning |
 |---|---|
-| Authentication failures | Alert quickly; repeated ordinary retry rarely helps |
-| Error-rate increase | Alert after meaningful sustained volume |
-| Missing scheduled execution | Alert after expected window plus tolerance |
-| Latency degradation | Alert on sustained percentile breach |
-| Sustained `429` | Reduce pressure; investigate quota/traffic |
-| Replay backlog age | Alert before business recovery target |
-| No healthy Agent | Alert immediately for affected service |
-| Certificate near expiry | Notify at planned rotation intervals |
-| Sensitive data logged | Security incident |
-| One invalid business record | Quarantine/report; normally do not page |
+| XML | Holds data |
+| XSD | Defines XML rules |
+| XPath | Finds XML values |
+| XSLT | Changes XML |
+| WSDL | Describes a SOAP service |
+| SOAP | Carries an XML message |
 
-Thresholds reflect business impact, normal volume, and SLOs. Avoid alerting on every retry or invalid caller request.
+Say this:
 
-## 8.14 Production incident method
+> XML has data. XSD checks it. XPath finds it. XSLT changes it. WSDL describes the service. SOAP carries the message.
 
-Use this sequence in interviews and incidents:
+## XML Family Diagram
 
-1. **Assess impact:** Which integrations, customers, environments, and time range?
-2. **Stabilize:** Stop unsafe retries, pause Trigger, reduce concurrency, or fail over.
-3. **Identify:** Process/version, Agent Group, deployment time, correlation/business IDs.
-4. **Classify:** Data, authentication, authorization, configuration, network, dependency, capacity, platform, or code.
-5. **Inspect:** Process Instances and correlated dependency logs.
-6. **Verify dependencies:** Agent, DNS, firewall, certificate, DB, queue, downstream API.
-7. **Recover:** Rotate, correct configuration, roll back/forward, or restore dependency.
-8. **Reprocess safely:** Reconcile first; apply idempotency to replay.
-9. **Validate:** Controlled test plus actual business outcome.
-10. **Communicate:** Impact, mitigation, backlog, owner, next update.
-11. **Learn:** Root cause, contributing conditions, and preventive actions.
+```text
+Source XML
+   |
+   +---- XSD checks it ------> valid or invalid
+   |
+   +---- XPath finds --------> one node or value
+   |
+   +---- XSLT changes -------> target XML
+                                   |
+                                   v
+                               SOAP Body
+                                   |
+                                   v
+                              SOAP service
 
-Capture start/detection time, Process/version, Agent Group/environment, recent changes, IDs, error/status, attempt timing, dependency health, affected/lost/delayed/duplicated/recovered counts, and exact recovery verification.
+WSDL describes the SOAP service.
+It tells us the address, actions, messages, and XSD types.
+```
 
-## 8.15 Failure runbooks
+## XML Parts
 
-| Scenario | Diagnose | Immediate action | Recovery/prevention |
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<ord:Order xmlns:ord="urn:orders" id="1001">
+  <ord:Customer>A &amp; B Ltd</ord:Customer>
+  <ord:Amount currency="USD">25.50</ord:Amount>
+</ord:Order>
+```
+
+- The first line is the XML declaration.
+- `ord:Order` is the root element.
+- `ord:Customer` is a child element.
+- `id` and `currency` are attributes.
+- `25.50` is text.
+- `xmlns:ord` defines a namespace.
+- `&amp;` means `&`.
+
+XML is case-sensitive.
+
+An XML document must have one root element.
+
+## Well-Formed Versus Valid
+
+- **Well-formed:** XML syntax is correct.
+- **Valid:** XML is well-formed and also follows its XSD.
+
+## Namespace
+
+A namespace separates XML vocabularies.
+
+The namespace URI is the identity.
+
+The prefix is only a short name.
+
+These prefixes can mean the same namespace:
+
+```xml
+<a:Order xmlns:a="urn:orders"/>
+<ord:Order xmlns:ord="urn:orders"/>
+```
+
+A wrong namespace is a common reason for an empty XPath result.
+
+## Missing, Empty, and Nil
+
+- Missing: there is no element.
+- Empty: `<Name/>`.
+- Nil: the element says there is no value.
+
+Nil needs:
+
+- The `xsi` namespace.
+- `nillable="true"` in the XSD.
+
+These three cases are not the same.
+
+## XSD
+
+XSD is the rule file for XML.
+
+It can define:
+
+- Elements and attributes.
+- Data types.
+- Child order.
+- Required and optional values.
+- Repeated values.
+- Allowed values and limits.
+- Namespace.
+
+Important words:
+
+| XSD word | Simple meaning |
+|---|---|
+| `element` | An XML element |
+| `attribute` | An XML attribute |
+| `simpleType` | A simple value |
+| `complexType` | A value with children or attributes |
+| `sequence` | Children appear in this order |
+| `choice` | One option is allowed |
+| `minOccurs` | Minimum count |
+| `maxOccurs` | Maximum count |
+| `restriction` | A value limit |
+
+XSD checks structure and values.
+
+It does not prove that a customer exists.
+
+`targetNamespace` says which namespace the XSD defines.
+
+## What XSD Checks in the Order
+
+```text
+Order
+|
++-- id attribute
+|   Must be present
+|
++-- Customer
+|   Must be present text
+|
++-- Amount
+    Must be a decimal
+    currency attribute must be present
+```
+
+An XSD can also say:
+
+- Currency must be USD, EUR, or GBP.
+- One order can have many order lines.
+- A note is optional.
+- A date must use a valid date format.
+
+XSD cannot check whether the customer exists in the ERP.
+
+## XPath
+
+XPath is an address for XML data.
+
+```xpath
+/ord:Order/ord:Customer
+/ord:Order/@id
+```
+
+- `/` follows a path.
+- `//` searches below the current node.
+- `` selects an attribute.
+- `[...]` adds a condition.
+
+Bind the correct namespace before using the path.
+
+## XPath Example Results
+
+For the XML above:
+
+| XPath | Result |
+|---|---|
+| `/ord:Order/@id` | `1001` |
+| `/ord:Order/ord:Customer` | `A & B Ltd` |
+| `/ord:Order/ord:Amount` | `25.50` |
+| `/ord:Order/ord:Amount/@currency` | `USD` |
+
+Common problem:
+
+```text
+The element is visible.
+XPath returns nothing.
+        |
+        v
+Check the namespace URI and prefix first.
+```
+
+## XSLT
+
+XSLT changes XML into another format.
+
+It uses XPath to find source values.
+
+It uses templates to build the result.
+
+Common parts are:
+
+- `xsl:template`.
+- `xsl:value-of`.
+- `xsl:for-each`.
+- `xsl:if`.
+- `xsl:choose`.
+
+For the order project:
+
+1. Create a simple internal XML.
+2. Use XSLT to create the ERP XML.
+3. Validate the final ERP XML with the target XSD.
+
+## XSLT Mapping Picture
+
+```text
+Source XML                         ERP XML
+----------                         -------
+Order/@id          ------------->  ErpOrder/OrderNumber
+Order/Customer     ------------->  ErpOrder/BuyerName
+Order/Amount       ------------->  ErpOrder/Total
+Amount/@currency   ------------->  Total/@currency
+```
+
+Example target:
+
+```xml
+<ErpOrder>
+  <OrderNumber>1001</OrderNumber>
+  <BuyerName>A &amp; B Ltd</BuyerName>
+  <Total currency="USD">25.50</Total>
+</ErpOrder>
+```
+
+XPath finds the source values.
+
+XSLT places them in the target structure.
+
+Test namespaces, missing fields, repeated fields, dates, decimals, and encoding.
+
+## XSD Versus XPath Versus XSLT
+
+Use this answer:
+
+> XSD asks, "Is this XML allowed?" XPath asks, "Where is the value?" XSLT asks, "What should this XML become?" XSD validates, XPath selects, and XSLT transforms.
+
+## SOAP Message
+
+Remember:
+
+**Envelope -> Header -> Body -> Fault**
+
+- Envelope is the outer SOAP message.
+- Header has metadata or security.
+- Body has the business request or response.
+- Fault has the SOAP error.
+
+## SOAP Shape
+
+```text
+Envelope
+|
++-- Header
+|   +-- security
+|   +-- address
+|   +-- correlation ID
+|
++-- Body
+    +-- business request or response
+    |
+    +-- Fault when SOAP processing fails
+```
+
+## SOAP Example
+
+```xml
+<soap:Envelope
+    xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header>
+    <CorrelationId>abc-123</CorrelationId>
+  </soap:Header>
+  <soap:Body>
+    <CreateOrder>
+      <OrderNumber>1001</OrderNumber>
+    </CreateOrder>
+  </soap:Body>
+</soap:Envelope>
+```
+
+The example is simplified.
+
+The real business elements may also use namespaces.
+
+A SOAP Header is inside the XML.
+
+An HTTP header belongs to the network request.
+
+They are different.
+
+## WSDL
+
+WSDL describes:
+
+- Data types.
+- Messages.
+- Operations.
+- Protocol binding.
+- Service address.
+
+WSDL describes the service.
+
+XSD describes the XML data.
+
+## WSDL Diagram
+
+```text
+WSDL
+|
++-- Where?
+|   Service address
+|
++-- What action?
+|   CreateOrder operation
+|
++-- What input?
+|   CreateOrderRequest message
+|
++-- What output?
+|   CreateOrderResponse message
+|
++-- What error?
+|   Declared Fault
+|
++-- How?
+|   SOAP binding and version
+|
++-- What data?
+    XSD types
+```
+
+When calling a SOAP service, check:
+
+1. Service address.
+2. SOAP version.
+3. SOAP action.
+4. Content type.
+5. Header rules.
+6. Input XML namespace.
+7. Output and Fault messages.
+
+## SOAP Details
+
+- SOAP 1.1 often uses `text/xml`.
+- SOAP 1.1 often uses the `SOAPAction` HTTP header.
+- SOAP 1.2 often uses `application/soap+xml`.
+- Follow the WSDL.
+- Check the HTTP status and SOAP Fault.
+- Use WS-Security only when the contract requires it.
+- Disable unsafe external XML entities for untrusted XML.
+
+## 60-Second Answer
+
+> XML holds hierarchical data. XSD defines the allowed structure and values. XPath finds nodes, and XSLT changes XML into another structure. Namespaces are important because a wrong namespace can make XPath return nothing. SOAP has an Envelope, Header, Body, and Fault. WSDL describes the SOAP service, while XSD describes the XML data. I transform into the target XML and then validate it with the target XSD.
+
+## Recall
+
+1. Say the six XML-family meanings.
+2. Well-formed versus valid?
+3. XSD versus XPath versus XSLT?
+4. Say the four SOAP parts.
+5. WSDL versus XSD?
+
+---
+
+# 10. Frends - MUST KNOW
+
+## Simple Meaning
+
+Frends is a low-code integration platform.
+
+It connects APIs, files, databases, messages, and systems.
+
+Low-code makes the flow visual.
+
+Good engineering is still needed.
+
+## Four Groups
+
+Remember:
+
+**Define -> Deploy -> Run -> Observe**
+
+## Frends Platform Diagram
+
+```text
+Tenant
+|
++-- Environments
+|   +-- DEV
+|   +-- TEST
+|   +-- UAT
+|   +-- PROD
+|
++-- Execution
+|   +-- Agent Groups
+|       +-- Agent 1
+|       +-- Agent 2
+|
++-- Integration design
+|   +-- API definition
+|   +-- API Policy
+|   +-- Triggers
+|   +-- Processes
+|       +-- Tasks
+|       +-- Decisions
+|       +-- Loops
+|       +-- Scopes and Catch
+|       +-- Subprocesses
+|
++-- Operations
+    +-- Process Instances
+    +-- Logs
+    +-- Promoted values
+    +-- Metrics and alerts
+```
+
+This is a learning picture.
+
+Menu names can differ by Frends version.
+
+## 1. Define the Flow
+
+- A **Trigger** starts work.
+- A **Process** is the full visual flow.
+- A **Task** performs one action.
+- A **Decision** chooses a path.
+- A **Loop** repeats work.
+- A **Scope and Catch** handle a group of errors.
+- A **Subprocess** holds a smaller reusable flow.
+- **Return** sends the result.
+- **Throw** stops the flow with an error.
+
+## 2. Deploy the Flow
+
+- The hierarchy is Tenant -> Environments -> Agent Groups -> Agents.
+- A **Tenant** is the main organization area.
+- An **Environment** can be DEV, TEST, UAT, or PROD.
+- Environment values hold URLs and other settings.
+- Protected settings hold secrets and certificates.
+- Versions move through approved environments.
+
+## 3. Run the Flow
+
+- An **Agent** runs the Process.
+- An **Agent Group** contains one or more Agents.
+- A Process may run on any Agent in the group.
+- Shared state must use a shared and safe store.
+
+Do not keep duplicate-control data only in one Agent's memory.
+
+## 4. Observe the Flow
+
+- A **Process Instance** is one Process run.
+- Logs explain steps and errors.
+- Promoted values make safe IDs searchable.
+- Metrics show count, duration, and failures.
+- Alerts tell support when action is needed.
+
+Promoted values are logged.
+
+Never promote a secret, token, or sensitive personal value.
+
+## Frends API Flow
+
+```text
+API request
+  -> API Policy
+  -> API Trigger
+  -> Process
+  -> Tasks and Subprocesses
+  -> Return
+```
+
+- OpenAPI describes the API.
+- API Policy controls incoming access.
+- API Trigger starts the linked Process.
+- Process performs the business flow.
+
+## The Order Process in Frends
+
+1. API Policy checks the caller.
+2. API Trigger starts the Process.
+3. Process creates or keeps a correlation ID.
+4. It validates JSON and business rules.
+5. It checks the duplicate-protection key.
+6. It maps the order.
+7. It creates and transforms XML.
+8. It validates the final XML with XSD.
+9. It calls the SOAP ERP.
+10. It checks HTTP status and SOAP Fault.
+11. It returns a safe result.
+12. It logs safe IDs and metrics.
+
+## Process Decision Diagram
+
+```text
+API Policy
+    |
+    v
+API Trigger
+    |
+    v
+Create or keep correlation ID
+    |
+    v
+Validate request
+    |
+    v
+Is it valid?
+    |
+    +-- No
+    |    |
+    |    v
+    |  Return safe field error
+    |
+    +-- Yes
+         |
+         v
+    Check duplicate key
+         |
+         +-- Already complete
+         |      |
+         |      v
+         |  Return saved result
+         |
+         +-- New
+                |
+                v
+             Map order
+                |
+                v
+          Create target XML
+                |
+                v
+            Call ERP
+          +-----+------+
+          |            |
+       Success       Failure
+          |            |
+          v            v
+    Map response   Classify error
+          |       Retry only if safe
+          v            |
+    Promote safe IDs   v
+          |        Log and recover
+          v
+       Return
+```
+
+## Keep a Process Easy to Read
+
+- Use business names, such as `Validate order`.
+- Give each Process one clear job.
+- Use a Subprocess for repeated flow.
+- Keep expressions small.
+- Keep URLs and secrets outside the Process.
+- Catch errors where useful action is possible.
+- Do not build one very large Process.
+
+## Built-In Task Versus Custom .NET
+
+Use a built-in Task when it solves the need.
+
+Use a Subprocess for reusable visual flow.
+
+Use custom .NET only when:
+
+- A supported Task cannot solve the need clearly.
+- The logic is reusable.
+- The team can test and support it.
+
+## Frends Error Points
+
+- An HTTP `4xx` or `5xx` may need a status check.
+- A Task may have an option to throw on an error status.
+- Check the real Task behavior.
+- An unhandled-error Subprocess cannot resume a failed Process.
+- Keep the original error and add safe context.
+
+## Release Path
+
+```text
+DEV -> TEST -> UAT -> PROD -> Smoke test -> Monitor
+```
+
+Before production, check:
+
+- Correct Process and Subprocess versions.
+- Environment values.
+- Secret and certificate references.
+- API Policy and Agent Group.
+- Network access.
+- Trigger state.
+- Rollback steps.
+
+## Deployment Diagram
+
+```text
+One reviewed integration version
+
+DEV --------> TEST --------> UAT --------> PROD
+ |              |              |             |
+Developer       Integration    Business      Smoke test
+checks          and failure    acceptance    Monitor
+Review          tests          approval      Reconcile
+
+Each environment has its own:
+URL
+identity
+secret reference
+certificate
+Agent Group
+permissions
+```
+
+The Process must not contain a production password.
+
+The Process must not contain a hard-coded production URL.
+
+## Create a Frends API from Start to Production
+
+1. Create or import the supported OpenAPI file.
+2. Review paths, methods, models, responses, and security.
+3. Create the API Trigger.
+4. Link the Trigger to the correct Process.
+5. Apply the API Policy.
+6. Select the correct Agent Group.
+7. Add environment values.
+8. Add protected secret and certificate references.
+9. Test the Process directly.
+10. Test through the real API path.
+11. Deploy through DEV, TEST, UAT, and PROD.
+12. Run a production smoke test.
+13. Find the Process Instance.
+14. Check the real target result.
+15. Monitor the first requests.
+
+## Inbound and Outbound Network Paths
+
+```text
+Inbound request
+Caller
+  -> DNS
+  -> TLS
+  -> Gateway or API Policy
+  -> API Trigger
+  -> Process
+
+Outbound call
+Process or Agent
+  -> DNS
+  -> Proxy or firewall
+  -> TLS
+  -> Target service
+```
+
+An API can accept inbound traffic and still fail outbound traffic.
+
+Check both paths.
+
+## 60-Second Answer
+
+> In Frends, a Trigger starts a Process. Tasks perform steps, Decisions choose paths, and Subprocesses hold reusable flow. Agents run Processes in an environment. For an API, an API Policy controls access and an API Trigger starts the Process. I keep URLs and secrets outside the Process. I use correlation IDs, safe promoted values, error handling, tests, versioned deployment, logs, metrics, alerts, and a replay plan.
+
+## Recall
+
+1. What are Define, Deploy, Run, and Observe?
+2. Trigger versus Process versus Task?
+3. API Policy versus OpenAPI?
+4. What must never be promoted?
+5. What do you check before production?
+
+# 11. Errors, Retry, Release, and Support - MUST KNOW
+
+## Five Error Groups
+
+Remember:
+
+**Data -> Access -> Temporary -> Unknown -> Internal**
+
+| Group | Example | Normal action |
+|---|---|---|
+| Data | Missing field or bad XML | Reject and correct |
+| Access | Bad token or missing role | Fix identity or permission |
+| Temporary | Connection reset or short outage | Retry only when safe |
+| Unknown | Timeout after sending work | Check target before retry |
+| Internal | Bad mapping, setting, or code | Investigate and fix |
+
+## Retry
+
+Retry only a temporary problem.
+
+A good retry has:
+
+- A small attempt limit.
+- A longer wait each time.
+- A small random delay.
+- A timeout for each call.
+- Duplicate protection.
+- Logs and metrics.
+
+For `429`, follow `Retry-After` when it is provided.
+
+Do not retry:
+
+- Bad input.
+- Bad credentials.
+- Missing permission.
+- A permanent business rejection.
+- A timed-out write when the result is unknown.
+
+## Retry Decision Diagram
+
+```text
+Call target
+    |
+    v
+What happened?
+    |
+    +-- Success
+    |     -> Finish
+    |
+    +-- Bad input or business rejection
+    |     -> Stop
+    |     -> Correct the data
+    |
+    +-- Bad identity or permission
+    |     -> Stop
+    |     -> Fix access
+    |
+    +-- Temporary problem
+    |     -> Is another call duplicate-safe?
+    |          |
+    |          +-- No  -> Stop and investigate
+    |          |
+    |          +-- Yes -> Wait and retry
+    |
+    +-- Timeout
+          -> Result is unknown
+          -> Check by business ID
+```
+
+## Retry Timeline Example
+
+```text
+Attempt 1
+   |
+   +-- temporary 503
+   |
+Wait 2 seconds
+   |
+Attempt 2
+   |
+   +-- temporary 503
+   |
+Wait 5 seconds
+   |
+Attempt 3
+   |
+   +-- still failing
+   |
+Stop retrying
+Save safe failure details
+Alert or move to recovery
+```
+
+The exact times depend on the system.
+
+The important rule is a clear limit.
+
+## Duplicate Protection
+
+The technical word is **idempotency**.
+
+Simple design:
+
+1. The caller sends an idempotency key or business ID.
+2. The integration stores the key and result.
+3. The same key does not create the work again.
+4. A repeated request returns the known result.
+
+Use a shared and durable store.
+
+The check and save must be atomic.
+
+Atomic means two requests cannot both win at the same time.
+
+## Duplicate Key Diagram
+
+```text
+Request with key ORD-1001
+           |
+           v
+Check key in an atomic shared store
+           |
+           +-- New key
+           |     -> Start work
+           |     -> Save final result
+           |
+           +-- Work is running
+           |     -> Return current status
+           |
+           +-- Work is complete
+           |     -> Return saved result
+           |
+           +-- Same key, different body
+                 -> Return conflict
+```
+
+The same key should represent the same request.
+
+## Timeout
+
+A timeout means:
+
+> I did not receive the answer in time.
+
+It does not prove that the target failed.
+
+Do this:
+
+1. Stop blind retries.
+2. Search by order ID or idempotency key.
+3. If the target completed the work, record success.
+4. Retry only when duplicate work cannot happen.
+5. Compare the source and target records.
+
+Comparing source and target records is called **reconciliation**.
+
+## Timeout Example
+
+```text
+Frends sends ORD-1001
+        |
+        v
+ERP creates ORD-1001
+        |
+        v
+ERP response is lost
+        |
+        v
+Frends sees a timeout
+        |
+        v
+Do not send the order again yet
+        |
+        v
+Search ERP for ORD-1001
+        |
+        +-- Found
+        |     -> Record success
+        |
+        +-- Not found
+              -> Retry only with duplicate protection
+```
+
+## Queue and Dead-Letter Queue
+
+Many queues can deliver the same message more than once.
+
+The consumer must handle duplicates.
+
+- Acknowledge after safe completion.
+- Limit retry attempts.
+- Move poison messages to a dead-letter queue.
+- Record a safe reason.
+- Fix the cause before replay.
+- Replay slowly and verify the result.
+- Keep order by business key only when required.
+
+## Queue Diagram
+
+```text
+Caller
+  |
+  v
++------------------+
+| Queue            |
+| Holds work       |
++------------------+
+  |
+  v
+Frends worker
+  |
+  +-- Success
+  |     -> Mark complete
+  |
+  +-- Temporary problem
+  |     -> Delayed retry
+  |
+  +-- Permanent problem
+  |     -> Dead-letter queue
+  |     -> Manual or controlled review
+  |
+  +-- Worker stops
+        -> Message may appear again
+```
+
+A queue may send the same message again.
+
+The worker still needs duplicate protection.
+
+## Circuit Breaker
+
+A circuit breaker stops calls to a failing target for a short time.
+
+It protects both systems during a wider outage.
+
+It does not replace duplicate protection.
+
+## Logs
+
+Useful logs contain:
+
+- Correlation ID.
+- Safe business ID.
+- Process and version.
+- Environment.
+- Step and target.
+- Status and duration.
+- Retry attempt.
+- Safe error type.
+
+Do not log:
+
+- Token.
+- Password.
+- API key.
+- Connection string.
+- Full sensitive message.
+
+## Metrics and Alerts
+
+Useful metrics include:
+
+- Request count.
+- Success and failure count.
+- Duration.
+- Retry and timeout count.
+- Queue backlog.
+- Missing expected runs.
+
+A useful alert tells support what to check.
+
+Do not alert on every small temporary problem.
+
+## Release Checklist
+
+Before production:
+
+- Contract and mapping are approved.
+- Tests and UAT pass.
+- Versions are correct.
+- Settings, secrets, certificates, and network access are ready.
+- API Policy and permissions work.
+- Smoke test is ready.
+- Rollback steps are ready.
+- Logs, alerts, replay, and support owner are ready.
+
+After release:
+
+1. Check the deployed version.
+2. Run the smoke test.
+3. Find the Process Instance.
+4. Check the real target result.
+5. Watch failures and duration.
+6. Compare the first source and target records.
+
+Rolling back code does not undo an order or payment.
+
+Business correction may need a separate compensation step.
+
+## Incident Steps
+
+Remember:
+
+**Impact -> Stop damage -> Find -> Fix -> Check -> Learn**
+
+1. Find the affected users, records, and time.
+2. Stop unsafe retries or pause the Trigger.
+3. Trace one request with IDs and logs.
+4. Make the smallest safe fix.
+5. Test and compare the final records.
+6. Add a test, alert, or runbook improvement.
+
+## Incident Diagram
+
+```text
+Alert or user report
+        |
+        v
+1. Impact
+Who and what is affected?
+        |
+        v
+2. Stop damage
+Pause unsafe work
+        |
+        v
+3. Find
+Trace one correlation ID
+        |
+        v
+4. Fix
+Make the smallest safe change
+        |
+        v
+5. Check
+Smoke test and compare records
+        |
+        v
+6. Learn
+Add a test, alert, or runbook step
+```
+
+## Common Production Problems
+
+### Request Never Reaches the Process
+
+Check:
+
+1. URL, method, DNS, and network.
+2. TLS certificate.
+3. Gateway and API Policy.
+4. Path, method, Agent Group, and API Trigger.
+5. Agent health.
+6. Process Instances and logs.
+
+### `401` or `403`
+
+- `401`: check token, key, certificate, issuer, audience, and time.
+- `403`: check scope, role, policy, and record ownership.
+
+### `404`
+
+Check environment, base URL, route, API version, method, deployment, and Trigger.
+
+### `500`
+
+Use the correlation ID.
+
+Find the first internal error.
+
+Check null data, mapping, settings, and component version.
+
+### `502`, `503`, or `504`
+
+- `502`: check the target response and network path.
+- `503`: check health, load, or maintenance.
+- `504`: check target time. Treat a write result as unknown.
+
+### Postman Works but the App Fails
+
+Compare the real:
+
+- Method and URL.
+- Headers.
+- Body and encoding.
+- Token.
+- Certificate.
+- Proxy, DNS, and timeout.
+
+### DEV Works but UAT Fails
+
+Compare:
+
+- URL and route.
+- Environment values.
+- Secret and certificate.
+- DNS, firewall, and proxy.
+- Policy and permission.
+- Process and Task versions.
+- Data and time settings.
+
+### XPath Returns Nothing
+
+Check:
+
+- Namespace.
+- Root and full path.
+- Case.
+- Missing or empty element.
+- SOAP Envelope.
+- Encoding and schema change.
+
+## More Production Cases
+
+| Problem | Simple first checks |
+|---|---|
+| Slow but succeeds | Find slow step, target time, payload size, load, and timeout |
+| Intermittent `502` | Find gateway, target response, load, DNS, and proxy pattern |
+| Expired certificate | Find owner, renew safely, check trust chain, add expiry alert |
+| Retry storm | Stop retries, protect target, add limit and wait, drain slowly |
+| Target returns `429` | Follow `Retry-After`, reduce rate, keep retry limit |
+| Poison message | Put in DLQ, record reason, fix cause, replay slowly |
+| Wrong message order | Group by business key, check sequence or version |
+| Partial success | Save completed step, retry failed step, compensate if needed |
+| PROD database differs | Compare schema, migration, connection, permission, and data |
+| Rollback after writes | Roll back code separately from business correction |
+
+## 60-Second Answer
+
+> I first classify the failure as data, access, temporary, unknown, or internal. I retry only temporary failures, with a limit, wait, timeout, logs, and duplicate protection. A timeout gives an unknown result, so I search the target before retrying a write. I keep correlation and business IDs, useful metrics, alerts, a runbook, controlled replay, and reconciliation. During an incident, I stop damage, trace one request, fix the cause, verify records, and learn from it.
+
+---
+
+# 12. Testing an Integration - MUST KNOW
+
+Test more than the happy path.
+
+| Test | What it checks |
+|---|---|
+| Contract | Request and response match OpenAPI, WSDL, or XSD |
+| Mapping | Fields become the correct target values |
+| Integration | Real systems communicate |
+| Negative | Invalid input is rejected |
+| Security | Wrong identity or permission is rejected |
+| Performance | Volume and speed are acceptable |
+| Recovery | Timeout, retry, replay, and duplicate handling work |
+| Regression | Old behavior still works |
+| UAT | Business users accept the result |
+| Smoke | Production path is alive |
+
+Tools may include:
+
+- OpenAPI linter.
+- Postman, Bruno, or curl for REST.
+- SoapUI or another SOAP client.
+- XSD and XSLT tools.
+- Frends Process testing and Process Instances.
+
+The test purpose is more important than the tool name.
+
+## Testing Ladder
+
+```text
+1. Contract
+OpenAPI, JSON, WSDL, and XSD are correct
+        |
+        v
+2. Mapping
+JSON, XML, XPath, and XSLT give correct values
+        |
+        v
+3. Process
+Tasks, Decisions, Catch, and Return work
+        |
+        v
+4. System connection
+Frends reaches the real test target
+        |
+        v
+5. Failure and security
+Bad data, bad access, timeout, and duplicate work
+        |
+        v
+6. Volume and timing
+Expected size, count, and speed
+        |
+        v
+7. UAT
+Business accepts the result
+        |
+        v
+8. Production proof
+Smoke test and real target record match
+```
+
+## Order Test Examples
+
+| Test | Input or condition | Expected result |
+|---|---|---|
+| Valid order | Correct token and body | Expected response and one ERP order |
+| Missing order ID | No `orderId` | Safe `400` and no ERP call |
+| Empty customer | Empty `customerId` | Field error and no ERP call |
+| Invalid token | Changed or expired token | `401` and no business work |
+| Wrong permission | Missing scope or role | `403` and no ERP call |
+| Duplicate request | Same key twice | One ERP order |
+| SOAP business Fault | ERP rejects order | Safe mapped error and no blind retry |
+| Temporary outage | Selected `503` | Limited retry and clear log |
+| Timeout after send | No response | Search ERP before retry |
+| Bad namespace | Changed XML namespace | Mapping test fails before release |
+| Production smoke | Approved test order | Process Instance and ERP result match |
+
+## Old API Versus New API Diagram
+
+```text
+Same method, headers, and body
+            |
+      +-----+-----+
+      |           |
+      v           v
+   Old API     New API
+      |           |
+      +-----+-----+
+            |
+            v
+Compare:
+status
+headers
+body
+validation
+side effects
+duration
+logs
+```
+
+Use the same request.
+
+Otherwise, the comparison is not fair.
+
+## Compare a New API with an Old API
+
+Send the same request.
+
+Compare:
+
+- Status.
+- Headers and content type.
+- Body.
+- Validation and error format.
+- Side effects.
+- Duplicate behavior.
+- Time.
+- Logs and final target state.
+
+## 30-Second Answer
+
+> I test the contract, mapping, real system connection, invalid data, security, volume, timeout, retry, duplicate protection, and recovery. I complete regression testing and UAT before release. After release, I run a smoke test and check the real target result. I do not judge success only from the API response.
+
+---
+
+# 13. .NET for an Integration Interview - MUST KNOW
+
+## Three Similar Names
+
+- `System.Text` has text tools such as UTF-8 Encoding.
+- `System.Text.Json` reads and writes JSON.
+- `Newtonsoft.Json` is a separate JSON package.
+
+Newtonsoft.Json is also called Json.NET.
+
+## .NET Mental Map
+
+```text
+.NET platform
+|
++-- C#
+|   Programming language
+|
++-- .NET runtime
+|   Runs managed code
+|
++-- Built-in libraries
+|   +-- System.Text
+|   |   Text and encoding
+|   |
+|   +-- System.Text.Json
+|   |   JSON tools
+|   |
+|   +-- HTTP, files, dates, and logging
+|
++-- NuGet packages
+    +-- Newtonsoft.Json
+        Separate JSON package
+```
+
+`System.Text` is a broad text namespace.
+
+`System.Text.Json` is the JSON library.
+
+## System.Text.Json Versus Newtonsoft.Json
+
+| System.Text.Json | Newtonsoft.Json |
+|---|---|
+| Built into modern .NET | Separate package |
+| Good first choice for new work | Common in older systems |
+| Fast and well supported | Very flexible |
+| Has `JsonDocument` and `JsonNode` | Has `JObject` and `JToken` |
+
+Check contract differences:
+
+- Property names and case.
+- Missing and null fields.
+- Enums.
+- Dates and time zones.
+- Unknown fields.
+- Reference loops.
+- Special object types.
+- Custom converters.
+
+Do not change libraries without contract tests.
+
+Reading JSON into a .NET object is not full validation.
+
+## JSON Processing Diagram
+
+```text
+JSON text
+   |
+   v
+Parse JSON
+Can the text be read?
+   |
+   v
+Create a .NET object
+Can values map to properties?
+   |
+   v
+Validate the contract
+Are required fields and types correct?
+   |
+   v
+Validate business rules
+Is the order allowed?
+   |
+   v
+Validate permission
+May this caller do it?
+   |
+   v
+Use the safe result
+```
+
+Example:
+
+```json
+{
+  "order_id": "ORD-1001",
+  "amount": null,
+  "extra": "unexpected"
+}
+```
+
+Ask:
+
+- Does `order_id` map to the expected property?
+- Is null allowed for amount?
+- What happens when amount is missing?
+- Are extra fields allowed?
+- How are dates and enums handled?
+- Does a custom converter exist?
+
+## 45-Second JSON Library Answer
+
+> For new .NET work, I normally start with System.Text.Json because it is built in and well supported. I use Newtonsoft.Json when an existing solution needs it or when a special legacy contract is easier with it. I test casing, nulls, enums, dates, unknown fields, and converters. Deserialization does not replace required-field, business-rule, or authorization checks.
+
+## Async and HTTP
+
+Async/await helps while waiting for:
+
+- HTTP.
+- File.
+- Database.
+- Message operations.
+
+It avoids blocking a worker.
+
+It does not make the target faster.
+
+Still use:
+
+- Timeout.
+- Cancellation when supported.
+- Safe HTTP client reuse.
+- Error checks.
+- Safe retry rules.
+
+Use `DateTimeOffset` or a clear UTC rule for timestamps.
+
+Use `decimal` for money.
+
+Use UTF-8 and stable machine formats at system boundaries.
+
+## Two Meanings of Middleware
+
+### Integration Middleware
+
+Connects systems and changes messages.
+
+Frends is used in this meaning.
+
+### ASP.NET Core Middleware
+
+Runs inside an ordered HTTP pipeline.
+
+It can handle:
+
+- Errors.
+- Correlation and logging.
+- Authentication.
+- Authorization.
+- Rate limits.
+- Routing.
+
+Keep business rules outside general HTTP middleware.
+
+## ASP.NET Core Middleware Diagram
+
+```text
+HTTP request
+     |
+     v
+Error handler
+     |
+     v
+Correlation and request logging
+     |
+     v
+Authentication
+Who is calling?
+     |
+     v
+Authorization
+Is it allowed?
+     |
+     v
+Rate limit and other checks
+     |
+     v
+API endpoint
+     |
+     v
+HTTP response
+```
+
+Order matters.
+
+Each middleware step passes work to the next step.
+
+## ASP.NET Middleware and Frends Together
+
+```text
+Caller
+  |
+  v
+ASP.NET Core middleware
+Inside one web application
+  |
+  v
+API endpoint
+  |
+  v
+Frends integration middleware
+Between separate systems
+  |
+  v
+ERP, file, database, or SOAP service
+```
+
+## When to Use Custom .NET in Frends
+
+Use built-in Frends Tasks first.
+
+Use custom .NET only when:
+
+- No supported Task solves the need clearly.
+- The logic is technical and reusable.
+- It is tested and versioned.
+- The team can support it.
+
+---
+
+# 14. Power Platform - MUST KNOW
+
+## Main Parts
+
+| Part | Simple use |
+|---|---|
+| Power Apps | Business user application |
+| Power Automate | Workflow and approval automation |
+| Dataverse | Managed business data |
+| Connector | Connection to a service |
+| Custom connector | Makes a custom API usable in Power Platform |
+| Gateway | Connects supported on-premises data |
+| Solution | Package for controlled deployment |
+| DLP policy | Controls which connector groups can work together |
+
+## Power Platform and Frends Diagram
+
+```text
+User
+  |
+  v
+Power App
+Form or business screen
+  |
+  v
+Dataverse
+Business data
+  |
+  v
+Power Automate
+Approval and notification
+  |
+  v
+Custom connector or HTTP call
+  |
+  v
+Frends API Policy
+Identity and access
+  |
+  v
+Frends Process
+Validate, change, route, and recover
+  |
+  v
+ERP, SOAP, files, database, or queue
+```
+
+## Frends Versus Power Platform
+
+### Frends
+
+Best known for:
+
+- System integration.
+- APIs.
+- Files and databases.
+- Data transformation.
+- Technical monitoring and recovery.
+
+### Power Platform
+
+Best known for:
+
+- Business apps.
+- Forms.
+- Approvals.
+- Human workflow.
+- Microsoft-connected automation.
+
+They can work together.
+
+Example:
+
+1. Power App collects an order.
+2. Power Automate gets approval.
+3. Frends sends the order to the ERP.
+
+## Full Approved-Order Example
+
+1. A user enters an order in Power Apps.
+2. Dataverse stores the request.
+3. Power Automate sends an approval.
+4. A manager approves it.
+5. Power Automate calls a secured Frends API.
+6. Frends checks the caller and request.
+7. Frends checks the duplicate key.
+8. Frends changes JSON into ERP XML.
+9. Frends calls the SOAP ERP.
+10. Frends returns or publishes the result.
+11. Power Automate updates Dataverse.
+12. The user receives a message.
+
+## Choose the Platform Diagram
+
+```text
+Need a form or business screen?
+        |
+        +-- Yes -> Power Apps
+
+Need an approval or human task?
+        |
+        +-- Yes -> Power Automate
+
+Need managed business records?
+        |
+        +-- Yes -> Dataverse
+
+Need complex system transformation?
+        |
+        +-- Yes -> Frends
+
+Need REST-to-SOAP or file integration?
+        |
+        +-- Yes -> Frends
+
+Need special independent service logic?
+        |
+        +-- Yes -> .NET
+
+Need user workflow and system integration?
+        |
+        +-- Use Power Platform and Frends together
+```
+
+## Power Platform Release and Security
+
+- Build in the correct DEV environment.
+- Put work in a Solution.
+- Use an unmanaged Solution in DEV.
+- Use a managed Solution downstream when appropriate.
+- Use environment variables.
+- Use connection references.
+- Map real connections in the target environment.
+- Do not move secrets inside a Solution.
+- Use Dataverse security roles.
+- Remember that DLP is not user permission.
+- Use source control and release pipelines where available.
+- Check connector limits and licensing.
+- Give flows a durable owner.
+- Monitor runs and gateway health.
+- Plan gateway ownership and high availability.
+
+## Security Path
+
+```text
+User identity
+     |
+     v
+Power Platform role
+     |
+     v
+Dataverse permission
+     |
+     v
+Connection reference or service identity
+     |
+     v
+Frends API Policy
+     |
+     v
+Frends Process
+     |
+     v
+Target-system identity
+```
+
+## Combined Deployment Diagram
+
+```text
+Power Platform
+DEV Solution -> TEST -> PROD
+environment values + connection references
+
+                must agree on
+        API contract, URL, identity,
+        deployment order, and smoke test
+
+Frends
+DEV Process -> TEST/UAT -> PROD
+environment values + API Policy + version
+```
+
+## Find the Failed Step
+
+```text
+Did Power Apps save the request?
+              |
+              v
+Did Power Automate run?
+              |
+              v
+Did the connector call Frends?
+              |
+              v
+Did the API Policy allow it?
+              |
+              v
+Did the Frends Process start?
+              |
+              v
+Did the target system accept it?
+```
+
+Use one correlation ID.
+
+Find the first step that behaved differently.
+
+## 45-Second Comparison Answer
+
+> Frends is mainly an integration and middleware platform. Power Platform is strong for business apps, approvals, and human workflows. I choose based on the users, protocol, transformation, volume, recovery needs, connectors, security, licensing, and support team. They can work together. Power Platform can handle the user process, while Frends handles the system-to-system integration.
+
+## Recall
+
+1. What does a timeout mean?
+2. What makes a retry safe?
+3. System.Text versus System.Text.Json?
+4. System.Text.Json versus Newtonsoft.Json?
+5. Frends versus Power Platform?
+
+# 15. Top 20 Interview Questions - MUST KNOW
+
+Answer these without reading.
+
+The earlier sections contain the full answers.
+
+## Question and Memory Cues
+
+| # | Question | Cues |
+|---:|---|---|
+| 1 | Tell me about yourself. | Role -> systems -> your work -> why this job |
+| 2 | What is SDLC? | Plan -> Design -> Build -> Test -> Release -> Support |
+| 3 | How do you handle a new integration? | Need -> contract -> flow -> test -> release -> support |
+| 4 | How do you handle a changed requirement? | Impact -> contract -> tests -> approval -> communication |
+| 5 | What information do you collect first? | Owners -> data -> security -> scale -> failure |
+| 6 | Describe a middleware project. | REST/JSON -> Frends -> SOAP/XML -> ERP |
+| 7 | How do you design a Frends Process? | Trigger -> clear Tasks -> errors -> settings -> logs |
+| 8 | Frends, Power Platform, or custom .NET? | Systems -> people -> special code |
+| 9 | What is in an HTTP request and response? | Method/URL/headers/body -> status/headers/body |
+| 10 | How do you test an integration? | Contract -> negative -> security -> recovery -> UAT |
+| 11 | REST versus SOAP? | HTTP/JSON/OpenAPI -> XML/WSDL/XSD |
+| 12 | XML, XSD, XPath, and XSLT? | Data -> rules -> find -> change |
+| 13 | Explain SOAP and WSDL. | Envelope -> Header -> Body -> Fault -> service contract |
+| 14 | What is in OpenAPI? | Info -> Servers -> Paths -> Models -> Security |
+| 15 | How do headers work in OpenAPI? | Security scheme -> request parameter -> response header |
+| 16 | How do you validate JSON? | Syntax -> Shape -> Business -> Outside data |
+| 17 | How do you secure an API? | HTTPS -> identity -> permission -> input -> operations |
+| 18 | How do you handle retry and timeout? | Temporary only -> limit -> unknown result -> check target |
+| 19 | DEV works but UAT fails. What do you do? | Same request -> compare settings/network/access/versions |
+| 20 | System.Text.Json versus Newtonsoft.Json? | Built-in modern -> mature flexible -> contract tests |
+
+## Common Mistakes
+
+- Giving a long answer before giving the meaning.
+- Talking only about the happy path.
+- Saying HTTPS is full API security.
+- Saying OpenAPI security protects the running API by itself.
+- Retrying every timeout.
+- Treating missing, null, and empty as the same.
+- Ignoring XML namespaces.
+- Saying deserialization is full validation.
+- Saying deployment is complete without checking the target.
+- Claiming work you did not personally perform.
+
+---
+
+# 16. Four Practice Scenarios - MUST KNOW
+
+## Scenario 1: New REST-to-SOAP Integration
+
+Question:
+
+> A portal sends JSON. An ERP accepts SOAP XML. What do you do?
+
+Answer order:
+
+1. Confirm goal, owners, scale, and security.
+2. Review OpenAPI, WSDL, XSD, and examples.
+3. Agree mapping and acceptance rules.
+4. Secure and validate the REST request.
+5. Add correlation and duplicate protection.
+6. Map, transform, and validate target XML.
+7. Send SOAP and check HTTP status and Fault.
+8. Test errors, release, monitor, replay, and reconcile.
+
+## Scenario 2: ERP Timeout
+
+Question:
+
+> The ERP call timed out. Should you retry?
+
+Answer:
+
+> The result is unknown. I do not retry immediately. I search the ERP using the order ID or idempotency key. If the order exists, I record success. I retry only when I know duplicate work cannot happen. I then reconcile affected records.
+
+## Scenario 3: DEV Works but UAT Gives `401`
+
+Check:
+
+1. Which system returned `401`?
+2. Is the UAT URL correct?
+3. Is the token endpoint correct?
+4. Is the secret or certificate correct?
+5. Are issuer, audience, time, scope, and role correct?
+6. Can the UAT Agent reach the target?
+7. Is the correct Process version deployed?
+
+## Scenario 4: XPath Returns No Value
+
+Check:
+
+1. Namespace URI.
+2. Root and full path.
+3. Uppercase and lowercase letters.
+4. SOAP Envelope around the data.
+5. Missing, empty, or nil element.
+6. Encoding.
+7. New schema or message version.
+
+Fix the path.
+
+Add a regression test.
+
+Replay only the affected records.
+
+---
+
+# 17. Your Real Project Story - MUST KNOW
+
+Fill this with real information:
+
+- Business problem: ______________________________________
+- Source system: _________________________________________
+- Target system: _________________________________________
+- Trigger: _______________________________________________
+- Input format: __________________________________________
+- Output format: _________________________________________
+- Security: ______________________________________________
+- My personal work: ______________________________________
+- Hardest problem: _______________________________________
+- Error and retry design: _________________________________
+- Duplicate protection: __________________________________
+- Testing: _______________________________________________
+- Release and rollback: __________________________________
+- Logs and monitoring: ___________________________________
+- Records per day: _______________________________________
+- Normal response time: __________________________________
+- Real result: ___________________________________________
+
+## STAR Answer
+
+- **Situation:** What was happening?
+- **Task:** What did you need to do?
+- **Action:** What did you personally do?
+- **Result:** What happened?
+- **Lesson:** What did you improve or learn?
+
+Prepare three stories:
+
+1. A new feature.
+2. A production problem.
+3. A changed requirement.
+
+## Tell Me About Yourself
+
+Use four short parts:
+
+1. Your current role and experience.
+2. Systems and integrations you know.
+3. Your main relevant strengths.
+4. Why this role fits your next step.
+
+Example shape:
+
+> I work in [role] and have experience with [systems]. I have worked on REST, SOAP, JSON, XML, and low-code workflows. My main work has included [your real work]. I am interested in this role because it combines integration design, Frends, support, and reliable delivery.
+
+## Why Low-Code and Integration?
+
+> I like solving problems between systems. I enjoy agreeing contracts, mapping data, handling errors, and making flows easy to support. Low-code makes the flow visible and speeds up common work. API and .NET knowledge help with the technical details.
+
+## Questions to Ask the Interviewer
+
+1. Which integrations would I work on first?
+2. How does the team review and test Frends changes?
+3. How are releases and rollbacks handled?
+4. Who supports production integrations?
+5. Which security and logging rules are required?
+6. What does success in the first 90 days look like?
+
+---
+
+# 18. Final 40-Minute Mock Interview
+
+Record your voice.
+
+Do not read while answering.
+
+## 00:00-00:05
+
+- Tell me about yourself.
+- Why integration and low-code?
+
+## 00:05-00:15
+
+- Explain SDLC.
+- Explain a new integration.
+- Describe your middleware project.
+
+## 00:15-00:25
+
+- Secure an API.
+- Explain OpenAPI.
+- Validate JSON.
+- Explain the XML family.
+
+## 00:25-00:35
+
+Practice two scenarios from Section 16.
+
+## 00:35-00:40
+
+Score each area:
+
+| Area | 0 | 1 | 2 |
 |---|---|---|---|
-| Expired OAuth secret | Token error, `401/403`, configured identity/expiry | Stop repeated auth retry | Rotate in secret store, verify, resume/replay; add expiry owner/alert |
-| Expired certificate | Expiry, chain, hostname, thumbprint, TLS error | Never disable validation | Install/register replacement, test overlap, revoke old, monitor expiry |
-| Agent offline | Agent/service/host/CPU/memory/disk/connectivity | Fail over or pause ingress | Restore, verify Trigger coordination, use justified HA |
-| DNS/firewall | Resolve host and test port/TLS from Agent network | Do not change Process logic blindly | Restore DNS/proxy/route/rule; synthetic check |
-| Database unavailable | Health, login, locks, pool, network | Bounded retry; prevent storm | Restore, verify read/write, resume/drain; tune pool/availability |
-| Downstream timeout | Determine if remote request completed | Do not blindly resubmit | Query by key/order; retry only if safe |
-| Sustained `429` | `Retry-After`, concurrency, volume, quota | Reduce concurrency/queue | Delayed bounded retry; batch/cache/request capacity |
-| Breaking schema | Compare redacted payload/contract/version | Quarantine incompatibles | Compatible mapping/version; contract tests |
-| Wrong Environment Variable | Compare target prerequisites/audit | Restore known-good value | Smoke test; automate validation |
-| Deployment regression | Correlate version/deployment/failure rise | Deactivate unsafe Trigger or rollback | Verify, reconcile effects, replay, add missing test |
-| Duplicate processing | Check key registry and downstream state | Stop repeated replay | Select canonical result; unique/atomic controls |
-| Sensitive data in logs | Identify type/access/retention/exposure | Restrict access and stop logging | Security response, rotate secrets, remove per policy, redaction tests |
-| Scheduled Process stopped | Trigger, Agent, schedule/timezone, source | Define missed window before restore | Restore and backfill idempotently; missing-run alert |
-| Remote success/local failure | Query by business/idempotency key | Do not resubmit until known | Reconcile local state or deliberate compensation |
-| Poison record | Confirm deterministic same-input failure | Stop wasting retries | Quarantine, continue safe work, correct/audited replay |
+| Clear order | No order | Some order | Very clear |
+| Simple meaning | Wrong | Partly clear | Clear |
+| Example | None | General | Real or specific |
+| Failure and security | Missing | Small mention | Clear safe action |
+| Your role | Unclear | Mostly team | Your work is clear |
 
-## 8.16 Closed-book production drill
+Review only the answers that scored `0` or `1`.
 
-Scenario:
+## Speaking Rules
 
-> A Process version was deployed at 09:00. At 09:12 failures increased, callers retried, and the downstream system contains more orders than Frends reports successful.
-
-A strong answer:
-
-1. Correlate failures with deployed version and affected interval.
-2. Pause unsafe ingress/retries if duplicates continue.
-3. Preserve evidence and identify business/idempotency keys.
-4. Compare Process Instances to downstream records.
-5. Check rollback compatibility; remember it does not undo side effects.
-6. Do not blindly replay timed-out/local-failed executions.
-7. Reconcile remote successes into local state.
-8. Reprocess only confirmed missing orders through idempotent logic.
-9. Monitor recovery/backlog and communicate impact.
-10. Add the missing test, alert, or idempotency control.
-
-## 8.17 Security and operations interview questions
-
-### 1. How would you secure a Frends order API?
-
-Require TLS, authenticate the client, authorize scope/tenant, validate/bound input, rate limit, and establish correlation. Call dependencies with separate least-privilege identities and log only safe operational identifiers.
-
-### 2. Where should configuration and secrets live?
-
-Endpoints/settings belong in environment configuration. Sensitive values use approved secret storage such as secret Environment Variables where appropriate. Never embed them in Process logic, source, payloads, or logs; assign owner/rotation.
-
-### 3. How do you prevent log leakage?
-
-Allow-list fields instead of logging whole payloads and attempting removal. Exclude/redact tokens, credentials, connection strings, and private customer fields; restrict access/retention and test redaction.
-
-### 4. What is a good Frends deployment process?
-
-Select exact versions, validate dependencies/configuration, deploy through Test, run functional/failure/security tests, approve Production, activate deliberately, smoke test, monitor, and reconcile. Record prior version and replay implications.
-
-### 5. Rollback versus roll-forward?
-
-Rollback when the prior version is compatible and fastest/safest. Roll forward when external side effects, irreversible migrations, insecurity, or incompatibility make reversal unsafe. Reconciliation remains separate.
-
-### 6. What should be monitored?
-
-Business throughput/outcome, failures, latency, retries, throttling, backlog age, missing schedules, Agent/dependency health, and credential expiry. Logs explain one execution; metrics show trends; correlation connects calls.
-
-### 7. Why correlation IDs?
-
-They connect inbound request, Process Instance, database, downstream call, and replay. Propagate them consistently, keep separate from business keys, and exclude sensitive values.
-
-### 8. How detect a Process that did not run?
-
-Monitor expected count/latest-success within a time window. Then inspect Trigger activation, Agent health, deployment, schedule/timezone, and source dependencies.
-
-### 9. How investigate production failure?
-
-Assess impact, identify version/IDs, inspect the first failed shape, classify the failure, verify Agent/dependency health, stabilize unsafe behavior, recover, replay idempotently, and confirm actual business state.
-
-### 10. Should authentication failures be retried?
-
-Usually not with ordinary rapid retries. A token endpoint can fail transiently, but invalid/expired credentials need intervention. Permit very limited refresh/retry only for a proven case and alert sustained `401/403`.
-
-### 11. How do multiple Agents help availability?
-
-Multiple Agents in an Agent Group can share execution in an HA design, with required shared state and traffic coordination. Monitor shared database/network/gateway dependencies because they can still fail centrally.
-
-### 12. How prevent duplicates?
-
-Use a stable key, atomically record status, enforce uniqueness, forward the key downstream, and query state after timeout. Apply the same protection to replay.
-
-### 13. How manage a breaking schema change?
-
-Identify consumers and prefer a backward-compatible or versioned contract. Run contract tests and plan producer/consumer deployment order. Quarantine incompatible input rather than retrying forever.
-
-### 14. Which release tests matter most?
-
-Happy path plus invalid data, missing/forbidden authorization, duplicate, timeout, `429`, `500`, malformed response, DB outage, redaction, rollback, and replay. Contract, smoke, and reconciliation tests catch different risks.
-
-### 15. What do you do after downstream timeout?
-
-Treat outcome as unknown. Query by idempotency/business key and retry only when duplicate-safe or confirmed absent; otherwise reconcile or deliberately compensate.
-
-## 8.18 Final production checklist
-
-```text
-SECURITY
-[ ] Authentication and authorization enforced
-[ ] Least-privilege non-personal identities
-[ ] Secrets outside logic/source/logs
-[ ] TLS and certificate validation
-[ ] Input/content/payload limits
-[ ] Parameterized SQL
-[ ] Sensitive logging reviewed
-
-RELIABILITY
-[ ] Explicit deadline/timeouts
-[ ] Retryable failures classified
-[ ] Bounded backoff and throttling response
-[ ] Idempotency/duplicate detection
-[ ] Quarantine and controlled replay
-[ ] Unknown outcomes reconciled
-
-SDLC / DEPLOYMENT
-[ ] Exact versions and dependencies recorded
-[ ] Peer review and tests passed
-[ ] Contracts/configuration verified
-[ ] Previous version and recovery plan known
-[ ] Trigger activation deliberate
-[ ] Smoke test and initial monitoring complete
-
-OBSERVABILITY
-[ ] Correlation propagated
-[ ] Structured redacted logs
-[ ] Business and technical metrics
-[ ] Missing-execution alert
-[ ] Agent/dependency health monitoring
-[ ] Credential/certificate expiry alert
-
-INCIDENT RESPONSE
-[ ] Impact assessed and unsafe behavior stabilized
-[ ] Failure classified with evidence preserved
-[ ] Recovery verified through business state
-[ ] Replay is idempotent
-[ ] Root cause and preventive action recorded
-```
+- Start with the direct answer.
+- Use short sentences.
+- Give one example.
+- Mention one failure or safety point.
+- Stop after 60 to 90 seconds.
+- Do not invent experience.
 
 ---
 
-# 9. Interview Question Bank and Mock Interview
+# 19. Tomorrow Morning - One-Page Recall
 
-## 9.1 One-minute introduction template
+Read only this section tomorrow morning.
 
-Use facts from your experience; do not memorize invented claims.
+## Answer
 
-> I am a .NET developer with experience in [types of systems/domains]. My strongest areas are C#, APIs, data handling, and troubleshooting integrations across [systems]. In a recent example, I [problem], designed [solution], and achieved [measurable/relevant result]. Frends interests me because it combines visible BPMN orchestration with C#/.NET extensibility and hybrid execution. I would bring code-level engineering discipline to contracts, security, testing, deployment, monitoring, and support while keeping integrations understandable to the broader team.
+**What -> Why -> Example -> Failure and fix**
 
-Prepare two project stories:
+## Lifecycle
 
-- A successful integration from requirement to production.
-- A production incident or difficult failure you diagnosed.
+**Plan -> Design -> Build -> Test -> Release -> Support**
 
-## 9.2 Mixed 45-minute drill
+Know the need, contract, mapping, security, failure rules, tests, release, logs, replay, and owner.
 
-Shuffle these. Answer each in 90-120 seconds using Definition -> Example -> Risk -> Mitigation -> Monitoring.
+## Middleware
 
-1. Explain Frends to a nontechnical stakeholder.
-2. Process versus Subprocess versus Custom Task?
-3. How does an API Trigger reach an Agent-executed Process?
-4. Design OAuth client-credentials for a downstream API.
-5. `401` versus `403` versus `429`?
-6. A `POST` times out. What next?
-7. Design idempotency for order creation.
-8. XML namespace, XSD, XPath, and XSLT roles?
-9. SOAP envelope, WSDL, and Fault?
-10. OpenAPI standards/rules you review?
-11. `System.Text.Json` versus Newtonsoft.Json?
-12. Process a CSV with one invalid record.
-13. Handle 100,000 records without exhausting memory/API limits.
-14. Detect a schedule that never ran.
-15. Secure and monitor secrets/certificates.
-16. Deploy and roll back safely.
-17. Troubleshoot Agent-to-database connectivity.
-18. Frends versus Power Automate?
-19. Rollback versus roll-forward after side effects?
-20. Describe your production-incident method.
+**Receive -> Check -> Change -> Send -> Track**
 
-Score each:
+Story: Portal REST/JSON -> Frends -> SOAP/XML ERP.
 
-| Score | Meaning |
-|---:|---|
-| 0 | No answer or materially wrong |
-| 1 | Correct definition only |
-| 2 | Correct plus practical example |
-| 3 | Adds tradeoff/failure handling |
-| 4 | Adds security, testing, and operations |
+## Security
 
-Repeat every answer scoring 0-2. Do not spend time repeating 4s.
+**Connection -> Identity -> Permission -> Input -> Operations**
 
-## 9.3 System-design method
+OpenAPI describes security.
 
-When asked to design an integration:
+The Frends API Policy and Process enforce it.
 
-1. Clarify functional goal, consumers, source/target ownership.
-2. Quantify volume, payload size, latency, concurrency, schedule, and growth.
-3. Clarify consistency, ordering, duplicate, and recovery requirements.
-4. Draw systems and trust/network boundaries.
-5. Choose sync, queue, event, polling, file, or batch deliberately.
-6. Define contracts, schemas, validation, and versioning.
-7. Define authentication/authorization and secrets.
-8. Define timeout, retry, idempotency, quarantine, and reconciliation.
-9. Define environment/deployment/rollback.
-10. Define logs, metrics, alerts, SLO, ownership, and runbooks.
+## OpenAPI
 
-Do not begin with a tool. Begin with requirements and failure semantics, then map to Frends constructs.
+**Info -> Servers -> Paths -> Models -> Security**
 
-## 9.4 System-design scenarios
+Authentication uses `securitySchemes`.
 
-### 1. On-premises SQL to SaaS API every five minutes
+A normal request header uses `parameters`.
 
-Use a Self Service Agent near SQL, Schedule Trigger, durable watermark/keyset query, bounded batches/concurrency, OAuth, idempotent destination calls, per-record outcomes, checkpoint after success boundary, missing-run/backlog alerts, and reconciliation.
+## JSON
 
-### 2. Public order API with variable 30-second processing
+**Syntax -> Shape -> Business -> Outside data**
 
-Prefer authenticated API acceptance, persist/enqueue before returning `202`, expose status/callback, use durable idempotency, separate worker Process, deadline/retry policy, and backlog/age monitoring rather than holding a fragile request open.
+`properties` describes fields.
 
-### 3. Two-gigabyte nightly CSV
+`required` makes selected fields mandatory.
 
-File Trigger, archive/control metadata, streaming parser, bounded batches, row number/error quarantine, controlled parallelism, checkpoint/restart, control totals, missing-file and excessive-duration monitoring. Never log the whole file.
+## XML
 
-### 4. Legacy SOAP service migration
+**XML data -> XSD rules -> XPath find -> XSLT change**
 
-Start from WSDL/XSD and binding/security requirements. Build a Frends REST-facing OpenAPI facade only if valuable; validate JSON, map via code/XSLT to namespaced SOAP envelope, parse Faults, preserve correlation, contract-test, and plan version/cutover compatibility.
+WSDL describes the SOAP service.
 
-### 5. Downstream permits 100 calls/minute
+SOAP has Envelope, Header, Body, and Fault.
 
-Rate-limit before sending, queue/batch, cap worker concurrency, honor `429/Retry-After`, cache reusable lookups/tokens, make consumers idempotent, and monitor throughput/backlog age against business SLA.
+## Failure
 
-### 6. Same integration across three regions
+Bad data: stop and correct.
 
-Clarify data residency, latency, active-active versus active-passive, shared idempotency/state, routing, Agent Groups, dependency locality, failover consistency, config/secrets, and how replay avoids cross-region duplicates.
+Temporary problem: limited safe retry.
 
-### 7. Power App initiates complex on-premises processing
-
-Use Power App for UI, possibly a small Power Automate flow/custom connector for invocation, and Frends for governed hybrid backend orchestration near on-premises systems. Establish user/service authorization, async status, correlation, and ownership across platforms.
-
-### 8. Partner changes XML schema without notice
-
-Quarantine incompatible messages, preserve a safe sample, compare XSD/version/namespaces, avoid infinite retry, add compatible mapping or coordinated version, contract tests, partner change process, and schema-failure alert.
-
-### 9. Payment API times out
-
-Never blind retry with a new key. Query by idempotency/payment reference, reconcile outcome, use same key where provider guarantees it, avoid exposing internals, and provide an operational queue for unresolved states.
-
-### 10. Schedule ran twice after failover
-
-Treat schedules as at-least-once. Use a durable run/business key and atomic claim, HA shared state correctly, idempotent item handling, reconcile duplicates, and alert unusual run counts.
-
-## 9.5 Behavioral answers with STAR
-
-- **Situation:** One or two sentences of relevant context.
-- **Task:** Your responsibility and success condition.
-- **Action:** Specific decisions/actions you personally took.
-- **Result:** Measurable outcome plus lesson/prevention.
-
-Prepare these prompts:
-
-1. Production incident under pressure.
-2. Ambiguous requirement you clarified.
-3. Disagreement in design/code review.
-4. Technical debt you prioritized.
-5. Mistake or failed deployment.
-6. Performance/scalability improvement.
-7. Security issue you identified.
-8. Helping a less technical maker/developer.
-9. Multiple urgent tasks and prioritization.
-10. Learning a platform quickly.
-
-Strong incident story shape:
-
-> A release caused [observable impact]. I owned [responsibility]. I first stabilized [unsafe behavior], correlated [version/IDs], classified [root cause], and coordinated [teams]. We recovered through [rollback/fix/replay] and verified [business result]. I then added [test, alert, process change], which reduced recurrence/detection time by [truthful result].
-
-Avoid blaming colleagues, claiming team work solely as yours, or giving a result with no verification.
-
-## 9.6 Final 30-minute mock interview
-
-Do not use notes during answers.
-
-| Time | Prompt |
-|---:|---|
-| 0:00-2:00 | Introduction and relevant project |
-| 2:00-4:00 | Explain Frends architecture |
-| 4:00-6:00 | Process/Subprocess/Task/Custom Task choice |
-| 6:00-9:00 | Design the order API and OpenAPI contract |
-| 9:00-12:00 | Timeout/retry/idempotency scenario |
-| 12:00-14:00 | SOAP/XML/XSLT or JSON-library comparison |
-| 14:00-17:00 | Security and secret handling |
-| 17:00-20:00 | Deploy, monitor, and roll back |
-| 20:00-23:00 | Production incident scenario |
-| 23:00-25:00 | Frends versus Power Platform |
-| 25:00-28:00 | Behavioral STAR question |
-| 28:00-30:00 | Candidate questions and final correction list |
-
-### Mock scoring rubric
-
-Score each category 0-4:
-
-| Category | 0 | 2 | 4 |
-|---|---|---|---|
-| Correctness | Materially wrong | Core idea correct | Accurate with boundaries |
-| Structure | Rambling/no answer | Understandable | Concise logical progression |
-| Practicality | Pure definition | One example | Implementable design |
-| Failure thinking | Ignores failure | Mentions error | Classifies/recovery/idempotency |
-| Security | Ignores it | Generic mention | Identity, secrets, data/log controls |
-| Operations | No support view | Logs only | Metrics, alerts, replay, ownership |
-
-Target at least 18/24. Correct the lowest two categories only; do not restart the whole guide.
-
-## 9.7 Questions to ask the interviewer
-
-Choose three:
-
-1. What integrations and source/target systems dominate the team's workload?
-2. How are Frends Processes reviewed, tested, promoted, and monitored today?
-3. How does the team choose between visual Process logic, Custom Tasks, and external .NET services?
-4. What are the largest current reliability or governance challenges?
-5. How are production incidents, replay, and reconciliation owned?
-6. Which Frends Agent/runtime topology and environments does the team operate?
-7. How much work uses SOAP/XML/files versus REST/events?
-8. Where does Power Platform fit alongside Frends?
-9. What would successful delivery in the first three months look like?
-
-Avoid asking only about technology. At least one question should address outcomes, quality, or team operations.
-
-## 9.8 Interview-day behavior
-
-- Listen to the complete question; clarify ambiguity before designing.
-- State assumptions and business constraints.
-- Think aloud in a structured way, but avoid narrating every thought.
-- If you do not know a Frends-specific setting, say how you would verify it and explain the underlying integration principle.
-- Never invent platform behavior. Distinguish what you know, infer, and would confirm.
-- For failure scenarios, assess impact and unknown outcomes before proposing replay.
-- Keep initial answers under two minutes, then offer depth when asked.
-
----
-
-# 10. Final Recall Sheet
-
-Review this once tomorrow for 15-20 minutes. Then close it and reproduce the architecture and five answers aloud. Stop studying at least 30 minutes before the interview.
-
-## 10.1 Frends in one page
-
-```text
-Tenant/Control Panel
-  -> Environment (lifecycle/configuration)
-  -> Agent Group (deployment/execution target)
-  -> Agent(s) (runtime)
-
-Trigger
-  -> Process (end-to-end orchestration)
-  -> Task / Code Task
-  -> synchronous reusable Subprocess
-  -> Return or Throw
-  -> Process Instance + promoted values + monitoring
-```
-
-| Construct | Remember |
-|---|---|
-| Process | Triggered end-to-end BPMN/C# integration compiled for .NET |
-| Subprocess | Reusable synchronous orchestration with Manual Trigger interface |
-| Task | Packaged operation/connector action |
-| Code Task | Small process-local C# |
-| Custom Task | Tested reusable .NET 8 library packaged as NuGet |
-| Environment | Development/Test/Production logic and configuration boundary |
-| Agent Group | Where a selected version is deployed/executed |
-| Agent | Actual runtime registering Triggers and running Processes |
-
-References: `#trigger`, `#var`, `#env`, `#result`, `#process`, and Catch error context.
-
-API lifecycle: OpenAPI `3.0.1` -> link operation to API Trigger Process -> API Policy -> deploy API/linked Processes together -> activate -> monitor API and Process Instances.
-
-## 10.2 HTTP and API recall
-
-```text
-200 completed success
-201 created
-202 accepted, still processing
-204 success, no body
-400 invalid request
-401 not authenticated
-403 authenticated, not permitted
-404 absent
-409 state/idempotency conflict
-415 wrong media type
-422 semantic validation
-429 throttled: honor Retry-After
-500 internal failure
-502 bad upstream response
-503 temporarily unavailable
-504 upstream timeout
-```
-
-OpenAPI review: supported version, title/version, stable `operationId`, methods/paths, request schema, required fields/constraints, every response, security scheme + enforcement, examples, reusable `$ref`, validation, compatibility, contract tests.
-
-OAuth client credentials: client identity/secret or certificate -> token endpoint -> scoped short-lived access token -> Bearer API call. Cache safely; never log secrets/tokens; distinguish `401` from `403`.
-
-## 10.3 Data/protocol recall
-
-- YAML: spaces/indentation, mappings/sequences, quote ambiguity, validate, no secrets.
-- RAML: separate YAML-based REST description language; not OpenAPI.
-- RML: ambiguous; often RDF Mapping Language; ask which meaning.
-- XML: well-formed, namespaces, XSD structure, XPath selection, XSLT transformation.
-- SOAP: WSDL operation/binding, XML Envelope/Header/Body/Fault, version/content type, possible `SOAPAction`/WS-Security.
-- JSON: `System.Text.Json` is modern .NET default; Newtonsoft.Json is mature/established. Defaults/DOM/converters differ; contract-test migrations.
-- CSV: real parser, explicit dialect/encoding, row numbers, streaming/batching, quarantine.
-
-## 10.4 Reliability recall
-
-```text
-Timeout != failure. It means outcome unknown.
-Retry only transient + duplicate-safe + bounded + within deadline.
-Idempotency key identifies logical operation.
-Correlation ID connects telemetry.
-Circuit breaker protects a failing dependency.
-Quarantine stops poison-data retry waste.
-Reconciliation verifies business state across systems.
-```
-
-Retry candidates: bounded network faults, `429`, selected `5xx`.  
-Do not blindly retry: validation, permission, contract defects, unsafe writes.  
-After timeout: query destination by same key/order before resubmission.
-
-## 10.5 Security and operations recall
-
-- TLS and authenticated/authorized least-privilege service identities.
-- Secret Environment Variables/approved vault; ownership/rotation/expiry alerts.
-- Validate and bound all untrusted input/output.
-- Parameterized SQL.
-- Allow-list structured logs; no secrets/tokens/full sensitive payloads.
-- Deploy exact reviewed/tested version and dependencies/configuration.
-- Smoke-test, activate deliberately, monitor, reconcile.
-- Rollback does not undo external side effects.
-- Logs explain one execution; metrics show trends; correlation links systems.
-- Monitor failures, latency, retries/throttling, backlog, Agent/dependencies, missing schedules, credential expiry.
-
-Incident sequence:
-
-```text
-Assess impact -> stabilize -> identify version/IDs -> classify -> inspect
--> verify dependencies -> recover -> reconcile/replay safely
--> validate business outcome -> communicate -> prevent recurrence
-```
-
-## 10.6 Five answers to rehearse tomorrow
-
-1. Explain Frends Process-to-Agent execution and lifecycle.
-2. Design the idempotent order integration.
-3. Explain timeout, retry, `429`, and unknown outcome.
-4. Explain secure deployment, monitoring, rollback, and replay.
-5. Compare Frends, Power Automate, Custom Task, and external .NET service choices.
-
-## 10.7 Sleep and interview morning
-
-- Finish at least one hour before normal sleep.
-- Do not trade normal sleep for passive rereading.
-- Tomorrow, review only this section for 15-20 minutes.
-- Close it; redraw the Frends/order architecture and answer three questions aloud.
-- Stop studying at least 30 minutes before the interview.
-
-## 10.8 Acronym glossary
-
-| Acronym | Meaning |
-|---|---|
-| ALM | Application Lifecycle Management |
-| API | Application Programming Interface |
-| BPMN | Business Process Model and Notation |
-| CI/CD | Continuous Integration / Continuous Delivery or Deployment |
-| CSV | Comma-Separated Values |
-| DLP | Data Loss Prevention/data policy governance |
-| DLQ | Dead-Letter Queue |
-| DTO | Data Transfer Object |
-| HA | High Availability |
-| HTTP | Hypertext Transfer Protocol |
-| JWT | JSON Web Token |
-| mTLS | Mutual Transport Layer Security |
-| OAS | OpenAPI Specification |
-| OAuth | Open Authorization framework |
-| RAML | RESTful API Modeling Language |
-| RDF | Resource Description Framework |
-| RML | Often RDF Mapping Language; confirm project usage |
-| REST | Representational State Transfer |
-| SLA | Service-Level Agreement |
-| SLI | Service-Level Indicator |
-| SLO | Service-Level Objective |
-| SDLC | Software Development Life Cycle |
-| SOAP | XML messaging protocol name (originally an acronym) |
-| TLS | Transport Layer Security |
-| WSDL | Web Services Description Language |
-| XML | Extensible Markup Language |
-| XPath | XML Path Language |
-| XSD | XML Schema Definition |
-| XSLT | Extensible Stylesheet Language Transformations |
-| YAML | YAML Ain't Markup Language |
-
----
-
-# 11. Official References
-
-Use the guide for tonight's preparation. Use these links to verify tenant/version-specific behavior, not as additional material to read end to end.
+Timeout: check the target before retry.
 
 ## Frends
 
-- [Process](https://docs.frends.com/reference/process-development/process)
-- [Subprocess](https://docs.frends.com/reference/process-development/subprocess)
-- [Shapes](https://docs.frends.com/reference/shapes/shape)
-- [Triggers](https://docs.frends.com/reference/shapes/event-shapes/trigger)
-- [Task](https://docs.frends.com/reference/shapes/activity-shapes/task)
-- [Code Task](https://docs.frends.com/reference/shapes/activity-shapes/code-task)
-- [Reference values](https://docs.frends.com/reference/process-development/reference-values)
-- [Creating Custom Tasks](https://docs.frends.com/guides/development/creating-custom-tasks)
-- [Frends Runtime](https://docs.frends.com/hybrid-integration-architecture/frends-runtime)
-- [Environments](https://docs.frends.com/management-and-operations/integration-lifecycle/environments)
-- [High Availability](https://docs.frends.com/hybrid-integration-architecture/high-availability)
-- [API Management](https://docs.frends.com/frends-development/api-management)
-- [Create an API](https://docs.frends.com/guides/api-management/how-to-create-an-api-with-frends)
-- [Link a Process to an API endpoint](https://docs.frends.com/guides/api-management/linking-a-process-to-api-endpoint)
-- [API Policies](https://docs.frends.com/frends-development/api-management/api-policies)
-- [Deploy an API](https://docs.frends.com/guides/api-management/deploying-an-api)
-- [Deploy integrations](https://docs.frends.com/guides/integration-management/deploying-integrations)
-- [Version Control](https://docs.frends.com/management-and-operations/integration-lifecycle/version-control)
-- [Process Instances](https://docs.frends.com/management-and-operations/dashboard-and-monitoring/process-instances)
-- [Process Log Settings](https://docs.frends.com/reference/administration/process-log-settings)
-- [Error handling and monitoring](https://docs.frends.com/management-and-operations/dashboard-and-monitoring/error-handling-and-monitoring)
-- [Test Processes and Tasks](https://docs.frends.com/guides/development/how-to-test-processes-and-tasks)
-- [Official Tasks](https://tasks.frends.com/)
+Trigger starts Process.
 
-## Microsoft .NET and Power Platform
+Tasks do work.
 
-- [Asynchronous programming with async and await](https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/)
-- [IHttpClientFactory](https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory)
-- [System.Text.Json overview](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/overview)
-- [Newtonsoft.Json documentation](https://www.newtonsoft.com/json/help/html/Introduction.htm)
-- [Power Platform ALM](https://learn.microsoft.com/en-us/power-platform/alm/)
-- [Power Platform pipelines](https://learn.microsoft.com/en-us/power-platform/alm/pipelines)
-- [Power Platform environment variables](https://learn.microsoft.com/en-us/power-apps/maker/data-platform/environmentvariables)
-- [Power Platform connectors](https://learn.microsoft.com/en-us/connectors/)
-- [Manage on-premises data gateways](https://learn.microsoft.com/en-us/power-automate/gateway-manage)
-- [Dataverse security](https://learn.microsoft.com/en-us/power-platform/admin/wp-security)
-- [Power Platform data policies](https://learn.microsoft.com/en-us/power-platform/admin/wp-data-loss-prevention)
-- [Power Automate limits and throttling](https://learn.microsoft.com/en-us/power-automate/guidance/coding-guidelines/understand-limits)
-- [Create child flows](https://learn.microsoft.com/en-us/power-automate/create-child-flows)
+Agent runs it.
 
-## Standards
+Process Instance and logs show what happened.
 
-- [HTTP Semantics - RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
-- [OAuth 2.0 - RFC 6749](https://www.rfc-editor.org/rfc/rfc6749)
-- [OpenAPI Specification](https://spec.openapis.org/oas/)
-- [YAML Specification](https://yaml.org/spec/)
-- [RAML Specification](https://raml.org/developers/raml-100-tutorial)
-- [RML specification site](https://rml.io/specs/rml/)
-- [W3C XML](https://www.w3.org/XML/)
-- [W3C XSLT](https://www.w3.org/TR/xslt/)
-- [W3C SOAP 1.2](https://www.w3.org/TR/soap12-part1/)
+## Final Reminder
 
-## Accuracy note
+Use real experience.
 
-Frends capabilities and UI labels can differ by tenant/runtime version and installed Task packages. The guide deliberately emphasizes stable concepts. Use editor autocomplete and the tenant's Task documentation for exact input/result property names. Do not memorize version-specific log truncation sizes or assume a newer OpenAPI feature is supported without checking.
+Say what you did.
+
+Give one safe example.
 
 ---
 
-**End of guide. Protect sleep, retrieve rather than reread, and explain tradeoffs instead of listing features.**
+# 20. Small Reference - REFERENCE
+
+## Integration Patterns
+
+| Pattern | Use it when | Main risk |
+|---|---|---|
+| Synchronous API | Caller needs a quick final result | Timeout and strong coupling |
+| Asynchronous API | Work is slow | Status and duplicate handling |
+| Webhook | A system pushes an event | Signature and replay attack |
+| Queue | Systems need buffering | Duplicate delivery and backlog |
+| File/SFTP | Legacy batch exchange | Partial file and duplicate file |
+| Database polling | No API or event exists | Missed or repeated rows |
+| Schedule | Work runs at a known time | Overlapping runs and timezone |
+
+## Safe File Flow
+
+- Wait until writing is complete.
+- Validate name, size, and encoding.
+- Use a stable file ID or checksum.
+- Archive completed files.
+- Quarantine bad files.
+- Handle partial success.
+
+## Safe Database Flow
+
+- Use a low-permission account.
+- Use safe parameters.
+- Store a durable checkpoint.
+- Add a small safe overlap.
+- Remove duplicates.
+- Understand transaction limits.
+
+## Useful Operational Words
+
+| Word | Simple meaning |
+|---|---|
+| Backoff | Wait longer before each retry |
+| Jitter | Add a small random wait |
+| Circuit breaker | Stop calls to a failing target for a short time |
+| Dead-letter queue | Holds messages that could not finish |
+| RTO | Target time to restore service |
+| RPO | Maximum acceptable data loss time |
+| SLA | Agreed service level |
+| Smoke test | Small check after release |
+| Runbook | Support instructions |
+
+## Official References
+
+- [Frends documentation](https://docs.frends.com/)
+- [Frends API Policies](https://docs.frends.com/guides/api-management/setting-up-api-policies)
+- [Frends API Trigger](https://docs.frends.com/reference/triggers/api-trigger)
+- [OpenAPI specification](https://spec.openapis.org/oas/latest.html)
+- [JSON Schema object rules](https://json-schema.org/understanding-json-schema/reference/object)
+- [OWASP REST security](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html)
+- [W3C XML](https://www.w3.org/TR/xml/)
+- [W3C XSD](https://www.w3.org/TR/xmlschema11-1/)
+- [W3C XSLT](https://www.w3.org/TR/xslt/)
+- [W3C SOAP](https://www.w3.org/TR/soap12/)
+- [System.Text.Json](https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/overview)
+- [Power Platform ALM](https://learn.microsoft.com/power-platform/alm/)
+
+# Final Study Rule
+
+Do not read a new topic after the eight hours.
+
+Review the one-page recall.
+
+Prepare your real story.
+
+Sleep.
