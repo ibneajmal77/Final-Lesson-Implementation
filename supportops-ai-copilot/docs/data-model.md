@@ -38,6 +38,30 @@ Important constraint:
 
 - `uq_users_tenant_email`: the same email cannot be duplicated inside one tenant.
 
+## Support Policies
+
+`support_policies` represent tenant-owned policy context that can be provided to hosted ticket
+analysis.
+
+Important columns:
+
+- `id`: internal policy identifier.
+- `tenant_id`: the tenant that owns the policy.
+- `name`: tenant-unique policy name.
+- `content`: policy text used as model context.
+- `created_by_user_id`: development actor ID that created the policy.
+- `created_at`: creation timestamp.
+- `updated_at`: last update timestamp.
+- `retention_expires_at`: optional timestamp for future retention cleanup.
+
+Important constraint:
+
+- `uq_support_policies_tenant_name`: one tenant cannot create duplicate policy names.
+
+Why policies are tenant-scoped:
+
+- Hosted model context must never mix one tenant's policy with another tenant's ticket.
+- Policy lookups return `404` across tenant boundaries.
 ## Tickets
 
 `tickets` represent support requests from customers.
@@ -118,6 +142,49 @@ Why reviews are separate from recommendations:
 - Multiple review events can be stored over time.
 - Approval, rejection, and edits become traceable business events.
 
+## AI Runs
+
+`ai_runs` represent asynchronous ticket-analysis jobs.
+
+Important columns:
+
+- `id`: internal run identifier.
+- `tenant_id`: the tenant that owns the run.
+- `ticket_id`: the ticket being analyzed.
+- `output_recommendation_id`: saved recommendation created by the run, when successful.
+- `run_type`: current job type, such as `ticket_analysis`.
+- `status`: `queued`, `running`, `succeeded`, `failed`, or `abstained`.
+- `prompt_version`: prompt contract used by the provider.
+- `model_provider`: configured provider name.
+- `model_name`: model identifier.
+- `input_hash`: hash of the ticket input used for the run.
+- `error_code`: controlled failure code.
+- `error_message`: controlled failure message.
+- `created_at`, `started_at`, `finished_at`: lifecycle timestamps.
+- `retention_expires_at`: optional timestamp for future retention cleanup.
+
+## Cost Events
+
+`cost_events` represent persisted model usage and cost estimates.
+
+Important columns:
+
+- `id`: internal cost event identifier.
+- `tenant_id`: the tenant that owns the model usage.
+- `ticket_id`: optional related ticket.
+- `ai_run_id`: optional related async run.
+- `recommendation_id`: optional related recommendation.
+- `provider`: provider/source that produced the output.
+- `model`: model identifier.
+- `prompt_version`: prompt contract used by the provider.
+- `operation`: sync or async operation label.
+- `input_tokens`: provider input token count.
+- `output_tokens`: provider output token count.
+- `estimated_cost_usd`: calculated cost using configured token rates.
+- `latency_ms`: model call latency.
+- `metadata_json`: extra non-sensitive usage metadata.
+- `created_at`: creation timestamp.
+- `retention_expires_at`: optional timestamp for future retention cleanup.
 ## Review Metrics
 
 Review metrics are derived from existing tables. Stage 8 does not add a new table.
@@ -133,15 +200,32 @@ Why this matters:
 - Future real LLM output can be compared against the baseline and mock provider.
 - Low approval or high edit rates identify where prompts, rules, or retrieval need improvement.
 
+## Retention Fields
+
+Stage 14 adds `retention_expires_at` to tenant-owned operational data:
+
+- `tickets`
+- `ai_runs`
+- `ticket_recommendations`
+- `recommendation_reviews`
+- `cost_events`
+- `support_policies`
+
+The current worker retention job only counts expired rows. It does not delete data yet.
 ## Current schema relationship
 
 ```text
 tenants
   |-- users
-  `-- tickets
-      `-- ticket_recommendations
-          `-- recommendation_reviews
+  |-- support_policies
+  |-- tickets
+  |   |-- ai_runs
+  |   |-- ticket_recommendations
+  |   |   `-- recommendation_reviews
+  |   `-- cost_events
+  `-- cost_events
 ```
 
-This is enough for the next stage: measuring how often recommendations are accepted, rejected, or
-edited.
+This is enough for the current stage: tenant-scoped tickets, tenant-scoped policy context, model
+recommendations, async run tracking, human review, observability cost events, and retention
+candidates.

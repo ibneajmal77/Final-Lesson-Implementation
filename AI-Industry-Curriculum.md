@@ -1,6 +1,6 @@
 # Industry AI Engineering Curriculum and Career Map
 
-Updated: June 25, 2026
+Updated: July 28, 2026
 
 ## Purpose
 
@@ -31,6 +31,11 @@ The recurring requirements across practical AI roles are:
 - Model adaptation through SFT, LoRA, QLoRA, and preference optimization for training-focused roles
 - PyTorch and distributed computing for model, platform, and infrastructure roles
 - Product judgment, domain understanding, stakeholder communication, and business metrics
+
+Python remains the shared language for model, data, evaluation, and training work. Learners who
+build enterprise products in the Microsoft ecosystem can also follow the parallel **.NET Applied AI
+lane** defined below. That lane adds production C# runtime artifacts without removing the Python
+core.
 
 Applied AI and forward-deployed roles increasingly require engineers who can work directly with users, identify valuable workflows, build prototypes quickly, integrate with existing enterprise systems, and turn successful prototypes into reusable production systems.
 
@@ -96,6 +101,7 @@ This positioning can branch into:
 - AI evaluation, safety, and security
 - Search, recommendation, NLP, vision, speech, or multimodal AI
 - Forward-deployed AI and solutions architecture
+- .NET Applied AI product engineering for Microsoft-oriented enterprise environments
 
 ## Learning order
 
@@ -281,7 +287,44 @@ Learn one cloud deeply. Learn the service mapping for the others rather than dup
 - OAuth and OpenID Connect
 - Enterprise identity providers
 
-Python remains the primary language. TypeScript is a supporting skill for Applied AI Engineers who integrate AI into user-facing products.
+Python remains the primary shared language. TypeScript is a supporting skill for Applied AI
+Engineers who integrate AI into user-facing products.
+
+### Parallel .NET Applied AI lane
+
+This is an implementation lane, not a replacement for Python. A learner taking it keeps Python for
+model experimentation, evaluation, data work, and training, while implementing the enterprise
+application/runtime path in C#.
+
+Use:
+
+- A currently supported .NET release, C#, and ASP.NET Core
+- `Microsoft.Extensions.AI` for provider-neutral chat, embedding, middleware, and telemetry
+  abstractions where its current supported API fits
+- Native provider SDKs when an abstraction omits a required capability
+- Semantic Kernel or Microsoft Agent Framework as a choose-one orchestration option only when it
+  improves the explicit workflow design
+- Azure AI Search or PostgreSQL with pgvector for the retrieval implementation
+- Microsoft Entra ID, managed identity, OAuth, and least-privilege application identities
+- OpenTelemetry for .NET across model, retrieval, tool, and HTTP operations
+- xUnit or NUnit, ASP.NET Core integration testing, and Testcontainers or an equivalent disposable
+  dependency strategy
+
+Produce matched .NET artifacts across the curriculum:
+
+| Capability | .NET lane artifact |
+|---|---|
+| Model integration | ASP.NET Core model gateway with streaming, structured output, tools, fallback, tracing, and cost attribution |
+| RAG | Permission-aware classic RAG plus a bounded agentic-retrieval route using Azure AI Search or pgvector |
+| Agents and memory | Explicit C# workflow with evaluated memory policies and either native state handling or one selected orchestration framework |
+| MCP | Authenticated .NET client/server integration with identity propagation, allowlists, and audit telemetry |
+| Production | Entra-protected services, background workers, reliability tests, and OpenTelemetry dashboards |
+| Capstone | ASP.NET Core product/runtime services integrated with the Python model, evaluation, or training components where those are the better fit |
+
+SDK names, APIs, support status, and cloud features change. At lesson-generation time, verify the
+current official documentation and supported versions. A preview-only feature may be used only with
+a pinned version, an architecture decision record documenting risk, and a stable native or
+provider-neutral fallback. Do not teach every Microsoft or agent product merely because it exists.
 
 ## Engineering foundations
 
@@ -579,6 +622,11 @@ Learn:
 - Request tracing
 - Cost attribution
 
+The .NET lane implements the same contract in ASP.NET Core using `Microsoft.Extensions.AI` where it
+fits, a native provider SDK where it does not, cancellation-aware token streaming, Entra-backed
+identity, OpenTelemetry, and C# unit and integration tests. Provider details must remain behind an
+application-owned interface.
+
 ### Prompt and context engineering
 
 Learn:
@@ -693,11 +741,37 @@ Learn:
 - Abstention
 - Conversational retrieval
 - Multi-query retrieval
+- Classic-versus-agentic retrieval selection
+- Retrieval exposed as a bounded tool
+- Query planning and parallel subqueries
+- Result merge, deduplication, and reranking
+- Iterative retrieval with explicit stop conditions
 - Knowledge freshness
 - Caching
 - Tenant isolation
 - Document permissions
 - Retrieval observability
+
+### Classic versus agentic retrieval
+
+Start with classic RAG as the measurable baseline. Route to agentic retrieval only when a complex,
+multi-part question benefits from planning, decomposition, or retrieval across heterogeneous
+sources.
+
+The agentic path must:
+
+- Produce an inspectable query plan
+- Bound the number of subqueries, parallel calls, iterations, time, and spend
+- Merge, deduplicate, and rerank evidence before generation
+- Preserve authorization filters on every subquery
+- Attach verifiable citations to claims across all retrieved sources
+- Stop, abstain, or fall back to classic RAG when evidence is insufficient
+- Compare quality, citation accuracy, latency, and cost against the classic baseline on the same
+  evaluation set
+
+Implement these behaviors behind application-owned retrieval and planning interfaces. A provider or
+cloud-native agentic-retrieval feature can be compared, but it must not become the only architecture
+or evaluation path.
 
 ### Advanced retrieval used in industry
 
@@ -742,6 +816,9 @@ Measure:
 - Citation accuracy
 - Completeness
 - Abstention quality
+- Route-selection accuracy
+- Query-plan and subquery coverage
+- Iteration and tool-call counts
 - Latency
 - Cost
 
@@ -769,12 +846,15 @@ Build:
 - OCR and table extraction
 - Hybrid retrieval
 - Reranking
+- Classic RAG route and a bounded agentic-retrieval route
+- Query-plan, parallel-subquery, and termination tests
 - Citations
 - Role-based access
 - Incremental updates
 - Delete handling
 - User feedback
 - Retrieval and answer evaluation
+- Quality, citation, latency, and cost comparison between classic and agentic retrieval
 - Prompt-injection controls
 - Monitoring dashboard
 
@@ -1055,10 +1135,21 @@ Learn:
 - User preferences
 - Retrieval-backed memory
 - Summarized memory
-- Memory expiration
-- Privacy and deletion
+- Explicit read and write policies
+- Provenance, confidence, and correction
+- User and tenant isolation
+- Consent and data minimization
+- Retention periods and memory expiration
+- Privacy, export, correction, and deletion propagation
+- Memory-poisoning defenses
+- Observability without exposing sensitive values
+- Evaluation of usefulness, correctness, stale-memory rate, and harmful-memory rate
 
 Memory is a product and data-governance decision, not simply a vector database.
+
+Lesson 17 owns the memory lifecycle: it implements policy-controlled writes, retrieval, expiry,
+correction, deletion, and evaluation. Lesson 18 owns boundary behavior: identity and memory policy
+must survive MCP and tool calls, and no external tool may silently create durable memory.
 
 ### Model Context Protocol
 
@@ -1087,6 +1178,8 @@ Understand:
 - Identity propagation
 - Shared context risks
 - Cross-agent authorization
+- Memory identity and tenant boundaries across MCP calls
+- Explicit authorization for durable-memory reads and writes
 
 Do not make multi-agent design the default. Use it only when independent ownership or parallel specialization justifies the added complexity.
 
@@ -1104,6 +1197,8 @@ Measure:
 - Human-intervention rate
 - Latency
 - Cost per successful task
+- Memory usefulness and correctness
+- Stale, cross-tenant, and poisoned-memory rates
 
 ### Support-resolution agent project
 
@@ -1120,12 +1215,19 @@ Build:
 - Ticket-update tool
 - Human approval before financial action
 - Persistent workflow state
+- Policy-controlled memory with opt-out, correction, expiry, and deletion
 - Retry and compensation logic
 - Permission model
 - Audit trail
 - Step and cost limits
 - MCP integration for at least one tool
 - Task-completion evaluation
+- Memory-policy tests and a before-versus-after memory evaluation report
+
+The .NET lane builds this workflow in C# with explicit state-machine code first. Semantic Kernel or
+Microsoft Agent Framework is optional and choose-one; MCP uses a currently supported .NET SDK or a
+protocol-conformant client/server implementation. Preview-only capabilities require the version,
+risk, and stable fallback to be recorded.
 
 ## Model adaptation and post-training
 
@@ -1652,6 +1754,20 @@ Learn:
 - Multi-tenancy
 - Regional deployment
 
+### Architecture evolution decision
+
+Lesson 30 requires an architecture decision record comparing:
+
+- A modular monolith with explicit model, retrieval, tool, evaluation, and identity boundaries
+- Event-driven workers for ingestion, evaluation, and other long-running operations
+- Independently deployed microservices only where team ownership, scaling, security, or failure
+  isolation justifies them
+
+The decision must evaluate deployment complexity, transaction boundaries, event contracts,
+observability, failure domains, data ownership, team topology, latency, cost, and migration triggers.
+The default may remain a modular monolith plus workers; the exercise is to justify evolution, not to
+reward the largest number of services.
+
 ### Reliability
 
 Learn:
@@ -1706,6 +1822,9 @@ Collect:
 - Tool-call traces
 - Token usage
 - Latency
+- Traffic or request rate
+- Error rate
+- Saturation and constrained-resource utilization
 - Cost
 - Cache hits
 - User feedback
@@ -1718,7 +1837,33 @@ Use:
 - Grafana
 - Cloud-native monitoring
 
+Define the four golden signals--latency, traffic, errors, and saturation--for the public service.
+Use RED (rate, errors, duration) for request-driven model, retrieval, and tool services, and USE
+(utilization, saturation, errors) for workers, databases, queues, and compute resources. Map each
+signal to an SLO, alert threshold, owner, and runbook rather than treating a dashboard as completion.
+
 Protect sensitive prompt and response data through redaction and access control.
+
+### Optional AIOps incident-intelligence extension
+
+Extend Lesson 31 with an `IncidentPilot` capability for learners targeting MLOps, platform, or SRE
+work. It may correlate logs, metrics, traces, deployments, and runbook evidence; cluster related
+alerts; detect anomalous behavior; and produce a cited root-cause hypothesis, incident timeline, and
+recommended next diagnostic or runbook step.
+
+Requirements:
+
+- Evaluate incident retrieval, correlation precision, evidence support, false positives, and time to
+  useful hypothesis on replayed incidents
+- Keep source evidence visible and distinguish facts from hypotheses
+- Apply tenant, identity, and sensitive-telemetry controls
+- Require explicit human approval before any remediation or write action
+- Record the approver, tool arguments, result, rollback status, and full audit trail
+- Default to read-only diagnosis; never describe an unreviewed autonomous remediation loop as
+  production-ready
+
+The extension is architecture-first and vendor-neutral. Cloud AIOps features may be evaluated, but a
+specific product is not required.
 
 ### Cost engineering
 
@@ -1758,6 +1903,10 @@ Build:
 - Provider fallback
 - Safety controls
 - Operational dashboard
+
+The .NET lane exposes the product surface and selected runtime services through ASP.NET Core,
+protects them with Entra ID or standards-based OAuth, emits OpenTelemetry from C# and Python, and
+proves behavior with unit, integration, authorization, cancellation, and failure tests.
 
 ## Cloud, containers, and infrastructure
 
@@ -2753,6 +2902,11 @@ Build these projects in this order:
 - Optimized open-model inference service
 - Traditional production ML prediction system
 
+Learners taking the .NET lane also maintain one coherent ASP.NET Core vertical slice across the
+model gateway, RAG, controlled agent and memory, MCP, identity, telemetry, and capstone instead of
+creating disconnected C# demos. The Python data, evaluation, and model artifacts remain part of the
+same portfolio story.
+
 Select at least one specialist project:
 
 - Search and ranking system
@@ -2760,6 +2914,7 @@ Select at least one specialist project:
 - Computer vision quality-inspection system
 - Speech and voice assistant
 - Fraud or anomaly detection system
+- AIOps incident-intelligence extension with read-only diagnosis and human-approved remediation
 - Edge AI application
 - Robotics perception component
 
@@ -2776,9 +2931,11 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Ticket ingestion
 - Document ingestion
 - Hybrid search and reranking
+- Classic-versus-agentic retrieval routing with bounded plans and comparative evaluation
 - Evidence-backed responses
 - Structured extraction
 - Tool use
+- Governed agent memory with consent, isolation, expiry, correction, deletion, and evaluation
 - Human approval for consequential actions
 - Prompt and model versioning
 - Evaluation datasets
@@ -2789,14 +2946,17 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Cost controls
 - Security controls
 - Logs, metrics, and traces
+- Four-golden-signal, RED, and USE operational views
 - Canary deployment
 - Feedback collection
 - Incident handling
+- .NET-lane ASP.NET Core runtime, Entra identity, OpenTelemetry, and C# tests when that lane is selected
 
 ### Required engineering artifacts
 
 - Product requirements
 - Architecture decision records
+- Modular-monolith, event-driven-worker, and microservice comparison with migration triggers
 - Threat model
 - Data model
 - API specification
@@ -2808,6 +2968,8 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Cost model
 - Load-test report
 - Failure-injection report
+- Agent-memory lifecycle and deletion test report
+- .NET package/support-status and fallback ADR when the .NET lane is selected
 - Demo and technical presentation
 
 ### Success measures
@@ -2840,6 +3002,10 @@ Prepare:
 - Complexity
 - Async and concurrency
 - Testing
+
+For the .NET lane, also prepare C#, async/await and cancellation, dependency injection, ASP.NET Core
+API implementation, serialization and validation, and xUnit or NUnit testing. Python remains
+required for AI data, evaluation, and model-oriented exercises.
 
 ### SQL
 
@@ -2880,6 +3046,23 @@ Be able to explain:
 - Prompt injection
 - Failure attribution
 
+### AI API and integration systems
+
+Be able to design, implement, and debug:
+
+- Provider authentication, secretless identity, and provider-independent adapters
+- Streaming over server-sent events or WebSockets, cancellation, backpressure, and partial failure
+- Structured-output validation and tool-call contracts
+- Token, context, latency, and cost budgets
+- Embedding and RAG ingestion, incremental updates, permission filters, and delete propagation
+- Classic versus agentic retrieval and bounded query plans
+- Tool calling, MCP trust, identity propagation, idempotency, and human approval
+- Provider and model fallback, rate limits, retries, circuit breakers, and graceful degradation
+- Prompt injection, data exfiltration, cross-tenant access, and unsafe tool results
+- Evaluation gates, model/retrieval/tool traces, and cost attribution
+- Batch and GPU-backed inference failure modes at an architectural level
+- Equivalent Python/FastAPI and C#/ASP.NET Core tradeoffs when taking the .NET lane
+
 ### Training
 
 Be able to explain:
@@ -2907,6 +3090,7 @@ Practice designing:
 - Search system
 - Fraud detection
 - Model gateway
+- AI API integration platform with streaming, tools, RAG, MCP, fallback, evaluation, and observability
 - Training platform
 - Inference platform
 - Evaluation platform
@@ -2921,6 +3105,7 @@ Discuss:
 - Storage
 - Scalability
 - Reliability
+- Modular monolith versus event-driven workers versus microservices
 - Security
 - Monitoring
 - Cost
@@ -2989,6 +3174,8 @@ Demonstrate:
 - Cost measurement
 - Stakeholder communication
 - At least one model-adaptation project
+- For the .NET lane: one coherent ASP.NET Core AI vertical slice with Entra identity, provider-neutral
+  model integration, RAG, controlled tools/MCP, OpenTelemetry, and C# tests
 
 ### Ready for LLM Engineer roles
 
@@ -3053,8 +3240,13 @@ Do not prioritize these unless a target job explicitly requires them:
 - Exotic PEFT algorithms before LoRA and QLoRA
 - Custom CUDA kernels before mastering serving and profiling
 - Multi-agent simulations without a real need
-- Novel reinforcement-learning algorithms
-- GANs outside relevant image roles
+- General reinforcement learning--including MDPs, Q-learning, policy gradients, actor-critic, and
+  environment design--outside RL, robotics, recommendation, or control roles; LLM post-training
+  decision awareness remains in scope
+- Generative image and video methods--including diffusion, latent diffusion, image editing,
+  text-to-video, and GANs--outside a generative-media specialization
+- Symbolic AI--including knowledge representation, classical search/planning, expert systems,
+  ontologies, and neuro-symbolic methods--outside roles that explicitly require it
 - Robotics outside autonomy roles
 - Every cloud provider
 - Every vector database

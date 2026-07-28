@@ -15,6 +15,15 @@ X-Role: agent
 This is not final production auth. It exists so we can learn tenant isolation before adding OAuth
 or JWTs.
 
+Allowed roles for this stage:
+
+- `agent`
+- `lead`
+- `admin`
+- `service`
+
+Unknown roles return `403`. Support policy creation requires `lead` or `admin`.
+
 ## Health
 
 ```http
@@ -37,6 +46,71 @@ Current checks:
 - PostgreSQL responds
 - Redis responds
 
+## Support Policies
+
+Support policies are tenant-scoped context records that can be included in hosted AI analysis.
+
+### Create Support Policy
+
+```http
+POST /policies
+```
+
+Headers require a `lead` or `admin` role.
+
+Request:
+
+```json
+{
+  "name": "Refund review",
+  "content": "Agents must verify duplicate charges before promising refunds.",
+  "retention_expires_at": null
+}
+```
+
+Response:
+
+```json
+{
+  "id": "generated-policy-id",
+  "tenant_id": "tenant_demo",
+  "name": "Refund review",
+  "content": "Agents must verify duplicate charges before promising refunds.",
+  "created_by_user_id": "user_demo_lead",
+  "created_at": "timestamp",
+  "updated_at": "timestamp",
+  "retention_expires_at": null
+}
+```
+
+Status codes:
+
+- `201`: policy created
+- `401`: identity headers are missing
+- `403`: actor role is not allowed to create policies
+- `404`: tenant does not exist
+- `422`: request body is invalid
+
+### List Support Policies
+
+```http
+GET /policies
+```
+
+Returns support policies for the current tenant only.
+
+### Get Support Policy
+
+```http
+GET /policies/{policy_id}
+```
+
+Returns one support policy for the current tenant.
+
+Important tenant rule:
+
+- If the policy exists under another tenant, this endpoint returns `404`.
+- It does not reveal that another tenant owns the policy.
 ## Create Ticket
 
 ```http
@@ -184,11 +258,19 @@ POST /tickets/{ticket_id}/ai-analysis
 
 Runs the configured ticket-analysis provider and saves the recommendation.
 
-Current provider:
+Current default provider:
 
 - `MODEL_PROVIDER=mock`
 - no external API call
 - deterministic output shaped like future LLM output
+
+Hosted provider option:
+
+- `MODEL_PROVIDER=openai` or `MODEL_PROVIDER=hosted`
+- sends the rendered prompt, strict JSON schema, ticket subject, ticket body, optional customer ID,
+  and tenant-scoped policy context
+- sets `store: false`
+- rejects malformed output, unknown JSON fields, and unsupported evidence IDs before persistence
 
 Response:
 
@@ -223,14 +305,45 @@ Status codes:
 - `201`: recommendation created
 - `401`: identity headers are missing
 - `404`: tenant or ticket does not exist for the current tenant
-- `503`: configured model provider is unsupported
+- `403`: AI analysis is not enabled for the current tenant or detected ticket category
+- `503`: AI analysis is disabled or the configured model provider is unavailable/unsupported
 
 Important behavior:
 
-- This endpoint currently uses the mock provider only.
+- `AI_ANALYSIS_ENABLED=false` disables this endpoint for staging rollback and returns HTTP 503.
+- `AI_ANALYSIS_ENABLED_TENANTS` optionally restricts AI analysis to a comma-separated tenant allowlist.
+- `AI_ANALYSIS_ENABLED_CATEGORIES` optionally restricts AI analysis to comma-separated baseline categories.
 - It stores a draft reply but does not send it to the customer.
 - It does not change the ticket's real `priority`.
 
+## Queue Async AI Analysis
+
+```http
+POST /tickets/{ticket_id}/analyze
+```
+
+Creates an AI run record and queues background ticket analysis.
+
+Status codes:
+
+- `202`: analysis run queued
+- `401`: identity headers are missing
+- `404`: tenant or ticket does not exist for the current tenant
+- `403`: AI analysis is not enabled for the current tenant or detected ticket category
+- `503`: AI analysis is disabled or the analysis queue is unavailable
+
+Important behavior:
+
+- `AI_ANALYSIS_ENABLED=false` returns HTTP 503 before a run is created or enqueued.
+- Tenant/category pilot gates return HTTP 403 before a run is created or enqueued.
+- Successful requests create an `ai_runs` row with `queued` status.
+- The worker updates the run to `running`, `succeeded`, `failed`, or `abstained`.
+
+```http
+GET /tickets/{ticket_id}/analysis
+```
+
+Returns analysis run history for one ticket under the current tenant.
 ## List Ticket Recommendations
 
 ```http
@@ -387,3 +500,31 @@ Important behavior:
 - `review_coverage_rate` measures reviewed recommendations divided by total recommendations.
 - `by_source` helps compare baseline, mock LLM, and future real LLM outputs.
 - `by_category` helps identify categories that need better prompts, rules, or training data.
+
+## Pilot Metrics
+
+```http
+GET /metrics/pilot
+```
+
+Returns pilot-only metrics for the current tenant. If `AI_ANALYSIS_ENABLED_CATEGORIES` is set, the report is filtered to those categories; otherwise it includes all non-baseline AI drafts.
+
+Response fields:
+
+- `pilot_categories`: active pilot category filters.
+- `draft_acceptance_rate`: approved or edited drafts divided by reviewed AI drafts.
+- `average_edit_distance`: average character-level edit distance for edited drafts.
+- `average_time_to_first_response_seconds`: time between ticket creation and first review.
+- `escalation_accuracy`: accepted escalated drafts divided by reviewed escalated drafts.
+- `cost_per_accepted_draft`: persisted model cost divided by accepted drafts.
+- `safety_failures`: failed AI runs with safety-related error markers.
+- `agent_rejection_reasons`: keyword-clustered rejection notes.
+- `exit_decision`: one of `expand`, `iterate`, `roll_back`, or `stop`.
+
+## Pilot Feedback Candidates
+
+```http
+GET /metrics/pilot/feedback
+```
+
+Returns rejected drafts and heavily edited drafts for the current tenant and active pilot categories. These candidates feed the weekly feedback-to-eval loop and should be reviewed before adding representative failures to `packages/evals/supportops_evals/datasets/difficult_cases.jsonl`.

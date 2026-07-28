@@ -1,0 +1,63 @@
+# ============================================================================
+# FILE: infra/grafana/provisioning/dashboards/dashboards.yml
+#
+# THINK OF THIS FILE AS: telling Grafana where to find the dashboard definitions
+# to load at startup.
+#
+# NOTE WHAT THIS FILE IS NOT: it is not a dashboard. It contains no panels, no
+# graphs, and no queries. It is one level up — the instruction "look in this
+# folder and load whatever dashboards you find there".
+#
+#   this file          -> "load dashboards from /var/lib/grafana/dashboards"
+#   the JSON files there -> the actual dashboards, with their panels and queries
+#
+# The folder is mounted from infra/grafana/dashboards/ by docker-compose.yml.
+#
+# WHY IT IS DONE THIS WAY: a dashboard built by clicking around in Grafana's UI
+# lives only inside that one container and is lost when it is rebuilt. Exporting
+# it as JSON into the repository means it is version-controlled, reviewable, and
+# identical on every machine — the same "configuration as code" reasoning as the
+# data source file next door.
+# ============================================================================
+
+# Grafana's provisioning format version, not the app's. Always 1.
+apiVersion: 1
+
+providers:
+  - name: SupportOps       # an internal label for this group of dashboards
+    orgId: 1               # Grafana supports multiple organisations; 1 is the default
+                           # and the only one here
+
+    # The folder dashboards appear under in Grafana's navigation. Without it they
+    # would all land loose at the top level — fine with two dashboards, quickly
+    # unmanageable with twenty.
+    folder: SupportOps
+
+    # Load them from files on disk, as opposed to from a database or a URL.
+    type: file
+
+    # If a dashboard JSON file is removed, should Grafana delete the dashboard?
+    #
+    # `false` means no — it stays. A cautious choice: a mount going briefly
+    # missing cannot wipe your dashboards. The cost is that a genuinely deleted
+    # dashboard lingers until someone removes it by hand.
+    disableDeletion: false
+
+    # `true`, in contrast to the data source file, which sets this to false.
+    #
+    # A deliberate difference. Dashboards are things people experiment with —
+    # dragging a panel, adjusting a threshold — and blocking that would make
+    # Grafana frustrating to use. The catch worth knowing: UI edits are NOT
+    # written back to these files, so they are lost on restart. To keep a change,
+    # export the dashboard JSON and commit it.
+    #
+    # The data source is the opposite case: nobody needs to experiment with it,
+    # and an accidental edit would break every panel at once.
+    editable: true
+
+    options:
+      # Where to look, INSIDE the container. Must match the mount destination in
+      # docker-compose.yml:
+      #   ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Change one without the other and Grafana silently loads nothing.
+      path: /var/lib/grafana/dashboards

@@ -1,8 +1,99 @@
+# ============================================================================
+# FILE: requirements.txt
+#
+# THINK OF THIS FILE AS: the shopping list of outside code the app needs in
+# order to run at all.
+#
+# WHAT IT IS: the RUNTIME dependencies. Everything here ships inside the
+# production container. Tools needed only while developing — pytest, ruff, mypy
+# — live separately in requirements-dev.txt, so they are never installed into a
+# production image. A smaller image starts faster and has less in it that could
+# ever be exploited.
+#
+#     pip install -r requirements.txt
+#
+# WHY `==` AND NOT `>=` ON ALMOST EVERY LINE: `==` PINS an exact version. Every
+# machine, every CI run and every deployment then installs byte-for-byte the
+# same code. Without pinning, a library could publish a new release overnight
+# and a build that worked yesterday would fail today with nothing changed in
+# this repo — the classic "but it works on my machine" failure. Pinning trades a
+# little manual upgrade effort for builds that are reproducible.
+#
+# WHO USES IT: Dockerfile.api installs this list; requirements-dev.txt pulls it
+# in with `-r`; .github/workflows/ci.yml installs it before running the tests.
+# ============================================================================
+
+# DATABASE MIGRATIONS — applies the versioned schema changes in
+# packages/db/supportops_db/migrations/versions/ in order, so a database can be
+# brought up to date step by step rather than rebuilt. Configured by alembic.ini.
 alembic==1.16.4
+
+# THE WEB FRAMEWORK. Turns the functions in apps/api/supportops_api/routes/ into
+# real HTTP endpoints, and — because it is built on Pydantic — validates every
+# incoming request against the schemas in apps/api/supportops_api/schemas/
+# before any of this project's own code runs.
 fastapi==0.116.0
+
+# THE POSTGRESQL DRIVER — the low-level code that actually speaks Postgres's
+# network protocol. SQLAlchemy sits on top of it and does not talk to the
+# database itself.
+#
+# `[binary]` is an EXTRA: it installs a precompiled build instead of compiling
+# from source during install, which avoids needing a C compiler and system
+# libraries on the build machine. Much simpler, and noticeably faster to install.
 psycopg[binary]==3.2.9
+
+# READS AND VALIDATES CONFIGURATION from the environment. This is what powers
+# the Settings class in apps/api/supportops_api/settings.py, so a missing or
+# malformed value in .env is caught at startup rather than at first use.
 pydantic-settings==2.10.1
+
+# THE REDIS CLIENT — the connection to the queue that joins the API to the
+# background worker.
 redis==5.2.1
+
+# THE ORM ("object-relational mapper") — lets the tables in
+# packages/db/supportops_db/models.py be defined and queried as ordinary Python
+# classes instead of hand-written SQL strings.
 sqlalchemy==2.0.43
+
+# THE SERVER that actually runs the app. FastAPI only DESCRIBES the endpoints;
+# something has to listen on a port and handle connections, and that is uvicorn.
 uvicorn==0.35.0
+
+# THE HTTP CLIENT, for outgoing calls — reaching a real AI provider from
+# packages/model_gateway/.
+#
+# It also appears in requirements-dev.txt, because FastAPI's test client is
+# built on it. Listing it in both is intentional: the app needs it at runtime
+# whether or not the tests are installed.
 httpx==0.28.1
+
+# THE JOB QUEUE ("Redis Queue"). The API enqueues a job ID here; the separate
+# worker in apps/worker/ pops it off and does the slow AI work, so the caller
+# is not left waiting on an HTTP request while a model runs.
+#
+# THE ONE UNPINNED ENTRY, and worth understanding. `>=2.5,<3.0` accepts any 2.x
+# release from 2.5 up but refuses 3.0. This relies on the convention that a
+# change to the FIRST number signals a deliberately breaking release, so the
+# range allows bug fixes in while blocking the version that would break things.
+# It is a looser guarantee than `==`, which is why the rest of this file does
+# not follow suit.
+rq>=2.5,<3.0
+
+# EXPOSES METRICS in the format Prometheus collects — request counts, timings,
+# AI costs. Scraped via infra/prometheus/prometheus.yml and displayed on the
+# Grafana dashboard in infra/grafana/.
+prometheus-client==0.22.1
+
+# DISTRIBUTED TRACING — records how a single request moves through the system,
+# including across the queue from the API into the worker. That hop is precisely
+# where ordinary logs stop being useful, because the two halves are separate
+# programs; a trace stitches them back into one timeline.
+#
+# TWO PACKAGES, DELIBERATELY: `api` is the small interface the application code
+# imports (see packages/observability/), while `sdk` is the heavier machinery
+# that collects and exports the data. Keeping them apart means library code can
+# depend only on the lightweight half. Their versions must be kept in step.
+opentelemetry-api==1.43.0
+opentelemetry-sdk==1.43.0

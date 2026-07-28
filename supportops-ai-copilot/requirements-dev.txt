@@ -1,4 +1,55 @@
+# ============================================================================
+# FILE: requirements-dev.txt
+#
+# THINK OF THIS FILE AS: the extra toolbox a DEVELOPER needs — the tools used to
+# check the code, none of which the running application requires.
+#
+# WHAT IT IS: everything in requirements.txt, PLUS the testing and code-quality
+# tools. Installing this one gets you a complete working setup:
+#
+#     pip install -r requirements-dev.txt
+#
+# WHY THE SPLIT FROM requirements.txt: production installs only the runtime list,
+# so pytest, ruff and mypy never end up inside the deployed container. That keeps
+# the image smaller and reduces how much code is present in production that could
+# ever be a liability. Nothing here is needed to serve a single request.
+#
+# WHO USES IT: .github/workflows/ci.yml installs this, then runs ruff, mypy and
+# pytest as three separate gates. Dockerfile.api deliberately does NOT.
+# ============================================================================
+
+# `-r` MEANS "ALSO INCLUDE THAT FILE" — the app's runtime dependencies are pulled
+# in here rather than copied, so there is exactly one place where a runtime
+# version is recorded. Without this line you would have two lists drifting apart.
 -r requirements.txt
+
+# THE HTTP CLIENT. Already present via requirements.txt above, and repeated here
+# on purpose: FastAPI's TestClient is built on it, so it is a direct requirement
+# of the tests too and not merely inherited. Listing it makes that dependency
+# explicit — if the runtime ever stopped needing httpx, the tests still would.
 httpx==0.28.1
+
+# THE TEST RUNNER. Finds every tests/test_*.py file, runs the functions inside,
+# and supplies fixtures by matching argument names (see tests/worker/test_jobs.py
+# for that mechanism in use). Expected result for this project: 119 passed,
+# 1 skipped — the skip being an integration test that needs a real Postgres and
+# Redis, which are not available in a plain CI container.
 pytest==8.4.1
+
+# THE LINTER AND FORMATTER — catches unused imports, undefined names and style
+# drift. Configured in pyproject.toml, where `line-length = 100` is set; that is
+# the reason every comment in this project wraps at about 100 characters.
 ruff==0.12.2
+
+# THE TYPE CHECKER. Reads the type annotations (`session: Session`, `-> None`)
+# and proves they are consistent, catching a whole class of mistakes — passing
+# the wrong kind of value, or forgetting that something might be None — WITHOUT
+# running the code.
+#
+# This is worth more than usual here because of the repository pattern: every
+# function in packages/db/supportops_db/repositories/ requires a tenant_id, and
+# mypy verifies at every single call site that one was supplied. On a
+# multi-tenant system, a missing tenant filter is how one customer's data reaches
+# another, so having that checked mechanically rather than by eye is a real
+# safety gain.
+mypy==1.17.1

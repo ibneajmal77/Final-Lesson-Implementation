@@ -1,6 +1,6 @@
 # Complete AI Industry Lesson Coverage and Production Plan
 
-Updated: July 9, 2026
+Updated: July 28, 2026
 
 ## Purpose
 
@@ -64,8 +64,9 @@ The missing entries from the supplied list are:
 - Lesson 54: Applied AI Case Interviews
 - Lesson 55: LLM and Model-Training Interviews
 
-The July 9, 2026 research review does not change the 57-lesson count. It adds missing topics to
-existing lesson owners, adds an explicit pre-core diagnostic and two entry ramps, and moves role
+The July 9, 2026 research review and July 28, 2026 implementation review do not change the
+57-lesson count. They add missing topics to existing lesson owners, add an explicit pre-core
+diagnostic and two entry ramps, introduce a parallel .NET implementation lane, and move role
 branching earlier as a delivery rule while preserving Lessons 41-51 as the formal specialization
 lessons.
 
@@ -87,6 +88,21 @@ are generated.
 | Observability references need freshness checks | Update Lessons 18 and 31 to require current OpenTelemetry GenAI semantic-convention and MCP-aware telemetry references at generation time. |
 | Research-track preparation is implicit | Add optional paper reproduction, ablation design, math refresh, reading cadence, and replication reports to Lessons 43, 45, and 47. |
 | Domain transfer is too customer-support-centric | Add domain packs in Lesson 51 and the capstone for healthcare, finance/risk, search/recommendation, and industrial operations. |
+
+## July 28, 2026 implementation-review amendments
+
+These focused amendments add evidence to existing lessons rather than adding lessons or teaching a
+catalog of product logos.
+
+| Confirmed gap | Existing lesson ownership |
+|---|---|
+| Enterprise .NET AI path is incomplete | Add a parallel, cumulative .NET lane across Lessons 04-05, 09, 12-14, 17-18, 28, 30-32, 40, 52, 54, and 56-57. Python remains the shared model/data/evaluation language. |
+| Agent memory is named but not owned and tested | Lesson 17 owns memory read/write policy, provenance, isolation, consent, retention, expiry, correction, deletion, poisoning defenses, and evaluation; Lesson 18 owns identity and policy across MCP boundaries. |
+| RAG stops short of bounded agentic retrieval | Lesson 14 compares classic RAG with retrieval-as-a-tool, inspectable query plans, bounded parallel subqueries, merge/deduplication/reranking, citations, stop conditions, and quality/latency/cost evidence. |
+| AI architecture evolution is implicit | Lesson 30 owns an ADR comparing a modular monolith, event-driven workers, and justified microservices, including migration triggers. |
+| Operational monitoring lacks standard service methods and incident intelligence | Lesson 31 owns four golden signals plus RED/USE; an optional vendor-neutral AIOps extension correlates evidence and recommends actions but requires human approval for remediation. |
+| AI API/system-design interview ownership is diffuse | Lessons 52, 54, 56, and 57 own coding, case, architecture, and portfolio evidence for provider integration, streaming, structured output, RAG, tools/MCP, fallbacks, injection defense, evaluation, observability, and inference failure modes. |
+| Broad adjacent subjects could bloat the core | Diffusion-based generative media, general reinforcement learning, and symbolic AI remain role-aligned optional extensions rather than new core lessons. |
 
 ## How individual lesson files will be written
 
@@ -188,6 +204,34 @@ Explicit delivery assumptions:
   prevent the curriculum from becoming support-only.
 - Learners who skip Ramp A must still pass the diagnostic evidence for Python, SQL, debugging,
   shell/Git, and statistics.
+
+## Parallel .NET Applied AI lane
+
+The .NET lane is cumulative implementation evidence, not an additional lesson and not a replacement
+for Python. Python remains required for model experiments, evaluation, data, and training. A learner
+selecting this lane builds the enterprise runtime in C# and carries the same vertical slice through
+the following owners:
+
+| Evidence | Primary lesson owners |
+|---|---|
+| C# quality baseline: typed contracts, unit tests, ASP.NET Core integration tests, disposable dependencies | 04-05 |
+| ASP.NET Core model gateway using `Microsoft.Extensions.AI` where appropriate, native SDK escape hatch, streaming, structured output, tool calls, fallback, tracing, and cost attribution | 09 |
+| Azure AI Search or PostgreSQL/pgvector retrieval behind application-owned interfaces | 12-14 |
+| Explicit C# workflow, governed memory, and choose-one Semantic Kernel or Microsoft Agent Framework comparison | 17 |
+| Authenticated .NET MCP client/server, identity propagation, allowlists, and audit telemetry | 18 |
+| Microsoft Entra ID, managed identity, OAuth, and tool authorization | 28, 32 |
+| ASP.NET Core production architecture, background workers, reliability, and OpenTelemetry for .NET | 30-31 |
+| Capstone runtime integrating Python model, evaluation, or training components where appropriate | 40 |
+| C#, AI API integration, system-design, and project-defense practice | 52, 54, 56-57 |
+
+At generation time, verify the current supported .NET release, official SDK documentation, package
+versions, and feature support status. `Microsoft.Extensions.AI` is the preferred provider-neutral
+abstraction where its supported contract fits; native provider SDKs remain valid alternatives.
+Semantic Kernel and Microsoft Agent Framework are choose-one options, not simultaneous
+requirements. If a required feature is preview, the learner must pin the version, document the risk
+and migration plan in an ADR, and retain a stable native or provider-neutral implementation path.
+Use xUnit or NUnit, ASP.NET Core test hosting, Testcontainers or an equivalent strategy, and
+OpenTelemetry; do not add every Microsoft AI product merely because it exists.
 
 ## Canonical benchmark pack
 
@@ -431,6 +475,8 @@ streaming results, cancellation, and concurrency limits.
 - Pydantic
 - HTTP mocking
 - Docker Compose
+- .NET lane: xUnit or NUnit, ASP.NET Core test hosting, HTTP fakes, and Testcontainers or an
+  equivalent disposable dependency strategy
 
 **Business implementation**
 
@@ -441,6 +487,8 @@ Create a reusable test harness for AI-backed APIs and provider integrations.
 - Tests run without paid API access
 - Failure paths and schema violations are covered
 - Software testing is clearly separated from model evaluation
+- .NET-lane unit, integration, streaming-cancellation, authorization, and dependency-failure tests
+  run in CI without paid API access
 
 **Primary roles**
 
@@ -482,11 +530,16 @@ Create a reusable test harness for AI-backed APIs and provider integrations.
 - PostgreSQL
 - Redis
 - Alembic
+- .NET lane: ASP.NET Core, typed options and dependency injection, Npgsql or equivalent data
+  access, Redis client, and OpenAPI tooling
 
 **Business implementation**
 
 Build the production customer-support API with users, tickets, conversations, background jobs,
 streaming, authentication, and authorization.
+
+.NET-lane learners build the same enterprise API boundary in ASP.NET Core and preserve the Python
+services used for model, data, and evaluation work.
 
 **Completion evidence**
 
@@ -494,6 +547,8 @@ streaming, authentication, and authorization.
 - Authorization and idempotency are tested
 - Streaming disconnects safely
 - Database migrations are reproducible
+- .NET-lane OpenAPI, OAuth/Entra authorization, cancellation, background-work, and idempotency tests
+  pass
 
 **Primary roles**
 
@@ -705,11 +760,17 @@ latency, and cost.
 - Pydantic
 - Redis
 - OpenTelemetry
+- .NET lane: ASP.NET Core, `Microsoft.Extensions.AI`, native provider SDK escape hatch,
+  OpenTelemetry for .NET, and xUnit or NUnit
 
 **Business implementation**
 
 Build a multi-provider model gateway supporting streaming, schema-constrained output, bounded
 retries, tracing, and cost tracking.
+
+.NET-lane learners implement the same application-owned contract in ASP.NET Core, including
+cancellation-aware streaming and Entra or standards-based OAuth identity. Python remains the shared
+model/evaluation path; the C# runtime is an additional production implementation.
 
 **Completion evidence**
 
@@ -717,6 +778,8 @@ retries, tracing, and cost tracking.
 - Invalid structured output cannot reach business logic
 - Fallback behavior is tested
 - Cost is attributable by user and tenant
+- .NET lane proves streaming cancellation, schema validation, provider substitution, identity, and
+  trace propagation with C# unit and integration tests
 
 **Primary roles**
 
@@ -869,6 +932,7 @@ Build the first complete AI support-ticket assistant.
 - OpenSearch or Elasticsearch
 - FAISS for local experiments
 - Cross-encoder reranker
+- .NET lane: Azure AI Search or Npgsql/pgvector behind an application-owned search interface
 
 **Business implementation**
 
@@ -881,6 +945,8 @@ Build a policy-search service and compare lexical, dense, hybrid, and reranked r
 - Public benchmark and business-labelled query results
 - Permission filtering
 - Retrieval latency and quality report
+- .NET-lane lexical, dense, hybrid, filter, and reranking contracts are covered by C# integration
+  tests against the same labelled query set
 
 **Primary roles**
 
@@ -919,6 +985,8 @@ Build a policy-search service and compare lexical, dense, hybrid, and reranked r
 - PostgreSQL
 - Object storage
 - Queue and worker
+- .NET lane: ASP.NET Core or .NET worker service, provider-neutral parsing interfaces, and the
+  selected search-store SDK
 
 **Business implementation**
 
@@ -930,6 +998,8 @@ Build a versioned, permission-aware document-ingestion service.
 - Reprocessing is idempotent
 - Deleted content leaves the index
 - Chunking strategies are evaluated
+- .NET-lane ingestion proves idempotency, permission metadata, incremental update, and delete
+  propagation with C# integration tests
 
 **Primary roles**
 
@@ -950,8 +1020,13 @@ Build a versioned, permission-aware document-ingestion service.
 - Query classification
 - Query rewriting
 - Query decomposition
+- Classic-versus-agentic retrieval decision rubric
+- Retrieval exposed as a bounded tool
+- Inspectable query planning
+- Bounded parallel subqueries
 - Hybrid retrieval
 - Reranking
+- Result merge and deduplication
 - Context assembly
 - Evidence packets
 - Grounded generation
@@ -959,6 +1034,8 @@ Build a versioned, permission-aware document-ingestion service.
 - Abstention
 - Conversational retrieval
 - Multi-query and multi-stage retrieval
+- Iterative retrieval with explicit step, time, and spending limits
+- Stop, abstain, and classic-RAG fallback conditions
 - Hierarchical retrieval
 - Structured-data and SQL retrieval
 - Graph-enhanced retrieval selection
@@ -967,6 +1044,7 @@ Build a versioned, permission-aware document-ingestion service.
 - Permission-aware caching
 - Tenant isolation
 - Retrieval observability
+- Comparative quality, citation, latency, and cost evaluation
 
 **Primary tools**
 
@@ -977,11 +1055,14 @@ Build a versioned, permission-aware document-ingestion service.
 - Reranking model
 - Model API
 - OpenTelemetry
+- .NET lane: ASP.NET Core with Azure AI Search or Npgsql/pgvector behind application-owned
+  retrieval interfaces
 
 **Business implementation**
 
 Build the enterprise knowledge assistant with citations, access control, evaluation, incremental
-updates, and feedback.
+updates, and feedback. Keep classic RAG as the baseline and route only complex multi-part questions
+to a bounded agentic-retrieval path.
 
 **Completion evidence**
 
@@ -989,6 +1070,11 @@ updates, and feedback.
 - Citations are verifiable
 - Unsupported questions abstain
 - Unauthorized documents never enter context
+- The same evaluation set compares classic and agentic routes for retrieval quality, answer quality,
+  citation accuracy, latency, cost, subquery count, and iteration count
+- Query plans are inspectable; every subquery preserves tenant and permission filters
+- Agentic retrieval terminates or falls back within tested step, time, and cost budgets
+- No provider-specific planning feature is the only implementation path
 
 **Primary roles**
 
@@ -1152,6 +1238,15 @@ Build an auditable training-, evaluation-, analytics-, and serving-data pipeline
 - Workflow graphs
 - Durable state
 - Checkpointing
+- Request context, session state, and durable memory
+- Explicit memory read and write policies
+- Memory provenance, confidence, and correction
+- User and tenant isolation
+- Consent and data minimization
+- Retention, expiry, export, and deletion propagation
+- Retrieval-backed and summarized memory
+- Memory-poisoning defenses
+- Memory usefulness, correctness, stale-memory, and harmful-memory evaluation
 - Idempotency
 - Retries and timeouts
 - Compensation
@@ -1169,11 +1264,14 @@ Build an auditable training-, evaluation-, analytics-, and serving-data pipeline
 - Redis
 - Explicit workflow code
 - LangGraph or one selected workflow framework
+- .NET lane: explicit C# state machine first; Semantic Kernel or Microsoft Agent Framework as one
+  justified orchestration option; ASP.NET Core, PostgreSQL, and C# tests
 
 **Business implementation**
 
-Build a support-resolution workflow that reads customer and order data, proposes a refund,
-requires approval, and updates the ticket.
+Build a support-resolution workflow that reads customer and order data, uses only policy-approved
+memory, proposes a refund, requires approval, and updates the ticket. Provide opt-out, correction,
+expiry, and deletion behavior for durable memory.
 
 **Completion evidence**
 
@@ -1181,6 +1279,10 @@ requires approval, and updates the ticket.
 - Duplicate actions are prevented
 - Partial failures recover or compensate
 - Task and invalid-action metrics exist
+- Memory writes require an allowed purpose and policy; cross-user and cross-tenant reads fail
+- Expiry, correction, deletion propagation, and poisoned-memory behavior are tested
+- A fixed evaluation set reports memory usefulness, correctness, stale-memory rate, harmful-memory
+  rate, task impact, latency, and cost
 
 **Primary roles**
 
@@ -1214,6 +1316,9 @@ requires approval, and updates the ticket.
 - Shared-context risks
 - Cross-agent authorization
 - Multi-agent selection criteria
+- Identity and tenant isolation for memory across MCP calls
+- Explicit permission for durable-memory reads and writes
+- Prohibition on silent durable-memory writes by external tools
 
 **Primary tools**
 
@@ -1221,6 +1326,8 @@ requires approval, and updates the ticket.
 - OAuth or service identity
 - JSON Schema
 - OpenTelemetry
+- .NET lane: a currently supported .NET MCP SDK or protocol-conformant implementation, ASP.NET
+  Core, Entra or standards-based OAuth, and OpenTelemetry for .NET
 
 **Business implementation**
 
@@ -1233,6 +1340,8 @@ workflow.
 - User identity reaches authorization
 - Capabilities are restricted
 - Every operation is traceable
+- MCP identity reaches both tool and memory authorization decisions
+- Unauthorized memory reads/writes and deletion-propagation failures are tested
 - Current GenAI and MCP telemetry references are checked during lesson generation
 
 **Primary roles**
@@ -1739,6 +1848,7 @@ Build a voice support-triage assistant with interruption handling and human esca
 - Denial of service
 - Supply-chain risk
 - User, service, and agent identity
+- Microsoft Entra ID and managed identity in the .NET/Azure implementation lane
 - Least privilege
 - Tenant isolation
 - Sandboxing
@@ -1756,6 +1866,8 @@ Build a voice support-triage assistant with interruption handling and human esca
 - promptfoo or equivalent
 - PII detection and redaction
 - Container sandboxing
+- .NET lane: ASP.NET Core authorization policies, Entra or standards-based OAuth test identity, and
+  managed identity where the selected environment supports it
 
 **Business implementation**
 
@@ -1767,6 +1879,7 @@ Build an AI security gateway and adversarial test suite for the support agent.
 - Cross-tenant tests pass
 - Consequential tools require approval
 - Security tests run in CI
+- .NET-lane user/service identity reaches retrieval, tool, MCP, and memory authorization tests
 
 **Primary roles**
 
@@ -1840,6 +1953,12 @@ Produce the governance package for the customer-operations AI platform.
 **Topics covered**
 
 - API, model, retrieval, tool, and evaluation services
+- Modular monolith with explicit component boundaries
+- Event-driven workers for ingestion, evaluation, and long-running AI operations
+- Microservices only when team ownership, independent scaling, security, or failure isolation
+  justifies deployment separation
+- Service decomposition and migration triggers
+- Event contracts, transaction boundaries, and data ownership
 - Queue and worker design
 - Object, relational, and cache storage
 - Multi-tenancy
@@ -1866,10 +1985,14 @@ Produce the governance package for the customer-operations AI platform.
 - Object storage
 - Docker
 - Cloud load balancer
+- .NET lane: ASP.NET Core, hosted/background services, Entra identity, OpenTelemetry for .NET, and
+  C# reliability and integration tests
 
 **Business implementation**
 
 Harden the Applied AI platform against provider, retrieval, tool, worker, and storage failures.
+Produce an ADR comparing a modular monolith, event-driven workers, and microservices for this
+system; justify the current design and define evidence-based migration triggers.
 
 **Completion evidence**
 
@@ -1877,6 +2000,9 @@ Harden the Applied AI platform against provider, retrieval, tool, worker, and st
 - Failure behavior is tested
 - Retryable writes are safe
 - Recovery procedure is demonstrated
+- The architecture ADR compares deployment complexity, failure domains, scale, latency, data
+  ownership, observability, security, team topology, cost, and migration path
+- Service boundaries are not added without a documented operational or organizational reason
 
 **Primary roles**
 
@@ -1905,6 +2031,10 @@ Harden the Applied AI platform against provider, retrieval, tool, worker, and st
 - Retrieval and tool traces
 - Token usage
 - Latency and throughput
+- Four golden signals: latency, traffic, errors, and saturation
+- RED metrics for request-driven model, retrieval, and tool services
+- USE metrics for workers, queues, databases, and compute resources
+- SLO-linked alert ownership and runbooks
 - Cache metrics
 - Safety events
 - User feedback
@@ -1917,6 +2047,12 @@ Harden the Applied AI platform against provider, retrieval, tool, worker, and st
 - Executive and product experiment readouts
 - Dashboards and alerts
 - Sensitive-telemetry redaction
+- Optional AIOps incident-intelligence extension
+- Alert clustering and event correlation across logs, metrics, traces, and deployments
+- Evidence-backed incident timeline and root-cause hypotheses
+- Read-only runbook recommendations by default
+- Human approval, audit, and rollback for every remediation or write action
+- Incident-correlation precision, evidence support, false-positive, and time-to-hypothesis evaluation
 
 **Primary tools**
 
@@ -1925,10 +2061,14 @@ Harden the Applied AI platform against provider, retrieval, tool, worker, and st
 - Grafana
 - Cloud monitoring
 - AI tracing platform
+- .NET lane: OpenTelemetry for .NET integrated with ASP.NET Core model, retrieval, tool, MCP, and
+  background-worker spans and metrics
 
 **Business implementation**
 
 Create operational, quality, safety, product, and cost dashboards for the enterprise assistant.
+Learners pursuing MLOps, platform, or SRE work may add a vendor-neutral `IncidentPilot` that
+correlates evidence and recommends a diagnostic or runbook step without acting autonomously.
 
 **Completion evidence**
 
@@ -1938,6 +2078,11 @@ Create operational, quality, safety, product, and cost dashboards for the enterp
 - Operator and executive dashboard views are usable
 - Cost is attributable
 - Sensitive content is protected
+- Golden-signal, RED, and USE alerts map to SLOs, named owners, and tested runbooks
+- Optional IncidentPilot reports correlation quality, evidence support, false positives, and time to
+  useful hypothesis on replayed incidents
+- Optional remediation cannot execute without explicit human approval, least privilege, an audit
+  record, and a rollback path
 
 **Primary roles**
 
@@ -1956,6 +2101,7 @@ Create operational, quality, safety, product, and cost dashboards for the enterp
 
 - Container registries
 - Cloud identity and access management
+- Entra ID and managed identity for the .NET/Azure lane; equivalent workload identity elsewhere
 - Virtual networks
 - Load balancers and DNS
 - Object storage
@@ -1978,6 +2124,8 @@ Create operational, quality, safety, product, and cost dashboards for the enterp
 - Terraform
 - GitHub Actions
 - Cloud-native monitoring
+- .NET lane: ASP.NET Core deployment, managed identity, OpenTelemetry for .NET, and the selected
+  Azure services only when Azure is the learner's chosen cloud
 
 **Business implementation**
 
@@ -1990,6 +2138,7 @@ secrets, monitoring, and budget controls.
 - No long-lived credential is stored in code
 - Network access is restricted
 - Restore and cost ownership are documented
+- .NET-lane deployment proves secretless service authentication and end-to-end trace propagation
 
 **Primary roles**
 
@@ -2424,10 +2573,12 @@ transformer baselines.
 - Ticket and document ingestion
 - Analytics-to-serving data path
 - Hybrid retrieval and reranking
+- Classic-versus-agentic retrieval routing with bounded query plans and comparative evaluation
 - Canonical benchmark pack
 - Evidence-backed generation
 - Structured extraction
 - Tool calling and MCP
+- Governed agent memory with policy, isolation, expiry, correction, deletion, and evaluation
 - Human approval
 - Prompt, model, dataset, and adapter versioning
 - Evaluation datasets
@@ -2438,6 +2589,7 @@ transformer baselines.
 - Security and safety controls
 - Cloud deployment
 - Logs, metrics, and traces
+- Four-golden-signal, RED, and USE operational evidence
 - Product and UX instrumentation
 - Experiment and statistical decision readout
 - Cost controls
@@ -2446,10 +2598,13 @@ transformer baselines.
 - Incident management
 - Technical and business documentation
 - Domain-transfer package
+- .NET-lane ASP.NET Core runtime, Entra identity, OpenTelemetry, and C# tests when selected
 
 **Primary tools**
 
 - The complete selected stack from Lessons 01-39
+- .NET lane: the selected supported .NET/ASP.NET Core stack from Lessons 04-05, 09, 12-14,
+  17-18, 28, and 30-32, integrated with Python model/data/evaluation components as appropriate
 
 **Business implementation**
 
@@ -2459,9 +2614,12 @@ Build and defend the enterprise customer-operations AI platform.
 
 - Product-requirements document
 - Architecture decisions
+- Modular-monolith, event-driven-worker, and microservice ADR with migration triggers
 - Threat model
 - API and data contracts
 - Evaluation dataset and report
+- Classic-versus-agentic retrieval comparison and bounded-plan test report
+- Agent-memory policy, expiry, correction, deletion, poisoning, and evaluation report
 - Canonical benchmark results
 - Product instrumentation and adoption report
 - Statistics-backed launch or rollback decision
@@ -2470,6 +2628,7 @@ Build and defend the enterprise customer-operations AI platform.
 - Load and failure-injection reports
 - Business-outcome report
 - Design-doc bundle and incident/postmortem bundle
+- .NET lane: C# unit/integration/security results plus package support-status and stable-fallback ADR
 - Technical presentation
 
 **Primary roles**
@@ -2921,6 +3080,8 @@ pattern for one industry.
 - Testing
 - API implementation
 - AI-oriented coding exercises
+- .NET lane: C#, async/await, cancellation, dependency injection, ASP.NET Core endpoints,
+  serialization/validation, and xUnit or NUnit
 
 **Practice format**
 
@@ -2929,6 +3090,7 @@ pattern for one industry.
 - Debugging
 - Follow-up optimization
 - Production-quality extension
+- Python exercise plus a C#/ASP.NET Core exercise for learners claiming .NET-lane readiness
 
 ### Lesson 53 — SQL Interviews
 
@@ -2972,6 +3134,8 @@ pattern for one industry.
 - Determine whether AI is appropriate
 - Define users, workflow, and baseline
 - Select prompting, RAG, tools, fine-tuning, or ML
+- Design provider API integration, streaming, structured output, and fallback
+- Explain classic versus agentic retrieval and its latency/cost boundary
 - Define human approval
 - Select metrics
 - Design an experiment and power/uncertainty plan
@@ -2979,6 +3143,7 @@ pattern for one industry.
 - Estimate latency and cost
 - Model ROI and opportunity cost
 - Identify privacy and security risks
+- Identify prompt-injection, unsafe tool/MCP, and cross-tenant integration risks
 - Explain UX, accessibility, and operator adoption tradeoffs
 - Plan pilot, rollout, feedback, and rollback
 - Communicate uncertainty
@@ -3042,6 +3207,8 @@ pattern for one industry.
 - Recommendation system
 - Fraud or anomaly detection
 - Multimodal workflow
+- AI API integration platform
+- Incident-intelligence assistant with human-approved remediation boundary
 
 **Design dimensions**
 
@@ -3052,6 +3219,14 @@ pattern for one industry.
 - Models
 - Evaluation
 - APIs
+- Provider adapters, rate limits, streaming, cancellation, and backpressure
+- Structured-output and tool-call contracts
+- Token, context, latency, and cost budgets
+- Embedding/RAG ingestion, permission filters, freshness, and deletion
+- Classic-versus-agentic retrieval, query-plan limits, and citations
+- MCP trust, identity propagation, idempotency, and human approval
+- Provider/model fallback and graceful degradation
+- Prompt-injection and data-exfiltration controls
 - Storage
 - Reliability
 - Security
@@ -3060,6 +3235,8 @@ pattern for one industry.
 - Cost
 - Deployment
 - Rollback
+- Batch, queue, GPU-serving, and partial-stream failure modes
+- Python/FastAPI versus C#/ASP.NET Core runtime tradeoffs for .NET-lane candidates
 
 ### Lesson 57 — Portfolio and Project Deep-Dive Interviews
 
@@ -3074,6 +3251,7 @@ pattern for one industry.
 - Portfolio anchor selection
 - User and baseline
 - Architecture
+- AI API integration and provider-abstraction decisions
 - Data
 - Model choice
 - Evaluation
@@ -3083,6 +3261,7 @@ pattern for one industry.
 - Security
 - Deployment
 - Monitoring
+- Retrieval, tool/MCP, memory, and model trace evidence
 - Cost
 - Scaling
 - Tradeoffs
@@ -3090,6 +3269,8 @@ pattern for one industry.
 - Design-doc bundle
 - Incident or postmortem bundle
 - Technical presentation
+- .NET lane: C# test evidence, Entra/identity design, OpenTelemetry trace, package support-status
+  decision, and stable fallback
 - Behavioral examples
 
 **Practice format**
@@ -3136,17 +3317,21 @@ This is preserved as an entry checkpoint rather than counted among the five form
 - Business discovery
 - End-to-end product ownership
 - Product and UX instrumentation
-- Production RAG
-- Controlled agent
+- Production classic RAG plus bounded agentic-retrieval comparison
+- Controlled agent with governed and evaluated memory
 - Evaluation platform
 - Feedback loop
 - Cloud deployment
 - Reliability
 - Security
 - Cost analysis
+- Architecture ADR comparing modular monolith, event-driven workers, and justified microservices
 - Statistics-backed launch, iterate, or rollback decision
 - Model-adaptation project
 - Technical presentation
+- If claiming the .NET lane: one coherent ASP.NET Core vertical slice with
+  `Microsoft.Extensions.AI` or documented native SDK use, Azure AI Search or pgvector, controlled
+  tools/MCP, Entra identity, OpenTelemetry, and C# tests
 
 **Minimum lesson coverage**
 
@@ -3191,6 +3376,9 @@ This is preserved as an entry checkpoint rather than counted among the five form
 - Data contracts and feature freshness gates
 - Registries
 - Monitoring
+- Four golden signals plus RED/USE dashboards, SLO-linked alerts, and runbooks
+- If claiming AIOps depth: evaluated IncidentPilot evidence and proof that remediation requires
+  explicit human approval
 - Terraform
 - Multi-tenant design
 - Rollback demonstration
@@ -3258,7 +3446,7 @@ required knowledge.
 
 | Role | Primary lessons | Specialization or boundary |
 |---|---|---|
-| Applied AI Engineer | 01-18, 28-40 | Lesson 41 |
+| Applied AI Engineer | 01-18, 28-40 | Lesson 41; optional parallel .NET lane across 04-05, 09, 12-14, 17-18, 28, 30-32, 40, 52, 54, and 56-57 |
 | Generative AI Engineer | 08-18, 21-36, 40 | Lesson 42 |
 | LLM Engineer | 15-25, 31, 34-36 | Lesson 43 |
 | Model Training Engineer | 16, 19-25, 31, 33-36 | Lessons 43 and 48 |
@@ -3284,7 +3472,7 @@ required knowledge.
 | Robotics and Autonomy Engineer | 03, 19, 25-33, 36, 39, 50 | Career bridge only; dedicated robotics extension required |
 | Edge AI Engineer | 19, 22, 26-27, 35-36, 39, 48, 50 | Career bridge only; dedicated edge extension required |
 | Forward-Deployed AI Engineer | 01-18, 28-34, 40, 54, 56-57 | Lesson 51 is the role-defining path; Lessons 07, 11, 15, 30-34, and 40 should be completed with FDE-style delivery artifacts |
-| AI Solutions Architect | 05-18, 28-36, 40-41, 51 | Architecture and customer-delivery route |
+| AI Solutions Architect | 05-18, 28-36, 40-41, 51 | Architecture and customer-delivery route; .NET lane is available for Microsoft-oriented environments |
 | AI Product Manager | 07, 11, 15, 28-31, 40-41, 51 | Technical product, UX, metrics, and adoption route |
 | AI Governance Specialist | 15-16, 28-29, 31, 34, 40, 45-46 | Governance and assurance route |
 | AI UX or Conversation Designer | 07-11, 15, 17, 27-29, 40-42 | Interaction-design route |
@@ -3300,16 +3488,16 @@ required knowledge.
 | Support-workflow backend | 05-06 |
 | Applied AI discovery package | 07 |
 | Model-behavior laboratory | 08 |
-| Multi-provider model gateway | 09 |
+| Multi-provider model gateway, including ASP.NET Core variant for the .NET lane | 09 |
 | Tested prompt package | 10 |
 | LLM support assistant | 11 |
 | Semantic and hybrid search service | 12 |
 | Document-ingestion pipeline | 13 |
-| Enterprise RAG platform | 14 |
+| Enterprise classic and bounded-agentic RAG platform, including .NET variant | 14 |
 | AI evaluation platform | 15 |
 | Training-data pipeline | 16 |
-| Controlled tool-using agent | 17 |
-| Secured MCP integration | 18 |
+| Controlled tool-using agent with governed, evaluated memory | 17 |
+| Secured MCP and memory-policy integration, including .NET variant | 18 |
 | PyTorch training pipeline | 19 |
 | Validated language-model dataset | 20 |
 | SFT model | 21 |
@@ -3321,8 +3509,8 @@ required knowledge.
 | Voice support assistant | 27 |
 | AI security gateway | 28 |
 | Governance package | 29 |
-| Reliable production architecture | 30 |
-| Quality and cost dashboards | 31 |
+| Reliable production architecture and decomposition ADR | 30 |
+| Golden-signal/RED/USE quality and cost dashboards; optional IncidentPilot | 31 |
 | Cloud deployment | 32 |
 | Kubernetes AI workloads | 33 |
 | LLMOps pipeline | 34 |
@@ -3332,6 +3520,7 @@ required knowledge.
 | Production ML platform | 38 |
 | Deep-learning application | 39 |
 | Enterprise Applied AI capstone | 40 |
+| Coherent ASP.NET Core AI vertical slice with Python model/data/evaluation integration | 04-05, 09, 12-14, 17-18, 28, 30-32, 40 |
 | Forward-deployed customer deployment package | 51 |
 
 The portfolio should not become a loose collection of small demos. The strongest learner-facing
@@ -3339,6 +3528,9 @@ package should contain four anchor repositories and three supporting document bu
 
 - Deployed AI product repo with product instrumentation, UX evidence, cost tracking, and
   business-outcome readout.
+- .NET-lane version of that repo with ASP.NET Core, Entra identity, provider-neutral model and
+  retrieval interfaces, governed tools/memory/MCP, OpenTelemetry, C# tests, and a documented stable
+  fallback for any preview dependency.
 - Evaluated RAG/search repo with BEIR-style retrieval benchmark, business query set, citations,
   access-control tests, and failure analysis.
 - Classical ML system repo with experiment design, causal or forecasting caveats, calibration,
@@ -3370,17 +3562,19 @@ package should contain four anchor repositories and three supporting document bu
 | Product UX, operator workflows, instrumentation, and adoption | 07, 11, 31, 40-41, 51, 54, 57 |
 | Forward-deployed customer delivery and field execution | 07, 11, 15, 30-34, 40, 51, 54, 56-57 |
 | Foundation-model and LLM engineering | 08-11 |
-| Embeddings, retrieval, and RAG | 12-14 |
+| Parallel .NET Applied AI lane | 04-05, 09, 12-14, 17-18, 28, 30-32, 40, 52, 54, 56-57 |
+| Embeddings, classic RAG, and bounded agentic retrieval | 12-14 |
 | Canonical benchmark packs | 12, 15-16, 20, 23, 26-27, 37, 40, 49-50 |
 | Evaluation and feedback engineering | 15 and 31; deepened in 45 |
 | Statistics, experimentation, causal reasoning, and forecasting | 15, 37-38, 45, 47, 54 |
 | AI data engineering | 16; platform extension in 44 |
-| Tool use, agents, and MCP | 17-18 |
+| Tool use, governed agent memory, agents, and MCP | 17-18 |
 | Model adaptation and post-training | 19-25; deepened in 43 |
 | Research reproduction, ablations, and replication reports | 43, 45, 47 |
 | Multimodal, document, speech, and voice AI | 26-27; deepened in 50 |
 | AI safety, security, privacy, and governance | 28-29; deepened in 45-46 |
-| Production AI system engineering | 30-31 |
+| Production AI system engineering and architecture-evolution ADR | 30-31 |
+| Four golden signals, RED/USE, and optional human-approved AIOps incident intelligence | 31 |
 | Current OpenTelemetry GenAI and MCP-aware observability | 18 and 31 |
 | Cloud, containers, and infrastructure | 01, 32-33 |
 | LLMOps and MLOps | 34; deepened in 44 |
@@ -3393,7 +3587,7 @@ package should contain four anchor repositories and three supporting document bu
 | Portfolio sequence | Practical artifacts from 01-40 |
 | Specialist project options | 42-50 |
 | Capstone | 40 |
-| Interview outline | 52-57 |
+| Interview outline, including AI API integration and system design | 52-57; primary API ownership in 52, 54, 56-57 |
 | Job-readiness gates | Entry Checkpoint and Assessments 01-05 |
 | Topics to deprioritize | Boundary table below |
 | Recommended final positioning | 40-41 and 51 |
@@ -3411,8 +3605,9 @@ package should contain four anchor repositories and three supporting document bu
 | Exotic PEFT algorithms | LoRA and QLoRA are implemented in 22; alternatives are awareness-only |
 | Custom CUDA kernels | Awareness in 36; advanced only in Specialization 48 |
 | Multi-agent systems without business need | Selection criteria and risks in 17-18; not a default architecture |
-| Novel reinforcement-learning research | Decision awareness in 24 and Specialization 43 |
-| GANs outside relevant media roles | Not included in the core; add only for a specific image-generation role |
+| General reinforcement learning | LLM post-training decision awareness remains in 24 and Specialization 43; MDPs, Q-learning, policy gradients, actor-critic, and environment design require an optional RL, robotics, recommendation, or control extension |
+| Diffusion and generative image/video AI | Multimodal understanding remains in 26-27 and 50; diffusion, latent diffusion, image editing, text-to-video, and GAN implementation require a generative-media extension |
+| Symbolic AI | Knowledge representation, classical search/planning, expert systems, ontologies, and neuro-symbolic implementation require a role-aligned optional extension |
 | Robotics outside autonomy roles | Career bridge in 50; dedicated extension required |
 | Every cloud provider | One cloud implemented deeply in 32; service mapping for others |
 | Every vector database | pgvector and OpenSearch implemented in 12-14; alternatives compared |
@@ -3443,6 +3638,7 @@ The curriculum is complete only when:
 - All 40 core lessons have separate lesson files.
 - Every source topic in the traceability tables has a lesson location.
 - Every July 9, 2026 research-review amendment has a lesson owner and assessment evidence.
+- Every July 28, 2026 implementation-review amendment has a lesson owner and completion evidence.
 - At least one specialization lesson is completed.
 - The six interview areas are practiced.
 - The appropriate readiness assessment is passed.
@@ -3451,3 +3647,7 @@ The curriculum is complete only when:
   implications.
 - No project is called production-ready without evaluation, deployment, monitoring, cost, and
   rollback evidence.
+- A learner claims .NET-lane readiness only after completing the cumulative ASP.NET Core vertical
+  slice, C# tests, Entra or standards-based identity, OpenTelemetry evidence, and support-status ADR.
+- Preview dependencies are never implied to be stable; their pinned version, risk, alternative, and
+  migration plan are documented.

@@ -18,9 +18,9 @@ contract are working and tested.
 
 ## Current Stage
 
-Stage 10: real hosted LLM provider integration.
+Stage 18: pilot mode and feedback-to-eval improvement loop.
 
-Next stage: Stage 11 - background worker and asynchronous AI analysis.
+Next stage: Part 19 - minimal viable build path review.
 
 ## Project Structure
 
@@ -28,21 +28,33 @@ The project now follows the main package boundaries from the technical implement
 
 ```text
 apps/api                FastAPI application
-apps/worker             future background worker
-apps/web                future agent UI
+apps/worker             background worker for async analysis jobs
+apps/web                static local agent console
 packages/domain         business rules
 packages/db             SQLAlchemy, repositories, migrations
 packages/model_gateway  provider-neutral model access
 packages/prompts        prompt templates and output schemas
-packages/evals          evaluation datasets and scoring
-packages/observability  logs, metrics, traces
-infra                   future deployment/monitoring assets
+packages/evals          evaluation datasets, scoring, reports, and gates
+packages/observability  structured logs, runtime metrics, traces, cost helpers
+infra                   deployment and monitoring assets
 ```
 
 Detailed stage docs:
 
 - `docs/stage-09-prompt-contract.md`
 - `docs/stage-10-hosted-llm-provider.md`
+- `docs/stage-11-async-analysis-worker.md`
+- `docs/stage-12-evaluation-harness.md`
+- `docs/stage-13-observability-cost.md`
+- `docs/stage-14-security-implementation.md`
+- `docs/stage-15-ci-cd.md`
+- `docs/stage-16-local-deployment.md`
+- `docs/stage-17-staging-deployment.md`
+- `docs/stage-18-pilot-improvement-loop.md`
+- `docs/pilot-report.md`
+- `docs/feedback-to-eval-loop.md`
+- `docs/rollback-runbook.md`
+- `docs/threat-model.md`
 
 ## Local Setup
 
@@ -71,6 +83,88 @@ Run lint:
 
 ```powershell
 python -m ruff check --no-cache .
+```
+
+Run type checks:
+
+```powershell
+python -m mypy apps packages
+```
+
+Run offline evaluation gates:
+
+```powershell
+python -m supportops_evals.runner --dataset golden
+python -m supportops_evals.runner --dataset difficult
+python -m supportops_evals.runner --dataset safety
+python -m supportops_evals.runner --dataset all
+```
+
+`--dataset all` writes the combined report to `docs/eval-report.md`.
+
+Run the CI gate locally:
+
+```powershell
+python -m ruff check --no-cache .
+python -m mypy apps packages
+python -m pytest -q
+python -m supportops_evals.runner --dataset all --no-write-report
+docker compose config
+docker build -f Dockerfile.api -t supportops-ai-copilot-api:ci .
+docker build -f Dockerfile.web -t supportops-ai-copilot-web:ci .
+git diff --check
+```
+
+
+View pilot metrics:
+
+```powershell
+Invoke-RestMethod -Method Get `
+  -Uri 'http://127.0.0.1:8765/metrics/pilot' `
+  -Headers $headers
+
+Invoke-RestMethod -Method Get `
+  -Uri 'http://127.0.0.1:8765/metrics/pilot/feedback' `
+  -Headers $headers
+```
+
+Pilot controls:
+
+```text
+AI_ANALYSIS_ENABLED=true
+AI_ANALYSIS_ENABLED_TENANTS=tenant_demo
+AI_ANALYSIS_ENABLED_CATEGORIES=billing
+```
+Run staging deployment checks:
+
+```powershell
+docker compose --env-file infra/staging/env.example -f infra/staging/docker-compose.staging.yml config
+Get-Content -LiteralPath docs/rollback-runbook.md
+```
+
+Disable AI analysis during staging rollback:
+
+```text
+AI_ANALYSIS_ENABLED=false
+```
+GitHub Actions workflow:
+
+```text
+.github/workflows/ci.yml
+```
+
+View runtime Prometheus metrics:
+
+```powershell
+Invoke-WebRequest -Uri 'http://127.0.0.1:8765/metrics/runtime' -UseBasicParsing
+```
+
+View tenant cost metrics:
+
+```powershell
+Invoke-RestMethod -Method Get `
+  -Uri 'http://127.0.0.1:8765/metrics/costs' `
+  -Headers $headers
 ```
 
 Run local dependencies:
@@ -111,17 +205,35 @@ Open Redis UI:
 http://127.0.0.1:8082
 ```
 
-Run the full Docker stack:
+Run the full local production-like Docker stack:
 
 ```powershell
-docker compose up --build
+docker compose up --build -d
+docker compose ps
 ```
 
-Open the containerized API:
+Open the local deployment:
+
+```text
+Web console: http://127.0.0.1:3000
+API docs:    http://127.0.0.1:8765/docs
+Prometheus:  http://127.0.0.1:9090
+Grafana:     http://127.0.0.1:3001
+Adminer:     http://127.0.0.1:8081
+Redis UI:    http://127.0.0.1:8082
+```
+
+Open the containerized API health endpoints:
 
 ```text
 http://127.0.0.1:8765/health
-http://127.0.0.1:8765/docs
+http://127.0.0.1:8765/ready
+```
+
+Run the deployment smoke test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\deployment-smoke.ps1 -TimeoutSeconds 120
 ```
 
 Check real container dependency readiness:
@@ -192,6 +304,27 @@ List tickets:
 Invoke-RestMethod -Method Get -Uri 'http://127.0.0.1:8765/tickets' -Headers $headers
 ```
 
+Create tenant support policy context for hosted analysis:
+
+```powershell
+$leadHeaders = @{
+  'X-Tenant-Id' = 'tenant_demo'
+  'X-User-Id' = 'user_demo_lead'
+  'X-Role' = 'lead'
+}
+
+$policy = @{
+  name = 'Refund review'
+  content = 'Agents must verify duplicate charges before promising refunds.'
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod -Method Post `
+  -Uri 'http://127.0.0.1:8765/policies' `
+  -Headers $leadHeaders `
+  -Body $policy `
+  -ContentType 'application/json'
+```
+
 Run baseline analysis for a ticket:
 
 ```powershell
@@ -220,6 +353,8 @@ Run hosted OpenAI analysis instead of the mock provider:
 $env:MODEL_PROVIDER = 'openai'
 $env:MODEL_API_KEY = '<your-api-key>'
 $env:MODEL_NAME = 'gpt-5.6'
+$env:MODEL_INPUT_COST_PER_1K_TOKENS = '<input-rate>'
+$env:MODEL_OUTPUT_COST_PER_1K_TOKENS = '<output-rate>'
 
 python -m uvicorn supportops_api.main:app --reload --app-dir apps/api --host 127.0.0.1 --port 8765
 ```
@@ -230,6 +365,31 @@ Then call the same endpoint:
 Invoke-RestMethod -Method Post `
   -Uri "http://127.0.0.1:8765/tickets/$ticketId/ai-analysis" `
   -Headers $headers
+```
+
+Queue async AI analysis for a ticket:
+
+```powershell
+$analysisRun = Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:8765/tickets/$ticketId/analyze" `
+  -Headers $headers
+
+$analysisRun.id
+$analysisRun.status
+```
+
+List async analysis runs for a ticket:
+
+```powershell
+Invoke-RestMethod -Method Get `
+  -Uri "http://127.0.0.1:8765/tickets/$ticketId/analysis" `
+  -Headers $headers
+```
+
+Run the worker in Docker:
+
+```powershell
+docker compose up --build api worker postgres redis
 ```
 
 List saved recommendations:

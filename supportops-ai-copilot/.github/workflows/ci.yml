@@ -1,0 +1,372 @@
+# ============================================================================
+# FILE: .github/workflows/ci.yml
+#
+# THINK OF THIS FILE AS: the automated gatekeeper. Every time someone proposes a
+# change, GitHub runs everything in this file. If any of it fails, the change is
+# blocked.
+#
+# "CI" means Continuous Integration: checking every change automatically rather
+# than hoping someone remembers to run the tests.
+#
+# WHEN IT RUNS (see `on:` below): on every pull request, and on every push to
+# main. So problems are caught while the change is still being proposed, not
+# after it has landed.
+#
+# THE SEVEN JOBS, and what each protects against:
+#   lint         - style and obvious mistakes            (ruff)
+#   typecheck    - type errors                           (mypy)
+#   test         - the unit tests
+#   integration  - tests against a REAL Postgres and Redis
+#   migrations   - the database migrations actually apply, and match the models
+#   eval-smoke   - the AI quality gates still pass
+#   docker-build - the containers still build
+#
+# THEY ALL RUN IN PARALLEL. No job lists `needs:`, so GitHub starts all seven at
+# once. The whole run takes as long as the slowest job rather than the sum of
+# them — and, just as usefully, a failing lint check does not hide a failing
+# test, since you see every failure in one go.
+#
+# THE TWO MOST INTERESTING JOBS are `migrations` (which catches the classic
+# "someone changed models.py but forgot the migration" bug) and `eval-smoke`
+# (which treats an AI quality regression exactly like a failing test). Both are
+# explained where they appear.
+# ============================================================================
+
+name: CI
+
+# What triggers a run.
+on:
+  pull_request:      # every proposed change, on any branch
+  push:
+    branches:
+      - main         # and every change that lands on main
+# Deliberately NOT every push to every branch — that would burn a lot of time
+# re-checking work in progress that nobody has asked to merge yet.
+
+# The permissions granted to this workflow.
+#
+# `contents: read` and nothing else. A security practice worth copying: by
+# default a workflow may get broader write access, and any compromised
+# dependency in the build would inherit it. This workflow only needs to read the
+# code, so that is all it gets.
+permissions:
+  contents: read
+
+# Environment variables shared by every job.
+env:
+  PYTHON_VERSION: "3.11"      # defined once, used by all seven jobs
+  # THE CRITICAL SETTING: mock. CI never calls a real AI service.
+  #
+  # Three reasons that is right: no API key has to be stored as a secret, the run
+  # costs nothing however often it happens, and the results are deterministic —
+  # a real model could return slightly different text each run and make the
+  # evaluation flap between pass and fail for no reason.
+  MODEL_PROVIDER: mock
+  MODEL_API_KEY: ""
+  MODEL_INPUT_COST_PER_1K_TOKENS: "0"
+  MODEL_OUTPUT_COST_PER_1K_TOKENS: "0"
+
+jobs:
+  # --- STYLE AND OBVIOUS MISTAKES --------------------------------------------
+  #
+  # `ruff` is a linter: it catches unused imports, undefined names, inconsistent
+  # formatting, and similar. Cheap to run and it settles style arguments
+  # mechanically rather than in code review.
+  lint:
+    runs-on: ubuntu-latest      # a fresh virtual machine, discarded after the run
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4     # fetches the code. Versions are pinned (@v4) so a
+                                      # new release cannot silently change the behaviour
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          # Caches the downloaded packages between runs, turning a minute of
+          # installation into a few seconds. The cache is keyed on the
+          # requirements files, so it is correctly invalidated when a dependency
+          # changes.
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # The -dev file, which includes the test and lint tools on top of the
+          # runtime dependencies.
+          python -m pip install -r requirements-dev.txt
+
+      - name: Ruff check
+        # `--no-cache` because the machine is thrown away afterwards; a cache
+        # would only add work.
+        run: python -m ruff check --no-cache .
+
+  # --- TYPE ERRORS -----------------------------------------------------------
+  #
+  # `mypy` checks the type annotations throughout the code — that a function
+  # declared to return a string does not return None, and so on. It catches a
+  # whole class of bugs that tests would only find if they happened to exercise
+  # that exact path.
+  #
+  # Note it checks `apps packages` but NOT `tests`. A common and pragmatic
+  # choice: test code often does deliberately odd things with types, and
+  # demanding strict typing there tends to produce noise rather than value.
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Mypy type check
+        run: python -m mypy apps packages
+
+  # --- THE UNIT TESTS --------------------------------------------------------
+  #
+  # Fast tests that need no database and no network. Note
+  # `--ignore=tests/integration` — those are excluded here and run in their own
+  # job below, which needs real services.
+  #
+  # Splitting them means this job finishes in seconds and gives quick feedback,
+  # rather than everyone waiting for containers to start.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Unit tests
+        run: python -m pytest -q tests --ignore=tests/integration
+
+  # --- TESTS AGAINST REAL SERVICES -------------------------------------------
+  #
+  # The unit tests use a temporary in-memory database, which is fast but not
+  # quite Postgres. This job runs the real thing, catching the differences —
+  # SQL that only Postgres rejects, constraint behaviour, JSON column handling.
+  integration:
+    runs-on: ubuntu-latest
+    # `services:` starts real containers alongside the job. GitHub manages them
+    # and waits for the health checks to pass before running any steps.
+    services:
+      postgres:
+        image: postgres:16      # the SAME version as docker-compose.yml, so CI tests
+                                # what actually runs
+        env:
+          POSTGRES_USER: supportops
+          POSTGRES_PASSWORD: supportops
+          POSTGRES_DB: supportops
+        ports:
+          - 5432:5432
+        # Health checks, so the tests do not start against a database that is
+        # still booting. The `>-` is YAML for "fold these lines into one string".
+        options: >-
+          --health-cmd "pg_isready -U supportops -d supportops"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: ci
+      # `localhost` here, not the service names used in docker-compose.yml.
+      # GitHub maps the service ports onto the job's own machine, so they are
+      # reached locally rather than over a shared Docker network.
+      DATABASE_URL: postgresql://supportops:supportops@localhost:5432/supportops
+      REDIS_URL: redis://localhost:6379/0
+      # An opt-in switch the integration tests check. Without it they skip
+      # themselves — which is why running the suite locally shows "1 skipped"
+      # rather than failing on a database nobody started.
+      RUN_INTEGRATION_TESTS: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Integration tests with PostgreSQL and Redis
+        run: python -m pytest -q tests/integration
+
+  # --- THE MIGRATIONS ACTUALLY WORK ------------------------------------------
+  #
+  # ONE OF THE TWO MOST VALUABLE JOBS HERE. It does two distinct things:
+  #
+  #   1. Applies every migration from scratch against an empty database. Proves
+  #      the whole chain still works end to end — a fresh install will succeed.
+  #
+  #   2. `alembic check` compares models.py against the migrations and FAILS if
+  #      they disagree.
+  #
+  # That second step catches the single most common mistake in this kind of
+  # project: adding a column to models.py and forgetting to write the migration.
+  # Everything passes locally, because the developer's database was created from
+  # the models — and then production breaks with "column does not exist". This
+  # job catches it before the change merges.
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: supportops
+          POSTGRES_PASSWORD: supportops
+          POSTGRES_DB: supportops
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U supportops -d supportops"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: ci
+      DATABASE_URL: postgresql://supportops:supportops@localhost:5432/supportops
+      # Set even though no Redis service runs in this job — the settings object
+      # expects it, and an unset value would fall back to a default rather than
+      # failing, so this simply keeps the configuration explicit.
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Apply Alembic migrations
+        run: python -m alembic upgrade head
+
+      - name: Check model and migration drift
+        run: python -m alembic check
+
+  # --- THE AI QUALITY GATES --------------------------------------------------
+  #
+  # THE OTHER MOST INTERESTING JOB, and the one that makes this project's
+  # approach to AI distinctive.
+  #
+  # It runs the whole evaluation suite — golden, difficult, and safety datasets —
+  # and the runner returns exit code 1 if any quality gate fails. GitHub treats a
+  # non-zero exit as a failed job, so AN AI QUALITY REGRESSION BLOCKS A MERGE
+  # EXACTLY LIKE A FAILING TEST.
+  #
+  # That is the whole idea: change a prompt in a way that makes the model
+  # promise refunds it cannot authorise, and this job goes red. Without it,
+  # prompt quality would drift with nobody noticing until customers complained.
+  #
+  # It runs against the mock provider, so it costs nothing and is deterministic.
+  # The honest limitation: it proves the machinery and the gates work, not that a
+  # real model performs well. For that, the runner is pointed at a real provider
+  # by hand.
+  #
+  # `--no-write-report` prevents it writing docs/eval-report.md, since a CI
+  # machine's changes are discarded anyway.
+  eval-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Eval smoke test with mock provider
+        run: python -m supportops_evals.runner --dataset all --no-write-report
+
+  # --- THE CONTAINERS STILL BUILD --------------------------------------------
+  #
+  # Catches the deployment-time failures that no amount of Python testing would
+  # find: a syntax error in a Dockerfile, a missing file, a broken compose
+  # configuration. All of those would otherwise surface during a deployment,
+  # which is the worst possible moment.
+  #
+  # Note it BUILDS but does not RUN the images. Building proves they are valid
+  # and their dependencies install; running them would need the full stack and
+  # take considerably longer, and the integration job already covers that ground.
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Parses and validates docker-compose.yml without starting anything. A fast
+      # check for a typo or an unknown key.
+      - name: Docker Compose config
+        run: docker compose config
+
+      - name: API image build
+        run: docker build -f Dockerfile.api -t supportops-ai-copilot-api:ci .
+
+      - name: Web image build
+        run: docker build -f Dockerfile.web -t supportops-ai-copilot-web:ci .
+      # The `:ci` tags are throwaway names for this run. Nothing is pushed to a
+      # registry — this job only answers "does it build?", and deployment is a
+      # separate concern.

@@ -1,3 +1,76 @@
+# ============================================================================
+# FILE: infra/prometheus/prometheus.yml
+#
+# THINK OF THIS FILE AS: the instructions telling the monitoring system where to
+# find the app's numbers, and how often to fetch them.
+#
+# HOW PROMETHEUS WORKS, and the thing that surprises people:
+#   The application does NOT send its metrics anywhere. Prometheus comes and
+#   FETCHES them, repeatedly, from an HTTP endpoint. That is called "scraping",
+#   and it is a pull model rather than a push one.
+#
+#   Why that way round is a good design:
+#     - The app needs no knowledge of the monitoring system at all. It just
+#       serves a page of numbers; who reads it is not its concern.
+#     - A monitoring outage cannot affect the application. Nothing blocks,
+#       nothing queues up, nothing fails.
+#     - Prometheus knows when a target STOPS responding, which is itself one of
+#       the most important alerts you can have. With a push model, silence is
+#       ambiguous: nothing happening looks exactly like the app being dead.
+#
+# THE FULL CHAIN:
+#   the app's record_* calls    (packages/observability/metrics.py)
+#     -> counters held in memory
+#          -> served at GET /metrics/runtime   (routes/metrics.py)
+#               -> THIS FILE tells Prometheus to fetch that, every 15 seconds
+#                    -> stored with a history
+#                         -> Grafana draws the graphs   (infra/grafana/)
+#
+# Mounted into the Prometheus container read-only by docker-compose.yml.
+# ============================================================================
+
+# Defaults applied to everything below, unless overridden.
 global:
+  # How often to fetch. 15 seconds is the usual starting point, and it is a
+  # trade-off worth understanding: more often gives finer-grained graphs and
+  # faster alerts, but stores more data and puts more load on the app.
+  #
+  # A practical consequence: nothing here can detect anything faster than 15
+  # seconds. A spike lasting 5 seconds may fall entirely between two scrapes and
+  # never appear at all.
   scrape_interval: 15s
 
+# What to fetch, and from where.
+scrape_configs:
+  - job_name: supportops-api      # a label attached to everything collected here, so
+                                  # metrics from different sources stay distinguishable
+
+    # The path to fetch. NOT the default — Prometheus assumes "/metrics", and
+    # this app serves them at "/metrics/runtime" because "/metrics" is already
+    # taken by the business metrics endpoints (approval rates, costs). Those are
+    # JSON for humans; this one is Prometheus's own text format.
+    #
+    # Get this line wrong and Prometheus silently collects nothing while
+    # appearing configured. Check http://localhost:9090/targets to see whether a
+    # target is actually being scraped.
+    metrics_path: /metrics/runtime
+
+    # "static" means the address is written here by hand, as opposed to being
+    # discovered automatically. Right for a fixed set of containers; a
+    # Kubernetes deployment would use service discovery instead, since the
+    # addresses there change constantly.
+    static_configs:
+      - targets:
+          # `api` is the SERVICE NAME from docker-compose.yml, not localhost.
+          # Docker resolves it to the API container on the shared network.
+          # "localhost" here would mean the Prometheus container itself.
+          #
+          # Note this is the container-internal port 8765, which happens to match
+          # the published one — but it is the internal port that matters, since
+          # this connection never leaves the Docker network.
+          - api:8765
+
+# Worth noting what is ABSENT: no `rule_files` and no `alerting` section. So this
+# collects and stores metrics but raises no alerts — nothing here will wake
+# anybody up. Adding alert rules (for a rising error rate, a spike in cost, any
+# safety failure) would be the natural next step for a production deployment.

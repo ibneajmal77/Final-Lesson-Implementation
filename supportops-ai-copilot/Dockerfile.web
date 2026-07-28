@@ -1,0 +1,56 @@
+# ============================================================================
+# FILE: Dockerfile.web
+#
+# THINK OF THIS FILE AS: the recipe for packaging the web console into a
+# container. Six lines, and its shortness is the point.
+#
+# WHY IT IS SO MUCH SIMPLER THAN Dockerfile.api:
+#   The web console is plain HTML, CSS, and JavaScript — no framework, no build
+#   step, no dependencies to install. So there is nothing to compile and nothing
+#   to bundle. The entire job is "copy these three files somewhere a web server
+#   can serve them".
+#
+#   Contrast that with a typical modern front end, whose Dockerfile would need
+#   Node.js installed, npm packages fetched, a build run, and the results copied
+#   into a second image. All of that is avoided here because the console was
+#   deliberately written without a framework.
+#
+# WHAT IT PRODUCES: an nginx web server serving the files in apps/web/src.
+#
+# HOW IT FITS TOGETHER:
+#   browser -> nginx (this container, port 3000 on the host)
+#                -> serves index.html, app.js, styles.css
+#                     -> the JavaScript then calls the API directly on port 8765
+#
+#   Note nginx does NOT proxy the API. The browser talks to the API itself, which
+#   is why the API must permit the console's address via CORS_ORIGINS in
+#   docker-compose.yml.
+# ============================================================================
+
+# nginx is a web server: fast, tiny, and extremely good at serving static files.
+#
+# "-alpine" is a variant built on Alpine Linux, a minimal distribution. The
+# resulting image is around 40MB, against roughly 190MB for the standard one.
+# Worth having when the payload is three text files.
+#
+# The version is pinned (1.27) rather than "latest", so a rebuild months from now
+# produces the same image rather than silently picking up a new major version.
+FROM nginx:1.27-alpine
+
+# The server configuration, replacing nginx's default site. That default serves a
+# "Welcome to nginx!" page, which would otherwise appear instead of the console.
+# See apps/web/nginx.conf for what the replacement does.
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+
+# The console itself. This path is nginx's standard document root, so anything
+# placed here is served automatically.
+COPY apps/web/src /usr/share/nginx/html
+
+# Documentation only — the actual publishing is the `ports: "3000:80"` line in
+# docker-compose.yml, which maps port 80 inside the container to 3000 on your
+# machine.
+EXPOSE 80
+
+# Note there is NO CMD line. Deliberate: the base nginx image already defines
+# one that starts the server correctly, and it is inherited. Adding our own would
+# only risk getting it wrong.

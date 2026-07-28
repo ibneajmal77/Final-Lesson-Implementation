@@ -63,3 +63,24 @@ model output to be compared against mock and baseline behavior.
 
 - OpenAI Structured Outputs: https://developers.openai.com/api/docs/guides/structured-outputs
 - OpenAI Responses API: https://developers.openai.com/api/reference/resources/responses/methods/create
+
+## Files Added and Changed in This Stage
+
+### New files
+- `packages/model_gateway/supportops_model_gateway/providers/hosted.py` — real OpenAI Responses provider.
+- `packages/prompts/supportops_prompts/templates/full_ticket_analysis.v1.md` — single-call prompt.
+- `docs/stage-10-hosted-llm-provider.md` (this file)
+
+### Changed files
+- `packages/prompts/supportops_prompts/registry.py` — added the `full_ticket_analysis.v1` entry.
+- `packages/model_gateway/supportops_model_gateway/routing.py` — routes `openai`/`hosted` to the provider.
+- `packages/model_gateway/supportops_model_gateway/client.py` — shared hosted defaults.
+- `apps/api/supportops_api/settings.py` — `MODEL_API_KEY`, `MODEL_NAME`, `MODEL_BASE_URL`, `MODEL_TIMEOUT_SECONDS`, `MODEL_MAX_OUTPUT_TOKENS`.
+- `apps/api/supportops_api/routes/tickets.py` — provider-error → HTTP 502/503 mapping.
+- `requirements.txt` — added `httpx` runtime dependency.
+- `tests/model_gateway/test_ticket_analysis_provider.py` — hosted-provider tests with an injected fake HTTP client.
+- `docs/progress-log.md`, `README.md`, `docs/architecture.md` — Stage 10 updates.
+
+> Stage-by-stage verification counts and commands live under **Stage 10** in
+> [progress-log.md](progress-log.md). The cumulative map of every stage's files is in
+> [file-change-log.md](file-change-log.md).

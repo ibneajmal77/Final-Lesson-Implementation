@@ -1,6 +1,6 @@
 # AI Industry Roadmap — All Perspectives, with Original Industry-Level Projects
 
-Updated: June 30, 2026
+Updated: July 28, 2026
 
 Companion to:
 - [AI-Industry-Curriculum.md](AI-Industry-Curriculum.md)
@@ -28,6 +28,22 @@ A junior engineer is handed a messy business problem and has to ship something t
 - **Diverse satellites.** Smaller standalone projects in *different industries* (legal, health, insurance, logistics, finance, e-commerce). They prove range and stop your portfolio looking like one demo.
 
 The projects below are deliberately spread across industries so your portfolio shows range.
+
+### Parallel .NET Applied AI proof lane
+
+Python remains the primary teaching and experimentation language. The .NET lane is a **parallel proof lane**, not a replacement curriculum and not a requirement to rebuild every project twice. Its purpose is to prove that the learner can carry the same AI contracts, safety controls, evaluation discipline, and observability into an enterprise ASP.NET Core environment.
+
+Use one evolving C# service, `Atlas.DotNet`, across the phases below:
+
+| Curriculum touchpoint | Minimum .NET evidence |
+|---|---|
+| Lessons 09 and 11 / Phase 1 | ASP.NET Core endpoint using a provider-neutral chat abstraction such as `Microsoft.Extensions.AI.IChatClient`; streamed responses; typed business DTOs; schema validation; cancellation; model/provider metadata; token and cost capture |
+| Lesson 14 / Phase 2 | Permission-aware retrieval adapter, hybrid/vector search integration, citations, abstention, and retrieval-versus-generation evaluation on the same cases as the Python implementation |
+| Lessons 17-18 / Phase 4 | Bounded workflow, governed session/durable memory, tool authorization outside the model, one MCP client or server, exact-action approval, idempotency, and an audit record |
+| Lessons 30-31 / Phase 8 | Managed identity or equivalent workload identity, resilience and provider failover policy, OpenTelemetry traces/metrics/logs, deployment, dashboards, SLOs, and rollback evidence |
+| Lesson 40 / capstone | One end-to-end business path that can run through the .NET service with contract and evaluation parity; it does not need feature-for-feature parity with the Python platform |
+
+`Microsoft.Extensions.AI` is the preferred provider-neutral abstraction boundary for basic .NET model access when the selected provider supports it. Semantic Kernel can be used where it earns its complexity. If a selected Microsoft Agent Framework capability or any dependency is in preview, keep that capability an **optional, version-pinned spike**, record its support status and migration risk in an ADR, and make the durable evidence the architecture, contracts, tests, and controls rather than allegiance to one framework.
 
 ### The "Ship Standard" — what makes a project industry-level
 This is your curriculum's own project checklist. **Every** project on this roadmap must ship with all of it. Don't repeat it per project — just hold every project to it:
@@ -65,6 +81,8 @@ Push every project to GitHub with a real README. Write a short post per project 
 | **8** | Production, cloud, MLOps, serving (30–36) | MLOps Zoomcamp; Made With ML; vLLM course | **ModelMesh** — gateway + vLLM serving + LLMOps on K8s | You can run AI in production at scale |
 | **9** | Classical ML + deep learning (37–39) | Andrew Ng ML + DL specializations; ML Zoomcamp; fast.ai | **ChurnGuard** + **ListingMatch** | You can choose ML over LLMs when it's the right tool |
 | **★** | Capstone (40) | Everything | **Atlas** — defensible enterprise platform | You can integrate and defend a full system |
+
+The .NET lane runs across Phases 1, 2, 4, 8, and the capstone. Phase 8 also offers `IncidentPilot`, an optional AIOps satellite for learners targeting SRE, MLOps, platform, or operations-heavy roles.
 
 **Employable checkpoint:** after Phases 0–4 you can apply for **Junior Applied AI / Generative AI Engineer** roles. Phases 5–9 + a role branch take you to mid/senior and specialist tracks.
 
@@ -108,6 +126,8 @@ Push every project to GitHub with a real README. Write a short post per project 
 
 **Proof:** every output traces to a prompt + model version; no auto-action without approval; a metrics page with cost-per-document. **Time:** 4–6 weeks.
 
+**Parallel .NET proof:** implement one ClauseScan API path in ASP.NET Core behind `IChatClient`: streaming with cancellation, typed output validation before business logic, provider/model metadata, and a provider-neutral error contract. On Azure, prefer Entra ID/managed identity where supported rather than embedding provider keys. Reuse the Python lane's golden cases so the result is comparable, not merely another demo.
+
 ---
 
 ### Phase 2 — Embeddings + production RAG (Lessons 12–14)
@@ -122,10 +142,11 @@ Push every project to GitHub with a real README. Write a short post per project 
 - Citations on every factual sentence; **abstention** when evidence is missing; role-based access so admin can't retrieve clinician-only content.
 - Incremental indexing + delete propagation; retrieval observability.
 - **Evaluate retrieval and generation separately:** recall@k, MRR, nDCG, context relevance, groundedness, citation accuracy.
+- After the classic RAG baseline passes, add one bounded **agentic retrieval** path for a genuinely multi-part question: plan subqueries, retrieve in parallel or iteratively, rerank, verify evidence coverage, and stop at explicit query/step/time/token limits. Compare it with classic RAG on quality, latency, and cost; do not assume the agentic path wins.
 
 **Hard parts:** failure attribution (was it ingestion, retrieval, rerank, or generation that failed?); unauthorized documents must *never* enter the context window.
 
-**Proof:** an eval report with the metrics above; a test proving restricted docs never leak. **Time:** 5–7 weeks.
+**Proof:** an eval report with the metrics above; a test proving restricted docs never leak; a classic-versus-agentic retrieval decision record. The .NET lane adds the same authorization filters, citations, and core evaluation cases through an ASP.NET Core retrieval endpoint. **Time:** 5–7 weeks.
 
 ---
 
@@ -146,6 +167,8 @@ Push every project to GitHub with a real README. Write a short post per project 
 
 **Proof:** a PR that gets *blocked* by a failing eval gate; a dashboard comparing two model versions on the same dataset. **Time:** 4–6 weeks. *(Wire this back into ClauseScan and MedPolicy.)*
 
+The same golden cases and release thresholds apply to the .NET proof path. Language-specific unit tests may differ, but schema validity, safety, retrieval, latency, and cost evidence must remain comparable.
+
 ---
 
 ### Phase 4 — Tools, agents, and MCP (Lessons 16–18) — **Junior-ready after this**
@@ -159,10 +182,11 @@ Push every project to GitHub with a real README. Write a short post per project 
 - Tools: billing read, resource inventory, a *write* tool (resize/stop) gated behind approval.
 - Explicit workflow as a state machine (not a free-roaming agent): plan → propose → await approval → act → verify → compensate on failure.
 - One tool exposed via a **secured MCP server** with identity propagation; full audit trail; step, time, and spend limits.
+- Governed memory: separate request context, session state, durable workflow state, user preferences, and retrieval-backed memory; define read/write policy, provenance, consent, expiry, correction, and deletion. Memory is not an unbounded transcript.
 
 **Hard parts:** the write action is the whole point — unauthorized or duplicate actions must be impossible; compensation/rollback when a step half-fails; task-completion + invalid-action metrics.
 
-**Proof:** a test suite where the agent *tries* an unapproved write and is blocked; an audit log for one full run. **Time:** 5–7 weeks.
+**Proof:** a test suite where the agent *tries* an unapproved write and is blocked; an audit log for one full run; memory read/write/expiry/deletion tests. The .NET lane implements one bounded workflow plus one MCP boundary in C#, with authorization enforced by ordinary application policy rather than model instructions. **Time:** 5–7 weeks.
 
 > **🎯 Checkpoint:** Phases 0–4 + ClauseScan/MedPolicy/OpsPilot in your portfolio = ready to apply for **Junior Applied AI / GenAI Engineer**.
 
@@ -238,10 +262,24 @@ Push every project to GitHub with a real README. Write a short post per project 
 - Deploy to one cloud + **Kubernetes** (Terraform IaC, secrets, autoscaling, GPU scheduling).
 - Full observability (OpenTelemetry GenAI conventions + Prometheus + Grafana); LLMOps pipeline (MLflow, registries, canary release, automated rollback).
 - Load test + capacity plan + a hosted-vs-self-hosted cost report.
+- Required architecture ADR: compare a modular monolith, event-driven workers, and separately deployable microservices for the model gateway, ingestion/retrieval, evaluation, and agent execution. Decide from measured scaling, failure-isolation, security, data-ownership, deployment, and team-ownership needs, and include an evolutionary extraction plan. Do not choose microservices just because the system contains AI.
 
 **Hard parts:** measuring quality *after every optimization* (quantization can quietly degrade output); canary + rollback that actually works; cost-per-successful-task, not just cost-per-token.
 
 **Proof:** a load-test report (TTFT, tokens/sec, p95 latency, GPU util) + a cost comparison + a demonstrated rollback. **Time:** 8–12 weeks.
+
+**Parallel .NET proof:** expose one ModelMesh business path through ASP.NET Core using the provider-neutral interface established in Phase 1. Use Entra ID/managed identity where the selected Azure services support it, preserve tenant authorization through retrieval and tools, and emit correlated model, retrieval, tool, cost, and approval telemetry. Because GenAI telemetry conventions and integrations continue to evolve, pin package/convention versions and keep a small internal telemetry contract that can be remapped.
+
+**Optional satellite — `IncidentPilot` (AIOps / SRE):**
+> *Scenario:* On-call engineers lose time correlating API failures, queue backlogs, deployment changes, model-provider errors, and retrieval degradation. Build an evidence-linked incident assistant that helps investigate; it does not become an unsupervised production administrator.
+
+- Start with deterministic RED signals (rate, errors, duration) and USE signals (utilization, saturation, errors), alert rules, deployment events, and runbooks. Add anomaly detection and event correlation only after this baseline is measurable.
+- Correlate logs, metrics, traces, queue state, provider status, model/retrieval evaluation regressions, and recent changes into a time-bounded incident timeline.
+- Produce ranked root-cause **hypotheses** with links to supporting and contradicting telemetry; retrieve relevant runbook steps; draft an incident update and postmortem.
+- Keep read-only investigation separate from action. Any restart, scale, rollback, feature-flag, or traffic-routing tool requires normal authorization, exact arguments, human approval, idempotency, verification, and compensation/rollback.
+- Evaluate alert-noise reduction, evidence precision, hypothesis top-k recall on seeded incidents, time-to-triage, false-action rate, latency, and cost. Include an insufficient-evidence outcome.
+
+**IncidentPilot proof:** three seeded failure drills (for example provider throttling, queue saturation, and retrieval-quality regression), a reconstructed timeline, an evidence-backed hypothesis report, a human-approved runbook simulation in a non-production environment, and a red-team test proving telemetry text cannot inject an unauthorized action. **Additional time:** 3–5 weeks; optional unless the target role is SRE/MLOps/platform.
 
 ---
 
@@ -270,7 +308,9 @@ Push every project to GitHub with a real README. Write a short post per project 
 
 Combine: tenant auth → ingestion → hybrid RAG with citations → structured extraction → tool-using workflow with MCP + human approval → a fine-tuned adapter served on vLLM → multi-provider routing → security + governance → cloud + K8s deployment → observability + cost dashboards → canary + rollback → **a business-outcome report** (time saved, cost, quality).
 
-**Proof (the interview kit):** PRD, architecture decision records, threat model, eval report, model/system/dataset cards, load + failure-injection reports, business-outcome report, and a 10-minute technical presentation. **Time:** 6–10 weeks.
+The .NET lane is complete when one valuable Atlas workflow runs end to end through `Atlas.DotNet` with the same external contract, authorization boundary, core golden cases, trace correlation, and approval policy as the primary implementation. Contract/evaluation parity matters; duplicating every internal component does not.
+
+**Proof (the interview kit):** PRD, architecture decision records—including the modular-monolith/event-driven-worker/microservice decision and an extraction trigger—threat model, eval report, model/system/dataset cards, load + failure-injection reports, business-outcome report, a .NET contract/evaluation parity report when that lane is selected, and a 10-minute technical presentation. **Time:** 6–10 weeks.
 
 ---
 
@@ -297,6 +337,8 @@ After the core (Phases 0–4) plus the phases each role needs, pick **one primar
 | **Speech & Audio Engineer** | 6 (voice, deep) | Streaming ASR + diarization + `VoiceTriage` with real-time latency targets |
 | **Multimodal AI Engineer** | 6 (deep) | `ClaimVision` extended: vision-language + audio-language + document retrieval |
 | **Forward-Deployed / Solutions Architect** | 0–4, 8 | Deploy `Atlas` for a mock "customer" + architecture + adoption + ROI docs |
+| **.NET Applied AI / Enterprise Integration Engineer** | 0–4, 8 + the parallel .NET lane | `Atlas.DotNet`: ASP.NET Core model gateway + RAG + controlled tools/MCP + Entra/workload identity + OpenTelemetry, with contract/eval parity |
+| **AI SRE / AIOps Engineer** | 3, 4, 8 + the optional satellite | `IncidentPilot` with RED/USE baselines, evidence-linked investigation, failure drills, and approval-gated remediation |
 
 ---
 
@@ -306,6 +348,9 @@ After the core (Phases 0–4) plus the phases each role needs, pick **one primar
 - **Writeups:** for each project, a short post: the business problem, your architecture decision, what broke, the eval numbers, the cost. This is what you talk about in interviews.
 - **The metrics habit:** never say "it works." Say "94% schema validity, groundedness 0.91, p95 latency 1.8s, $0.012/task." Recruiters and senior engineers filter for this.
 - **Interview tracks:** coding/Python, SQL, applied-AI case design, and (for training roles) LLM/model-training questions. Practice them against the projects you actually built.
+- **.NET lane evidence:** include the ASP.NET Core OpenAPI contract, provider adapter tests, streaming cancellation test, structured-output validation failures, managed/workload identity diagram, retrieval authorization test, MCP/tool approval test, trace screenshot, deployment/rollback runbook, and contract/eval parity report. One coherent service is stronger than many thin C# ports.
+- **Architecture evidence:** include the decision forces, rejected alternatives, current boundary, measurable extraction triggers, event/API contracts, failure modes, and migration path in the required architecture ADR.
+- **IncidentPilot evidence (optional):** include seeded incident fixtures, RED/USE dashboard, timeline reconstruction, evidence links, hypothesis-evaluation results, authorization/approval tests, and the incident/postmortem bundle. Label simulated remediation clearly; do not imply autonomous production control.
 
 ---
 
@@ -319,6 +364,8 @@ After the core (Phases 0–4) plus the phases each role needs, pick **one primar
 
 Full-time roughly halves these. Don't rush the Ship Standard to hit a date — one fully-operated project beats three half-built demos.
 
+The .NET lane is best done in parallel for roughly 2–4 hours per week after Phase 1, reusing contracts and golden cases rather than replaying the whole curriculum. `IncidentPilot` adds 3–5 weeks only for learners who select that optional satellite.
+
 ---
 
 ## 6. Anti-patterns to avoid
@@ -329,6 +376,10 @@ Full-time roughly halves these. Don't rush the Ship Standard to hit a date — o
 - **Doing all branches at once.** One primary + one supporting. Depth signals competence; breadth-without-depth signals a bootcamp.
 - **Fine-tuning by default.** Phase 5's best output is sometimes "RAG was enough." Knowing *when not to* is the senior signal.
 - **Framework-first.** Learn the protocol/data flow/failure modes before the framework abstraction; frameworks churn.
+- **Rebuilding everything in two languages.** The .NET lane proves transfer through one end-to-end path and parity evidence; it is not a second copy of every notebook and service.
+- **Preview-as-foundation.** A preview agent framework may be explored behind an adapter, but pin it, record the risk, and keep core contracts and controls framework-neutral.
+- **Inflating the shared core with every AI specialty.** Diffusion-based media generation, general reinforcement learning, and symbolic or neuro-symbolic AI remain optional role-specific extensions until a target job or project requires them.
+- **Unsupervised self-healing.** IncidentPilot may recommend actions, but consequential writes remain externally authorized, approval-gated, bounded, verified, and auditable.
 
 ---
 
@@ -348,6 +399,7 @@ Full-time roughly halves these. Don't rush the Ship Standard to hit a date — o
 | 10 | **ModelMesh** | Platform | Cloud/K8s/MLOps/vLLM serving | 8 |
 | 11 | **ChurnGuard** | SaaS/Telecom | Classical ML in production | 9 |
 | 12 | **ListingMatch** | E-commerce | Deep learning + embeddings | 9 |
+| 13 *(optional)* | **IncidentPilot** | SRE / Platform Operations | Evidence-linked AIOps investigation + approval-gated remediation | 8 |
 | ★ | **Atlas** | Your choice | Full integration + business outcome | Capstone |
 
 Build these and you have a portfolio that covers every perspective in the curriculum — and looks nothing like anyone else's.

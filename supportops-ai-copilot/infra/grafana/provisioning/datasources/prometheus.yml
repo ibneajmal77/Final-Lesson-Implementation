@@ -1,0 +1,57 @@
+# ============================================================================
+# FILE: infra/grafana/provisioning/datasources/prometheus.yml
+#
+# THINK OF THIS FILE AS: telling Grafana where to find the numbers it should
+# draw graphs from.
+#
+# WHAT "PROVISIONING" MEANS:
+#   Grafana can be configured by clicking through its web interface — but then
+#   that configuration exists only inside one running container, and vanishes the
+#   moment it is rebuilt. Nobody else gets it, and it is not in version control.
+#
+#   Provisioning is the alternative: configuration files that Grafana reads at
+#   startup. It means the setup lives in this repository, is reviewed like code,
+#   and applies identically on every machine. "Configuration as code."
+#
+# WHAT A "DATA SOURCE" IS: where the numbers come from. Grafana itself stores no
+# metrics at all — it is purely a drawing tool that queries something else. Here
+# that something else is Prometheus.
+#
+# Mounted into the Grafana container read-only by docker-compose.yml.
+# ============================================================================
+
+# The version of Grafana's provisioning file format — not the app's version.
+# Required, and currently always 1.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus       # the label shown in Grafana's UI
+    type: prometheus       # tells Grafana which query language and API to use
+
+    # "proxy" means the GRAFANA SERVER fetches the data and passes it to your
+    # browser. The alternative, "direct", would have the browser query Prometheus
+    # itself.
+    #
+    # Proxy is the right choice here, and for a reason that is easy to miss:
+    # Prometheus is only reachable at the address below from INSIDE the Docker
+    # network. Your browser cannot resolve `prometheus` at all. With "direct",
+    # every panel would fail to load.
+    #
+    # It is also better practice generally — the data source need not be exposed
+    # to the internet, and its credentials never reach the browser.
+    access: proxy
+
+    # The service name from docker-compose.yml, on Prometheus's default port.
+    url: http://prometheus:9090
+
+    # Makes this the default for new dashboards, so a panel that does not name a
+    # source uses this one. Convenient when there is only ever going to be one.
+    isDefault: true
+
+    # Prevents anyone editing this data source through the Grafana UI.
+    #
+    # Deliberate, and the whole point of provisioning: the file is the source of
+    # truth. Allowing UI edits would let someone change it in a way that silently
+    # disappears on the next restart — which is a genuinely baffling failure to
+    # debug, because it works fine until it suddenly does not.
+    editable: false

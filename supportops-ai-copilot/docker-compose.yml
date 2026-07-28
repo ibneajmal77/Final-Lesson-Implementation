@@ -1,64 +1,364 @@
+# ============================================================================
+# FILE: docker-compose.yml
+#
+# THINK OF THIS FILE AS: the wiring diagram for the whole system. It describes
+# every program that must run, how they connect, and in what order they start.
+#
+# HOW TO RUN EVERYTHING:
+#   docker compose up --build
+#   ...then open http://localhost:3000
+#
+# THE NINE SERVICES, and what each is for:
+#
+#   THE APPLICATION ITSELF
+#     migrate  - runs once at startup, creates/updates the database tables, exits
+#     api      - the FastAPI web service                      -> localhost:8765
+#     worker   - the background AI job processor (no ports; it only reads Redis)
+#     web      - nginx serving the console                    -> localhost:3000
+#
+#   THE DATA STORES
+#     postgres - the database
+#     redis    - the job queue
+#
+#   DEVELOPER CONVENIENCES (would not exist in production)
+#     postgres-ui - browse the database in a web page         -> localhost:8081
+#     redis-ui    - browse Redis                              -> localhost:8082
+#
+#   MONITORING
+#     prometheus  - scrapes and stores the app's metrics      -> localhost:9090
+#     grafana     - draws graphs from them                    -> localhost:3001
+#
+# THE MOST IMPORTANT IDEA IN THIS FILE IS STARTUP ORDERING.
+#   Containers start in parallel by default, which breaks everything here: the
+#   API would try to reach a database that is still booting, and the worker would
+#   process jobs against tables that do not exist yet.
+#
+#   `depends_on` with a `condition` fixes that, and the distinction between the
+#   conditions matters:
+#     service_healthy               - wait until its healthcheck passes
+#     service_completed_successfully - wait until it finishes and exits cleanly
+#
+#   So the real startup order is:
+#     postgres becomes healthy
+#       -> migrate runs and exits successfully
+#            -> api and worker start (also waiting on redis)
+#                 -> web starts once the api is healthy
+#
+# A NOTE ON SECURITY: every password in this file is a placeholder committed to
+# the repository ("supportops"). Fine for local development, unacceptable
+# anywhere real. See infra/staging/ for how the staging setup differs.
+# ============================================================================
+
 services:
+  # --- Runs once, then exits: creates and updates the database tables ---------
+  #
+  # A "job" rather than a long-running service. It applies any outstanding
+  # migrations and stops, and everything else waits for it to finish.
+  #
+  # Running migrations as a separate step — rather than at API startup — matters:
+  # it means the schema change happens exactly once, even if several copies of
+  # the API are started, and a failed migration stops the deployment rather than
+  # leaving the app running against a half-updated database.
+  migrate:
+    build:
+      context: .                    # build from the project root
+      dockerfile: Dockerfile.api    # the SAME image as the api and worker
+    # Overrides the image's default command. This is the "one image, three
+    # commands" arrangement explained in Dockerfile.api.
+    command: ["python", "-m", "alembic", "upgrade", "head"]   # "head" = the newest migration
+    environment:
+      # These fill in the fields defined in apps/api/supportops_api/settings.py.
+      # The names are the CAPITALISED versions of the field names there.
+      APP_NAME: supportops-ai-copilot
+      APP_ENV: docker
+      LOG_LEVEL: INFO
+      # Note the hostname is `postgres` — the SERVICE NAME above, not localhost.
+      # Docker gives each service a hostname on a shared network, which is how
+      # containers find each other. Using localhost here would look for a
+      # database inside the migrate container itself.
+      DATABASE_URL: postgresql://supportops:supportops@postgres:5432/supportops
+      REDIS_URL: redis://redis:6379/0
+      AI_ANALYSIS_ENABLED: "true"
+      AI_ANALYSIS_ENABLED_TENANTS: tenant_demo
+      AI_ANALYSIS_ENABLED_CATEGORIES: billing
+      MODEL_PROVIDER: mock
+      MODEL_API_KEY: ""
+      MODEL_NAME: gpt-5.6
+      MODEL_BASE_URL: https://api.openai.com/v1
+      # Numbers and booleans are QUOTED. Required: YAML would otherwise convert
+      # them to its own types, and the environment must be strings. Unquoted
+      # `true` in particular can become the boolean True and be passed as "True",
+      # which is a classic and very confusing YAML trap.
+      MODEL_TIMEOUT_SECONDS: "30"
+      MODEL_MAX_OUTPUT_TOKENS: "1200"
+      MODEL_INPUT_COST_PER_1K_TOKENS: "0"
+      MODEL_OUTPUT_COST_PER_1K_TOKENS: "0"
+    depends_on:
+      postgres:
+        condition: service_healthy    # do not even try until the database is answering
+
+  # --- The FastAPI web service -----------------------------------------------
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
+    # No `command` here — this one uses the image's default (uvicorn).
     environment:
       APP_NAME: supportops-ai-copilot
       APP_ENV: docker
       LOG_LEVEL: INFO
       DATABASE_URL: postgresql://supportops:supportops@postgres:5432/supportops
       REDIS_URL: redis://redis:6379/0
+      # ONLY THE API HAS THIS ONE. It lists the web addresses allowed to call the
+      # API from a browser — the console on port 3000. Both 127.0.0.1 and
+      # localhost are listed because a browser treats them as different origins,
+      # and whichever one you type must match exactly.
+      # The worker needs no CORS setting: it is not called by browsers.
+      CORS_ORIGINS: http://127.0.0.1:3000,http://localhost:3000
+      # THE PILOT SETTINGS, and a good illustration of the feature in use: the AI
+      # is switched on, but ONLY for the demo tenant and ONLY for billing
+      # tickets. Try an account-access ticket and the API will refuse with a 403,
+      # which is the pilot gate working as designed rather than a bug.
+      AI_ANALYSIS_ENABLED: "true"
+      AI_ANALYSIS_ENABLED_TENANTS: tenant_demo
+      AI_ANALYSIS_ENABLED_CATEGORIES: billing
+      # "mock" means no real AI is called: canned answers, no key, no cost.
+      # Switch to "hosted" and supply MODEL_API_KEY to use a real model.
       MODEL_PROVIDER: mock
       MODEL_API_KEY: ""
       MODEL_NAME: gpt-5.6
       MODEL_BASE_URL: https://api.openai.com/v1
       MODEL_TIMEOUT_SECONDS: "30"
       MODEL_MAX_OUTPUT_TOKENS: "1200"
+      # Zero, because the mock provider is free. Set these to the real per-token
+      # prices when using a real provider, or the cost reports will read zero.
+      MODEL_INPUT_COST_PER_1K_TOKENS: "0"
+      MODEL_OUTPUT_COST_PER_1K_TOKENS: "0"
     ports:
+      # "host:container" — port 8765 on your machine reaches port 8765 inside.
       - "8765:8765"
     depends_on:
-      postgres:
+      migrate:
+        condition: service_completed_successfully   # the tables must exist first
+      redis:
         condition: service_healthy
+    # Tells Docker how to know this service is actually working, which is what
+    # the `web` service below waits on.
+    healthcheck:
+      # Uses Python's own urllib rather than curl, because the slim base image
+      # does not include curl. A neat way to avoid installing a tool purely for
+      # health checks.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2).read()",
+        ]
+      interval: 10s        # check every 10 seconds
+      timeout: 5s          # a check taking longer than this counts as failed
+      retries: 12          # unhealthy only after 12 consecutive failures
+      start_period: 10s    # grace period at startup: failures here are not counted,
+                           # so a slow boot is not mistaken for a broken service
+
+  # --- The background AI job processor ---------------------------------------
+  #
+  # Note what it has and lacks:
+  #   NO `ports` - nothing connects to it. It reaches out to Redis and Postgres
+  #                itself, so it needs no inbound access at all.
+  #   NO healthcheck - there is no endpoint to check. Its liveness would have to
+  #                be judged from the queue, which is not wired up here.
+  #
+  # Same image and same environment as the API, with a different command. Sharing
+  # the settings is what guarantees both halves agree about which database and
+  # which pilot rules apply.
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    command: ["python", "-m", "supportops_worker.main"]
+    environment:
+      APP_NAME: supportops-ai-copilot
+      APP_ENV: docker
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql://supportops:supportops@postgres:5432/supportops
+      REDIS_URL: redis://redis:6379/0
+      AI_ANALYSIS_ENABLED: "true"
+      AI_ANALYSIS_ENABLED_TENANTS: tenant_demo
+      AI_ANALYSIS_ENABLED_CATEGORIES: billing
+      MODEL_PROVIDER: mock
+      MODEL_API_KEY: ""
+      MODEL_NAME: gpt-5.6
+      MODEL_BASE_URL: https://api.openai.com/v1
+      MODEL_TIMEOUT_SECONDS: "30"
+      MODEL_MAX_OUTPUT_TOKENS: "1200"
+      MODEL_INPUT_COST_PER_1K_TOKENS: "0"
+      MODEL_OUTPUT_COST_PER_1K_TOKENS: "0"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
+  # --- The web console -------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      # Port 80 inside (nginx's default) reaches port 3000 on your machine.
+      # 3000 is used because 80 usually needs administrator rights.
+      - "3000:80"
+    depends_on:
+      api:
+        # Waits for the API to be HEALTHY, not merely started. Otherwise the
+        # console would load and every button would fail for the first few
+        # seconds, which looks exactly like a broken application.
+        condition: service_healthy
+    healthcheck:
+      # "CMD-SHELL" runs the command through a shell, which is what allows the
+      # pipe and redirect. The plain "CMD" form used by the api service does not.
+      # wget is used because it ships with Alpine, where curl does not.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  # --- The database ----------------------------------------------------------
   postgres:
-    image: postgres:16
+    image: postgres:16      # a ready-made image, so no Dockerfile is needed
     environment:
+      # This official image creates the user, password, and database from these
+      # three variables on first startup. They must match the DATABASE_URL above.
       POSTGRES_USER: supportops
       POSTGRES_PASSWORD: supportops
       POSTGRES_DB: supportops
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U supportops"]
-      interval: 5s
+      # `pg_isready` is Postgres's own "are you accepting connections?" tool.
+      # This healthcheck is what everything else waits on — and it matters,
+      # because Postgres takes several seconds to become ready on first start,
+      # while creating its data directory.
+      test: ["CMD-SHELL", "pg_isready -U supportops -d supportops"]
+      interval: 5s          # more frequent than the app checks, since everything waits on it
       timeout: 5s
       retries: 10
+    volumes:
+      # A NAMED VOLUME, and the reason your data survives `docker compose down`.
+      # Without it, the database files would live inside the container and be
+      # destroyed with it — so every restart would begin from an empty database,
+      # and you would re-run the seed script every time.
+      - postgres_data:/var/lib/postgresql/data
 
+  # --- A web UI for browsing the database (development only) -----------------
+  #
+  # Adminer is a single-page database client. Useful for looking at what the app
+  # actually wrote, without needing a database tool installed locally.
+  #
+  # It has NO PASSWORD PROTECTION of its own beyond the database credentials —
+  # which are in this file. It must never be exposed anywhere but a laptop.
   postgres-ui:
-    image: adminer:latest
+    image: adminer:latest     # unpinned, unlike the others. Acceptable for a
+                              # development convenience, not for anything relied on
     environment:
-      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DEFAULT_SERVER: postgres   # pre-fills the server field on the login page
     ports:
       - "8081:8080"
     depends_on:
       postgres:
         condition: service_healthy
 
+  # --- Redis: the job queue --------------------------------------------------
   redis:
     image: redis:7
     healthcheck:
+      # Redis's own "are you alive?" command. A healthy server replies PONG.
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
+    volumes:
+      # Persists queued jobs across restarts. Less critical than the database
+      # volume — a lost queue means a few analyses need re-requesting, whereas
+      # lost database data means lost tickets — but it avoids silently dropping
+      # in-flight work on every restart.
+      - redis_data:/data
 
+  # --- A web UI for browsing Redis (development only) ------------------------
+  #
+  # Genuinely useful for understanding the queue: you can watch a job appear when
+  # you press "Queue analysis" and disappear when the worker takes it, which
+  # makes the asynchronous flow visible rather than theoretical.
   redis-ui:
     image: rediscommander/redis-commander:latest
     environment:
-      REDIS_HOSTS: local:redis:6379:0
+      REDIS_HOSTS: local:redis:6379:0   # label:host:port:database
     ports:
+      # Note the mismatch: 8082 outside, 8081 inside. Necessary because 8081 on
+      # the host is already taken by adminer above.
       - "8082:8081"
     depends_on:
       redis:
         condition: service_healthy
+
+  # --- Prometheus: collects the metrics --------------------------------------
+  #
+  # Repeatedly fetches GET /metrics/runtime from the API and stores the numbers
+  # over time. That storage is why the API's in-memory counters can reset on
+  # restart without losing history — Prometheus already has it.
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus       # where to keep the collected history
+    ports:
+      - "9090:9090"
+    volumes:
+      # Mounts our config file INTO the container. `:ro` means read-only, so the
+      # container cannot modify the file on your machine — a good habit for any
+      # mounted configuration.
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy    # nothing to scrape until the API is up
+
+  # --- Grafana: draws the graphs ---------------------------------------------
+  grafana:
+    image: grafana/grafana:11.1.4
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: supportops
+      # Lets anyone view the dashboards without logging in. A local-development
+      # convenience that would be a straightforward data leak in production —
+      # dashboards can reveal a great deal about traffic, costs, and failures.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer    # view only; anonymous users cannot edit
+    ports:
+      # 3000 inside is Grafana's default, but 3000 on the host is already used by
+      # the console — hence 3001.
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # "Provisioning": these mounted files configure Grafana automatically at
+      # startup — which data source to use, which dashboards to load — so nobody
+      # has to click through its setup UI. See infra/grafana/provisioning/.
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        # Only `service_started`, not `service_healthy` — Prometheus defines no
+        # healthcheck here, and Grafana copes perfectly well with a data source
+        # that is not answering yet.
+        condition: service_started
+
+# Named volumes, declared so Docker creates and manages them. This is the
+# persistent storage that survives containers being destroyed and rebuilt.
+#
+# To wipe everything and start completely fresh: `docker compose down -v`.
+# The -v is what deletes these — worth knowing, and worth being careful with.
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

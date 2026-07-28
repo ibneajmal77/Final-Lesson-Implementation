@@ -1,6 +1,6 @@
 # Detailed AI Industry Learning Outline
 
-Updated: June 25, 2026
+Updated: July 28, 2026
 
 ## Purpose
 
@@ -9,6 +9,16 @@ Updated: June 25, 2026
 - Begins with Applied AI and Generative AI
 - Includes model training, MLOps, safety, and Machine Learning Engineering
 - Excludes research-only material unless required by a specialist role
+
+### Python and .NET implementation policy
+
+- Python remains the primary reference for model, data, evaluation, and training work
+- The parallel .NET lane covers model APIs, RAG, controlled agents and memory, MCP, production architecture, observability, and the capstone
+- C# implementations preserve the Python reference's contracts, evaluation data, authorization rules, telemetry, budgets, and failure cases
+- Provider and framework code stays behind application-owned interfaces
+- Supported package versions are pinned; preview-only behavior is not a core dependency
+- The selected backend supplies runnable code, automated tests, redacted traces, measured quality-latency-cost results, and design-decision evidence
+- One full capstone backend is sufficient; learners do not duplicate the complete product in both languages
 
 ## Primary career target
 
@@ -135,6 +145,7 @@ Updated: June 25, 2026
 ### Programming
 
 - Python
+- C# for the parallel .NET Applied AI lane
 - SQL
 - TypeScript fundamentals
 - JavaScript fundamentals
@@ -159,6 +170,19 @@ Updated: June 25, 2026
 - Alembic
 - WebSockets
 - Server-sent events
+
+### Parallel .NET Applied AI stack
+
+- .NET SDK and C#
+- ASP.NET Core
+- OpenAPI and JSON Schema-compatible contracts
+- `System.Text.Json`
+- Supported provider SDK or supported `Microsoft.Extensions.AI` abstraction
+- Application-owned model, retrieval, tool, memory, and policy interfaces
+- xUnit, NUnit, or an equivalent supported test framework
+- OpenTelemetry for .NET
+- Optional supported Semantic Kernel packages only after manual workflow implementation
+- Established .NET MCP SDK selected against required protocol, identity, and security capabilities
 
 ### Data storage
 
@@ -605,6 +629,17 @@ Updated: June 25, 2026
 - Request tracing
 - Cost attribution
 
+### Parallel .NET model-API lab
+
+- Authenticated ASP.NET Core endpoints for synchronous and server-sent-event responses
+- Application-owned provider interface with two replaceable adapters
+- Typed structured-output validation before domain use
+- Cancellation and deadline propagation through streamed model calls
+- Safe retry, circuit-breaker, and observable fallback behavior
+- Correlated model, token, latency, tenant, version, and cost telemetry with content redaction
+- Shared valid, invalid-schema, rate-limit, timeout, cancellation, and fallback fixtures
+- Acceptance evidence: API contract, automated test report, redacted trace, and quality-latency-cost comparison
+
 ### Prompt and context engineering
 
 - Instruction hierarchy
@@ -729,6 +764,26 @@ Updated: June 25, 2026
 - Tenant isolation
 - Permission-aware retrieval
 
+### Classic-versus-agentic retrieval lab
+
+- Classic hybrid retrieval remains the default baseline
+- A measured query classifier selects agentic retrieval only for complex or multi-part questions
+- Retrieval is exposed through approved tools with authorization on every derived query and result
+- Query planning produces a bounded number of focused subqueries
+- Independent subqueries run in parallel under concurrency, latency, token, step, and spending limits
+- Evidence is merged, deduplicated, reranked, cited, and checked before generation
+- Explicit stopping and classic-fallback behavior handles sufficient evidence, planner failure, partial retrieval, or exhausted budgets
+- One versioned evaluation set compares retrieval quality, answer correctness, groundedness, citation accuracy, latency, tokens, and cost
+- Failure tests cover decomposition explosion, loops, repeated queries, retriever outage, permission changes, timeouts, citation mismatch, and adversarial input
+
+### Parallel .NET RAG lab
+
+- ASP.NET Core query service with application-owned planner and retrieval interfaces
+- Bounded asynchronous concurrency and cancellation propagation
+- Compatible vector or search client selected by product requirements
+- Shared evaluation, authorization, citation, budget, trace, and fallback fixtures
+- Acceptance evidence: classic-versus-agentic report, budget-limit tests, redacted trace, and a decision stating when the extra latency and cost are justified
+
 ### RAG metrics
 
 - Recall at K
@@ -760,6 +815,7 @@ Updated: June 25, 2026
   - OCR
   - Table extraction
   - Hybrid retrieval
+  - Selective bounded agentic retrieval
   - Reranking
   - Citations
   - Role-based access
@@ -1022,13 +1078,28 @@ Updated: June 25, 2026
 
 - Request context
 - Session state
-- Persistent state
+- Durable workflow state
 - User preferences
 - Retrieval-backed memory
 - Summarized memory
+- Typed separation between workflow checkpoints and user memory
+- Allowlist-based memory write policy
+- Consent and purpose limitation
+- Subject, tenant, source, provenance, classification, and version
 - Expiration
+- User correction
 - User deletion
+- Derived-summary, index, and cache invalidation
 - Privacy
+- Poisoning and stale-memory resistance
+- Relevance, consistency, isolation, correction, and verified-forgetting evaluation
+
+### Governed memory acceptance evidence
+
+- Memory schema and write-policy decision table
+- Tests for missing consent, duplicate writes, poisoning, expiration, revoked access, cross-tenant access, correction, deletion, and summary drift
+- Documented retention and deletion objective
+- Evaluation report for relevance, factual consistency, stale-memory handling, and verified forgetting
 
 ### Model Context Protocol
 
@@ -1057,6 +1128,39 @@ Updated: June 25, 2026
 - Cross-agent authorization
 - Multi-agent selection criteria
 
+### Reusable versioned capabilities or skills
+
+- Capability name, semantic version, owner, and compatibility range
+- Input and output schema
+- Allowed data and declared purpose
+- Required identity, permissions, and resource limits
+- Pinning, allowlisting, review, and upgrade tests
+- No assumption that one vendor-specific skill-file convention is universal
+- Deliberate mapping to MCP tools, resources, or prompts
+- No implicit transfer of user or server authority
+- Compatibility, authorization, injection, cancellation, and audit fixtures
+
+### Sandboxed computer and coding-agent lab
+
+- Disposable test repository and restricted execution environment
+- One read-only inspection and one proposed source patch
+- Filesystem path, process, network, credential, CPU, memory, output, time, and step restrictions
+- Host credentials, privileged processes, unrestricted paths, and network denied by default
+- Exact diff and command plan presented before any side effect
+- Named human authorization before a write or command execution
+- Repository content, screenshots, tool descriptions, and output treated as untrusted
+- Capability version, requester, authorization, proposal, approval, execution, and artifact audit trail
+- No autonomous destructive or production remediation actions
+
+### Parallel .NET agent and MCP labs
+
+- ASP.NET Core controlled workflow with typed memory policy, authorization, idempotency, approval, and recovery
+- Workflow checkpoints persisted separately from user-profile memory
+- Authenticated .NET MCP server for one read-only versioned capability
+- Allowlisted client with user and tenant identity propagation
+- Shared approval, isolation, expiration, correction, deletion, discovery, schema, injection, version-mismatch, cancellation, and audit fixtures
+- Acceptance evidence: memory schema, policy table, capability manifest, MCP mapping, compatibility tests, sandbox policy, proposed diff, approval record, and trace
+
 ### Agent tools
 
 - Native provider tool calling
@@ -1077,11 +1181,14 @@ Updated: June 25, 2026
   - Human approval
   - Ticket update
   - Persistent state
+  - Governed memory with consent, provenance, expiration, correction, and deletion
   - Retry logic
   - Compensation logic
   - Permission model
   - Audit trail
   - MCP tool
+  - Versioned capability and explicit MCP mapping
+  - Restricted computer or coding-agent exercise in a disposable sandbox
   - Task evaluation
 
 ## Model adaptation and post-training
@@ -1500,6 +1607,24 @@ Updated: June 25, 2026
 - Identity service
 - Policy service
 
+### Architecture evolution and decision exercise
+
+- Start with explicit model, retrieval, tool, evaluation, and policy modules inside a deployable modular monolith
+- Use event-driven workers for justified asynchronous or long-running work with defined delivery, replay, cancellation, and idempotency semantics
+- Extract independently deployed services only when scaling, isolation, ownership, compliance, or release evidence justifies the operational cost
+- Write one ADR comparing a modular monolith, event-driven workers, and microservices for the same workload
+- Evaluate team ownership, deployment coupling, latency, data consistency, scaling, failure isolation, security, operability, and cost
+- Record context, constraints, measured evidence, decision, rejected options, consequences, migration triggers, and reversal plan
+- Diagram request, event, data-ownership, failure, and identity-propagation flows
+
+### Parallel .NET production-architecture lab
+
+- ASP.NET Core API with explicit application modules
+- One justified long-running operation moved through a durable queue to a hosted or background worker
+- Correlation, cancellation, idempotency, tenant identity, and authorization preserved across the boundary
+- Separately deployed service added only if selected by the ADR
+- Acceptance evidence: ADR, diagrams, benchmark, operating-cost estimate, failure-injection and replay report, migration triggers, and recovery test
+
 ### Reliability
 
 - Service-level indicators
@@ -1554,6 +1679,29 @@ Updated: June 25, 2026
 - Cache hit rate
 - User feedback
 - Safety events
+- RED for request-driven services: request rate, errors, and duration
+- USE for resources: utilization, saturation, and errors
+- Four golden signals: latency, traffic, errors, and saturation
+- Deployment and configuration change events
+- Alert owners, thresholds, runbook links, and test fixtures
+
+### Optional AIOps project: IncidentPilot
+
+- Controlled, redacted logs, metrics, traces, alerts, deployment events, and configuration events
+- Deterministic correlation and anomaly baseline before AI assistance
+- Ranked root-cause hypotheses with cited evidence, confidence, contradictions, and unknowns
+- Draft incident timeline, impact, diagnostic steps, and proposed versioned runbook
+- Named human approval of the exact runbook step before any permitted test execution
+- Execution disabled by default and no autonomous remediation
+- Audit of inputs, model and prompt version, evidence, hypotheses, approvals, execution, and artifacts
+- Evaluation with known incidents, misleading correlations, missing telemetry, prompt injection in logs, repeated alerts, false positives, and provider failure
+
+### Parallel .NET observability lab
+
+- OpenTelemetry instrumentation for ASP.NET Core, outbound model calls, retrieval, MCP, tools, memory, database, queue, and workers
+- Compatible RED, USE, golden-signal, AI-quality, safety, and cost telemetry
+- One end-to-end incident trace and one telemetry-redaction test
+- Acceptance evidence: dashboard exports, alert tests, queries and thresholds, incident fixtures, hypothesis-scoring report, redaction result, and immutable approval/audit example
 
 ### Cost engineering
 
@@ -2414,12 +2562,15 @@ Updated: June 25, 2026
 - Ticket ingestion
 - Document ingestion
 - Hybrid retrieval
+- Classic-versus-agentic retrieval routing with enforced limits
 - Reranking
 - Evidence-backed responses
 - Structured extraction
 - Tool calling
 - MCP integration
 - Human approval
+- Governed memory with consent, provenance, expiration, correction, and deletion
+- Versioned reusable capabilities with explicit MCP mappings and permissions
 - Prompt versioning
 - Model versioning
 - Evaluation datasets
@@ -2432,6 +2583,7 @@ Updated: June 25, 2026
 - Logs
 - Metrics
 - Traces
+- RED, USE, and four-golden-signal dashboards
 - Canary deployment
 - User feedback
 - Incident handling
@@ -2441,6 +2593,7 @@ Updated: June 25, 2026
 - Product requirements
 - Architecture diagram
 - Architecture decisions
+- Topology ADR comparing a modular monolith, event-driven workers, and microservices
 - Threat model
 - Data model
 - API specification
@@ -2452,7 +2605,20 @@ Updated: June 25, 2026
 - Cost model
 - Load-test report
 - Failure-injection report
+- Classic-versus-agentic RAG quality-latency-cost report
+- Memory governance and verified-deletion report
+- Capability manifest, MCP mapping, and sandbox-policy evidence
 - Business-outcome report
+
+### Parallel .NET capstone variant
+
+- Python remains the reference path; a learner targeting .NET roles may implement the production backend in C# and ASP.NET Core
+- Supported provider integrations remain behind application-owned interfaces for structured output, streaming, RAG, tools, and fallback
+- Authenticated MCP consumption or serving, governed memory, queued work, and OpenTelemetry are required
+- The same schemas, evaluation set, permission model, safety controls, quality thresholds, latency and cost budgets, and failure fixtures apply
+- The selected backend must prove agentic-retrieval bounds, correction and deletion propagation, capability authorization, sandboxing where executable, and auditable human approval
+- Acceptance evidence includes reproducible build, automated tests, container configuration, API contract, redacted trace, topology ADR, dashboards, failure report, and runbooks
+- A second full capstone implementation is not required; only shared contract and benchmark slices are compared
 
 ## Interview outline
 
@@ -2551,6 +2717,11 @@ Updated: June 25, 2026
 - Training platform
 - Inference platform
 - Evaluation platform
+- Classic versus bounded agentic RAG
+- Governed agent memory
+- MCP capability and identity propagation
+- Modular monolith versus event-driven workers versus microservices
+- AI incident assistance with human-approved runbooks
 
 ### Production discussion
 
@@ -2566,6 +2737,19 @@ Updated: June 25, 2026
 - Monitoring
 - Cost
 - Rollback
+
+### .NET Applied AI and AI API design
+
+- Provider-independent model integration in ASP.NET Core
+- Structured-output validation and typed contracts
+- Server-sent-event streaming, cancellation, timeouts, safe retries, and observable fallback
+- Token, context, rate-limit, and cost budgeting
+- Embeddings, ingestion, hybrid retrieval, reranking, citations, and agentic-retrieval bounds
+- Tool calling, governed memory, MCP identity propagation, authorization, idempotency, and audit
+- Prompt-injection defenses across documents, tools, memory, and telemetry
+- Evaluation gates, OpenTelemetry traces, RED, USE, and golden signals
+- Queue, batch, accelerator, and provider failure modes
+- Architecture evolution from modular monolith to workers or services
 
 ### Behavioral and delivery
 
@@ -2609,6 +2793,15 @@ Updated: June 25, 2026
 - Cost analysis
 - Model-adaptation project
 - Stakeholder communication
+
+### Parallel .NET Applied AI
+
+- Authenticated ASP.NET Core model API with structured output, streaming, cancellation, retry, and observable fallback
+- Production RAG slice with authorization, citations, evaluation, and classic-versus-agentic comparison
+- Controlled tool workflow with governed memory
+- Authenticated MCP client or server with identity propagation and capability-version controls
+- OpenTelemetry traces plus RED, USE, golden-signal, AI-quality, safety, and cost dashboards
+- Architecture ADR, containerized deployment, failure tests, security tests, and interview defense
 
 ### LLM Engineer
 
@@ -2661,6 +2854,9 @@ Updated: June 25, 2026
 
 ## Topics to deprioritize
 
+- Diffusion and generative image or video engineering unless required by a media-generation specialization
+- General reinforcement learning beyond LLM post-training literacy unless required by an RL or autonomy role
+- Symbolic and neuro-symbolic AI unless required by a planning, knowledge-representation, or research role
 - Frontier-model pretraining from scratch
 - Reimplementing every paper
 - Unnecessary mathematical proofs

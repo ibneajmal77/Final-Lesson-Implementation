@@ -162,3 +162,27 @@ ticket
 Without Stage 9, Stage 10 would only be a raw API call. With Stage 9, Stage 10 becomes a controlled
 LLM integration.
 
+## Files Added and Changed in This Stage
+
+### New files
+- `packages/prompts/supportops_prompts/__init__.py`
+- `packages/prompts/supportops_prompts/schemas.py` — strict Pydantic output schemas.
+- `packages/prompts/supportops_prompts/registry.py` — prompt catalogue, renderer, metadata.
+- `packages/prompts/supportops_prompts/templates/classify_ticket.v1.md`
+- `packages/prompts/supportops_prompts/templates/extract_fields.v1.md`
+- `packages/prompts/supportops_prompts/templates/recommend_priority.v1.md`
+- `packages/prompts/supportops_prompts/templates/draft_response.v1.md`
+- `packages/prompts/supportops_prompts/templates/safety_check.v1.md`
+- `packages/prompts/supportops_prompts/tests/fixtures/billing_ticket.json`
+- `tests/prompts/test_prompt_schemas.py`
+- `tests/prompts/test_prompt_registry.py`
+- `docs/stage-09-prompt-contract.md` (this file)
+
+### Changed files
+- `docs/progress-log.md` — Stage 9 entry.
+- `README.md` — current-stage pointer.
+
+> Stage-by-stage verification counts and commands live under **Stage 9** in
+> [progress-log.md](progress-log.md). The cumulative map of every stage's files is in
+> [file-change-log.md](file-change-log.md).
+

@@ -1,0 +1,226 @@
+# ============================================================================
+# FILE: infra/staging/docker-compose.staging.yml
+#
+# THINK OF THIS FILE AS: the production-shaped version of docker-compose.yml.
+# Same application, deployed the way a real environment would deploy it.
+#
+# "Staging" is a rehearsal environment: it mirrors production as closely as
+# possible, so a change can be tried on real infrastructure before real customers
+# see it.
+#
+# THE FOUR DIFFERENCES FROM THE LOCAL docker-compose.yml, and why each matters:
+#
+#   1. IT USES PRE-BUILT IMAGES, NOT `build:`.
+#      Every service says `image: ${SUPPORTOPS_API_IMAGE}` rather than building
+#      from a Dockerfile. So the EXACT image tested in CI is the one deployed —
+#      not a fresh rebuild that might pull a slightly different dependency.
+#      Building on the server is a well-known way to deploy something subtly
+#      different from what you tested.
+#
+#   2. NO PASSWORDS ARE WRITTEN IN THE FILE.
+#      Everything comes from environment variables, and the critical ones use
+#      `:?` (explained below) so a missing value stops the deployment rather than
+#      quietly falling back to a default.
+#
+#   3. NO DATABASE OR REDIS CONTAINER.
+#      Deliberately absent. Staging connects to managed services elsewhere, which
+#      is how production works: databases need backups, failover, and
+#      maintenance that a container beside the app cannot provide.
+#
+#   4. NO DEVELOPER TOOLS.
+#      The adminer and redis-commander UIs are gone. Both are unauthenticated
+#      windows straight into your data, which is tolerable on a laptop and
+#      indefensible on a shared server.
+#
+# TWO PIECES OF SYNTAX USED THROUGHOUT:
+#   ${VAR:-default}  - use VAR, or this default if it is unset. Optional.
+#   ${VAR:?message}  - use VAR, or FAIL with this message. Required.
+#
+#   That distinction is the file's main safety mechanism. Anything that must be
+#   set for a safe deployment uses `:?`, so the deployment stops immediately
+#   rather than starting with a wrong or empty value.
+#
+# HOW TO RUN IT:
+#   docker compose -f infra/staging/docker-compose.staging.yml up -d
+#   ...with the required variables set first. See docs/stage-17-staging-deployment.md.
+# ============================================================================
+
+# Names the whole stack, so its containers and networks are distinguishable from
+# the local ones and the two can coexist on one machine.
+name: supportops-ai-copilot-staging
+
+# A YAML ANCHOR. The `x-` prefix marks a block Docker Compose ignores, and
+# `&app-environment` gives it a name that can be reused below.
+#
+# Its purpose here is to fix a real weakness of the local compose file: there,
+# the same twelve environment variables are copied into three services, so
+# changing one means remembering to change it in three places — and a missed copy
+# leaves the API and the worker disagreeing about which database they use.
+#
+# Here it is written once and referenced with `*app-environment`. They cannot
+# drift apart.
+x-app-environment: &app-environment
+  # Optional, with sensible defaults.
+  APP_NAME: ${APP_NAME:-supportops-ai-copilot}
+  APP_ENV: ${APP_ENV:-staging}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+  # REQUIRED — note the `:?`. These three have no safe default:
+  #   a wrong DATABASE_URL could point at the wrong database entirely
+  #   a wrong REDIS_URL means jobs silently never run
+  #   a missing CORS_ORIGINS means the console cannot call the API at all
+  # Failing loudly at deploy time beats discovering any of these in production.
+  DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+  REDIS_URL: ${REDIS_URL:?Set REDIS_URL}
+  CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS}
+
+  # The pilot controls, with the same cautious defaults as local: on, but only
+  # for one tenant and one ticket category. Widening the rollout is a matter of
+  # changing these variables and restarting — no code change, no new image.
+  AI_ANALYSIS_ENABLED: ${AI_ANALYSIS_ENABLED:-true}
+  AI_ANALYSIS_ENABLED_TENANTS: ${AI_ANALYSIS_ENABLED_TENANTS:-tenant_demo}
+  AI_ANALYSIS_ENABLED_CATEGORIES: ${AI_ANALYSIS_ENABLED_CATEGORIES:-billing}
+
+  # NOTE THE DEFAULT IS STILL "mock". A good, conservative choice: a staging
+  # deployment that forgets to configure a provider produces canned answers
+  # rather than quietly spending money.
+  MODEL_PROVIDER: ${MODEL_PROVIDER:-mock}
+  # Defaults to EMPTY, not to a placeholder key. Deliberate — with the hosted
+  # provider selected, an empty key fails immediately and clearly (see the
+  # constructor checks in providers/hosted.py) instead of sending requests that
+  # are rejected one by one.
+  MODEL_API_KEY: ${MODEL_API_KEY:-}
+  MODEL_NAME: ${MODEL_NAME:-gpt-5.6}
+  MODEL_BASE_URL: ${MODEL_BASE_URL:-https://api.openai.com/v1}
+  MODEL_TIMEOUT_SECONDS: ${MODEL_TIMEOUT_SECONDS:-30}
+  MODEL_MAX_OUTPUT_TOKENS: ${MODEL_MAX_OUTPUT_TOKENS:-1200}
+  # Default to zero, but they should be set to the REAL per-token prices when
+  # using a real provider — otherwise every cost report reads zero and the
+  # value-for-money figures become meaningless.
+  MODEL_INPUT_COST_PER_1K_TOKENS: ${MODEL_INPUT_COST_PER_1K_TOKENS:-0}
+  MODEL_OUTPUT_COST_PER_1K_TOKENS: ${MODEL_OUTPUT_COST_PER_1K_TOKENS:-0}
+
+services:
+  # --- Applies the database migrations, then exits ---------------------------
+  migrate:
+    # The exact image built and tested by CI, identified by a tag or digest.
+    image: ${SUPPORTOPS_API_IMAGE:?Set SUPPORTOPS_API_IMAGE}
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment: *app-environment    # the shared block from above
+    # `restart: "no"` is essential for a one-shot job. The other services use
+    # `unless-stopped`, which would restart this one endlessly after it
+    # completed successfully — re-running migrations in a loop forever.
+    restart: "no"
+
+  # --- The API ---------------------------------------------------------------
+  api:
+    image: ${SUPPORTOPS_API_IMAGE:?Set SUPPORTOPS_API_IMAGE}
+    environment: *app-environment
+    ports:
+      # The host port is configurable, so several environments can run on one
+      # machine without colliding. The container port stays fixed at 8765.
+      - "${API_HOST_PORT:-8765}:8765"
+    depends_on:
+      migrate:
+        # Waits for the migrations to FINISH SUCCESSFULLY. Note there is no
+        # `depends_on` for postgres or redis here — they are external services
+        # this file does not manage, so Compose cannot wait on them. Reachability
+        # is instead confirmed by the /ready endpoint once running.
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    # THE KEY PRODUCTION SETTING: restart automatically if the process dies, but
+    # NOT if an operator deliberately stopped it. Absent from the local compose
+    # file, where a crash should be noticed rather than papered over.
+    restart: unless-stopped
+
+  # --- The background worker -------------------------------------------------
+  worker:
+    image: ${SUPPORTOPS_API_IMAGE:?Set SUPPORTOPS_API_IMAGE}    # the same image as the API
+    command: ["python", "-m", "supportops_worker.main"]
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # --- The web console -------------------------------------------------------
+  web:
+    image: ${SUPPORTOPS_WEB_IMAGE:?Set SUPPORTOPS_WEB_IMAGE}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  # --- Monitoring ------------------------------------------------------------
+  #
+  # Prometheus and Grafana ARE included here, unlike the database. Reasonable:
+  # they hold no customer data, and losing their history is an inconvenience
+  # rather than a disaster — so running them alongside the app is acceptable
+  # where running the database that way would not be.
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    volumes:
+      # `../prometheus/...` — one level up, because this file lives in
+      # infra/staging/ while the config is in infra/prometheus/. The SAME config
+      # file as local, so both environments scrape identically.
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    environment:
+      # REQUIRED, unlike the local file which hard-codes admin/supportops.
+      # The single most important security difference in this file: a dashboard
+      # server left on well-known default credentials is a standing invitation.
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:?Set GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:?Set GF_SECURITY_ADMIN_PASSWORD}
+      # Defaults to FALSE here, where local defaults to true. Anonymous viewing
+      # is a convenience on a laptop and a data leak on a shared server —
+      # dashboards reveal traffic volumes, error rates, and spending.
+      GF_AUTH_ANONYMOUS_ENABLED: ${GF_AUTH_ANONYMOUS_ENABLED:-false}
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer    # only relevant if anonymous access is enabled
+    ports:
+      - "${GRAFANA_HOST_PORT:-3001}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+
+# Only TWO volumes here, against four in the local file. postgres_data and
+# redis_data are absent because those services are external and manage their own
+# storage — with proper backups, which is precisely why they are external.
+volumes:
+  prometheus_data:
+  grafana_data:

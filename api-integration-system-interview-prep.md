@@ -1,11 +1,13 @@
 # Enterprise API Integration Interview Prep
 
 Prepared on: 2026-07-06  
-Interview focus: API integration, C#, JSON/XML/XSLT, YAML/RAML/OpenAPI, query/path parameters, HTTP status codes, Azure Kafka/Event Hubs, Azure Service Bus, RabbitMQ, low-code/Power Automate, file schedulers, and enterprise system design.
+AI extension added: 2026-07-28
+
+Interview focus: API integration, C#, JSON/XML/XSLT, YAML/RAML/OpenAPI, query/path parameters, HTTP status codes, Azure Kafka/Event Hubs, Azure Service Bus, RabbitMQ, low-code/Power Automate, file schedulers, enterprise system design, and production AI API integration.
 
 ## Read This First
 
-This guide is rewritten around one enterprise shipment and pickup company system because that is the best way to connect all interview topics into one story.
+This guide is rewritten around one enterprise shipment and pickup company system because that is the best way to connect all interview topics into one story. The AI section extends the same system with an **AI exception copilot**; it does not replace the deterministic shipment workflow.
 
 Assumptions:
 
@@ -16,6 +18,7 @@ Assumptions:
 - High-volume GPS/tracking events are streamed.
 - Business commands like "create shipment", "schedule pickup", and "send notification" are queued reliably.
 - C# is the main coding language for examples.
+- Operations users may ask an AI copilot to summarize an exception, retrieve permitted policy evidence, draft communication, and propose a next action. The ordinary application remains the authority for identity, authorization, validation, approval, and writes.
 
 One strong interview line:
 
@@ -34,6 +37,7 @@ Business capabilities:
 - Partners send bulk shipment files.
 - Customers track packages.
 - Operations teams handle exceptions.
+- An AI exception copilot helps operations investigate and draft a response, while consequential actions still require deterministic policy checks and human approval.
 - Finance receives billing events.
 - Notifications are sent by email, SMS, or Teams.
 
@@ -52,6 +56,8 @@ Systems involved:
 - API Management gateway
 - Identity provider such as Microsoft Entra ID
 - Monitoring through Application Insights, Log Analytics, dashboards, and alerts
+- AI Exception Copilot API in ASP.NET Core
+- Provider-neutral model gateway, retrieval service/vector index, tool/MCP boundary, evaluation store, and AI telemetry
 
 ## High-Level Architecture
 
@@ -75,6 +81,12 @@ Shipment Integration API (.NET/C#)
         +--> Power Automate for approvals, alerts, and operations workflows
         |
         +--> RabbitMQ bridge for on-prem warehouse/partner systems
+        |
+        +--> AI Exception Copilot (.NET/C#)
+              +--> Provider-neutral model gateway
+              +--> Permission-aware retrieval and citations
+              +--> Read tools / MCP; approval-gated write commands
+              +--> Evaluation, cost, and OpenTelemetry pipeline
 ```
 
 Main flows:
@@ -84,6 +96,7 @@ Main flows:
 - Message flow: API publishes `ShipmentCreated` to Service Bus so downstream workers can process labels, billing, notifications, and pickup planning.
 - Stream flow: driver mobile app publishes location/tracking scans to Event Hubs/Kafka.
 - Low-code flow: Power Automate watches exceptions and sends approval/notification workflows.
+- AI flow: an authorized operator asks for exception help; the copilot retrieves permitted evidence, returns a structured draft or streams an explanation, and creates an approval request rather than executing a consequential action directly.
 
 ## End-To-End Shipment Flow
 
@@ -99,6 +112,9 @@ Main flows:
 10. Operations team sees exceptions through dashboard and Power Automate alerts.
 11. Failed messages go to DLQ.
 12. All logs include `Correlation-Id`.
+13. For an exception, an authorized operator requests AI assistance with a purpose and a bounded shipment identifier.
+14. The copilot retrieves only evidence allowed for that operator and tenant, produces citations and a typed recommendation, and may propose a tool call.
+15. A normal application service re-authorizes any proposed write, obtains approval for the exact action and arguments, then publishes an idempotent command and verifies the result.
 
 Interview answer:
 
@@ -1842,6 +1858,404 @@ Follow-up details:
 - Monitoring: Application Insights, Log Analytics, queue metrics, DLQ alerts, file processing audit.
 - Deployment: CI/CD, infrastructure as code, environment-specific config.
 
+## AI API Integration And System Design: Shipment Exception Copilot
+
+Interview question:
+
+> Add an AI copilot to the shipment platform. It should explain delayed or failed shipments, retrieve policy and operational evidence, draft customer communication, and propose a remediation without creating an unsafe or provider-locked system.
+
+Strong opening answer:
+
+> I would keep shipment state transitions and authorization deterministic. The AI copilot is a bounded decision-support service behind the existing API gateway. It receives an authorized case context, uses a provider-neutral model gateway, retrieves only permitted evidence, returns a schema-validated recommendation with citations, and can propose tools. A normal application service re-authorizes consequential writes and requires approval for the exact action and arguments. I would evaluate, trace, budget, and fail over the AI path independently from the shipment transaction path.
+
+### Scope And Non-AI Baseline
+
+Use AI for:
+
+- Summarizing a complicated exception timeline.
+- Classifying the likely exception type with confidence and abstention.
+- Retrieving relevant carrier contracts, operating policy, and runbook evidence.
+- Drafting an operator explanation or customer message.
+- Proposing a next action and explaining the evidence behind it.
+
+Do not use AI as the source of truth for:
+
+- Current shipment state, identity, entitlement, money, or deadlines.
+- Whether a user may view a document or execute an action.
+- Creating a refund, reroute, pickup change, or customer notification without deterministic checks.
+- Silent fallback when the system lacks sufficient evidence.
+
+The non-AI baseline should still let an operator view the canonical exception timeline, search policy, select an approved disposition, and send a templated message. This baseline provides continuity during a model outage and a measurable comparison for the AI feature.
+
+### Provider-Neutral Architecture
+
+```text
+Operations UI
+    |
+    v
+API Management / ASP.NET Core Copilot API
+    |-- Authentication, tenant scope, rate limit, idempotency
+    |
+    +--> Copilot Orchestrator (bounded state machine)
+           |-- Context and budget policy
+           |-- Retrieval planner and evidence verifier
+           |-- Structured-output validator
+           |-- Tool proposal and approval state
+           |
+           +--> Model Gateway --> Provider A
+           |                 --> Provider B
+           |                 --> Approved self-hosted model
+           |
+           +--> Permission-aware search / vector index
+           +--> Shipment read API and secured MCP tools
+           +--> Approval and command service --> Service Bus
+           +--> Eval store and OpenTelemetry pipeline
+```
+
+Component responsibilities:
+
+- **Copilot API:** authenticates the caller, resolves tenant and purpose, validates request size, assigns correlation and idempotency identifiers, and exposes ordinary and streaming endpoints.
+- **Copilot orchestrator:** runs explicit retrieve, generate, validate, propose, await-approval, execute, and verify states. It owns loop limits; the model does not.
+- **Model gateway:** maps the internal request to approved providers, records the actual provider/model/version, applies timeout and budget policy, normalizes usage and finish reasons, and returns a provider-neutral error taxonomy.
+- **Retrieval service:** applies tenant, role, case, region, retention, and purpose filters before candidate content can enter model context. It returns stable citation identifiers and document versions.
+- **Tool boundary:** exposes small typed capabilities. Tool execution validates input, checks authorization, enforces idempotency and timeouts, and returns bounded structured results.
+- **Approval service:** stores the exact proposed tool, target, arguments, risk summary, approver, expiry, and decision. Approval of one proposal cannot authorize a changed proposal.
+- **Evaluation and telemetry:** records redacted stage-level evidence, quality outcomes, token/cost usage, latency, and failures without storing secrets, unrestricted PII, or hidden model reasoning.
+
+Do not let provider SDK types leak into business controllers or event contracts. Keep a small internal model request/response contract and put each provider SDK behind an adapter. `Microsoft.Extensions.AI.IChatClient` is a useful .NET abstraction for chat and streaming, but routing, policy, business DTO validation, and failover still belong in your application boundary.
+
+### C# And Microsoft.Extensions.AI Design
+
+Keep business contracts independent from the model SDK:
+
+```csharp
+public sealed record EvidenceCitation(
+    string EvidenceId,
+    string DocumentVersion,
+    string Locator,
+    string SupportedClaim);
+
+public sealed record ProposedAction(
+    string ToolName,
+    JsonElement Arguments,
+    string Risk,
+    bool RequiresApproval);
+
+public sealed record ShipmentExceptionRecommendation(
+    string Summary,
+    string ExceptionType,
+    decimal Confidence,
+    IReadOnlyList<EvidenceCitation> Citations,
+    ProposedAction? ProposedAction,
+    bool Abstained,
+    IReadOnlyList<string> MissingEvidence);
+
+public interface IShipmentExceptionCopilot
+{
+    Task<ShipmentExceptionRecommendation> RecommendAsync(
+        CopilotCaseContext context,
+        CopilotBudget budget,
+        CancellationToken cancellationToken);
+
+    IAsyncEnumerable<CopilotStreamEvent> StreamDraftAsync(
+        CopilotCaseContext context,
+        CopilotBudget budget,
+        CancellationToken cancellationToken);
+}
+```
+
+At the adapter boundary, inject `IChatClient` and use its asynchronous response or streaming methods. An illustrative streaming adapter has this shape:
+
+```csharp
+public sealed class ModelChatAdapter(IChatClient modelClient)
+{
+    public IAsyncEnumerable<ChatResponseUpdate> StreamAsync(
+        IReadOnlyList<ChatMessage> messages,
+        ChatOptions options,
+        CancellationToken cancellationToken) =>
+        modelClient.GetStreamingResponseAsync(
+            messages,
+            options,
+            cancellationToken);
+}
+```
+
+Package registrations and provider adapters can change. Pin and test the selected package version instead of memorizing one startup snippet. The durable interview point is dependency inversion: controllers depend on the business interface, the business service depends on a provider-neutral model abstraction, and provider-specific SDK code stays at the edge.
+
+Structured-output rules:
+
+1. Define a narrow DTO and JSON Schema from the business contract.
+2. Ask the provider for schema-constrained output when it supports that feature.
+3. Treat the response as untrusted even when the provider reports schema compliance.
+4. Parse, validate required fields and enums, cap collection sizes, verify citations, and apply business invariants.
+5. Repair only within a small retry budget; otherwise return a typed validation failure or abstention.
+6. Never execute a tool merely because its name and arguments appeared in model output.
+
+If Semantic Kernel is selected, use it behind the same interfaces for filters, plugins, or orchestration that produce measurable value. If a preview agent framework is explored, isolate it behind an adapter, pin the version, record preview/migration risk, and keep the production acceptance criteria framework-neutral.
+
+### HTTP And Streaming Contracts
+
+Suggested endpoints:
+
+| Endpoint | Purpose | Important contract details |
+|---|---|---|
+| `POST /shipments/{shipmentId}/exception-assistance` | Start a bounded recommendation run | Caller purpose, expected shipment version, idempotency key, output mode, and budget profile |
+| `GET /copilot-runs/{runId}` | Read current state and final typed result | Tenant authorization, status, citations, provider/model metadata, usage, and error taxonomy |
+| `GET /copilot-runs/{runId}/events` | Stream progress and text deltas through SSE | Monotonic event sequence, event type, redacted payload, heartbeat, terminal event, disconnect cancellation policy |
+| `POST /copilot-runs/{runId}/approval` | Approve or reject an exact proposal | Proposal hash/version, exact tool and arguments, approver identity, expiry, decision, and reason |
+| `POST /copilot-runs/{runId}/execute` | Execute an approved proposal | Approval reference, idempotency key, expected aggregate version, command result, and verification state |
+
+Use WebSockets only when the product needs bidirectional, long-lived interaction. SSE is often simpler for server-to-browser token/progress streaming. Streaming does not change the final contract: persist the authoritative validated result separately from transient deltas.
+
+Useful event types are `run.started`, `retrieval.completed`, `draft.delta`, `validation.failed`, `approval.required`, `run.completed`, and `run.failed`. Do not stream raw prompts, secrets, hidden reasoning, or unrestricted retrieved text.
+
+Important status behavior:
+
+- `202 Accepted` when a long-running copilot run or tool command is queued.
+- `400 Bad Request` for malformed input; `401` and `403` for authentication and authorization failures.
+- `404 Not Found` without leaking whether another tenant owns the shipment.
+- `409 Conflict` for stale shipment/proposal versions or a changed action after approval.
+- `422 Unprocessable Content` when the request is valid JSON but violates the AI business contract or the final structured result cannot be validated.
+- `429 Too Many Requests` for rate, concurrency, token, or spend limits, with a retry hint where appropriate.
+- `502 Bad Gateway` for an unusable provider response and `503 Service Unavailable` when no permitted provider/path is available.
+
+### RAG And Agentic Retrieval
+
+Retrieval sources can include carrier service agreements, customer communication policy, customs guidance, warehouse procedures, outage notices, shipment event history, and approved runbooks. Keep canonical live shipment fields in the operational API; do not rely on an embedding index for current state.
+
+Classic RAG path:
+
+1. Convert the authorized operator question into a bounded query.
+2. Apply tenant, partner, role, region, document-version, effective-date, and purpose filters before retrieval.
+3. Combine lexical and dense candidates where justified, rerank, and cap context by evidence value and token budget.
+4. Generate from the permitted evidence and require stable citations.
+5. Verify each material claim against cited content and abstain when evidence is absent or conflicting.
+
+Use classic RAG first for simple, predictable questions because it is easier to test, faster, and cheaper. Add **agentic retrieval** only for multi-part questions such as whether a customs hold, carrier SLA, weather event, and customer tier together allow an escalation. A bounded agentic path may plan subqueries, call retrieval more than once, compare conflicting evidence, and check evidence coverage before answering.
+
+Agentic retrieval controls:
+
+- Maximum subqueries, iterations, retrieved documents, context tokens, elapsed time, and spend.
+- Permission filters on every retrieval, not only the first query.
+- Deduplication and freshness checks across iterations.
+- Explicit stop reasons: answered, insufficient evidence, conflicting evidence, limit reached, or dependency unavailable.
+- No write tool inside the retrieval loop.
+- Evaluation against the same cases as classic RAG so added quality can be weighed against added latency and cost.
+
+Evaluate retrieval separately from generation. Retrieval metrics include recall at k, MRR or nDCG where labels exist, authorization leakage rate, freshness, and citation coverage. Generation metrics include factual support, citation correctness, structured-output validity, completeness, abstention quality, and unsupported-claim rate.
+
+If conversational state is needed, separate request context, session state, durable workflow state, user preferences, and retrieval-backed memory. Define who may write each type, provenance, expiry, correction, deletion, and whether it is allowed to influence tool selection. Do not turn every transcript into permanent memory.
+
+### Tools, MCP, Entra ID, And Human Approval
+
+Example tool surface:
+
+| Capability | Risk class | Control |
+|---|---|---|
+| Read shipment state and timeline | Read | Tenant/role authorization, field filtering, bounded result |
+| Search permitted policy | Read | Metadata authorization before retrieval, citations, result-size cap |
+| Calculate SLA deadline | Deterministic read | Versioned rules and tests; prefer code over model arithmetic |
+| Draft customer message | Draft | Content/PII checks; no send side effect |
+| Propose reroute, pickup change, refund, or notification | Proposal | Typed arguments, risk summary, no side effect |
+| Execute approved command | Consequential write | Re-authorization, exact-action approval, idempotency, optimistic concurrency, audit, verify/compensate |
+
+MCP can standardize discovery and invocation of tools across compatible clients and servers, but it is not an authorization system by itself. Treat an MCP server and every tool result as an external integration boundary:
+
+- Authenticate client and server and propagate only required identity/policy context.
+- Allowlist server identity, capabilities, tools, and schema versions.
+- Validate tool inputs and outputs, cap payload size, redact secrets, and enforce timeouts/rate limits.
+- Defend against prompt injection embedded in tool descriptions or tool results.
+- Keep business authorization and approval in ordinary application services outside the model and outside descriptive tool metadata.
+- Test unavailable tools, malicious results, duplicate requests, partial failure, and all-tools-failed escalation.
+
+For Microsoft Entra ID environments:
+
+- Authenticate operators through OIDC/OAuth and derive tenant, role, and delegated scopes from validated claims.
+- Use managed identity for Azure-hosted workload-to-service calls where the target supports it; assign the narrowest resource/data-plane role.
+- Use on-behalf-of delegation only when the downstream service truly needs the user's delegated identity. Do not reuse a powerful application identity to bypass user-level document or tool authorization.
+- Separate model-provider authentication from business authorization. A successful provider token says nothing about whether the operator may view a shipment or issue a refund.
+- Never place bearer tokens, API keys, or full identity claims in prompts, tool descriptions, or telemetry.
+
+Approval sequence:
+
+1. Model returns a typed proposal; it has no write capability.
+2. Application validates arguments, computes the risk, and checks whether the caller may propose the action.
+3. Approval service stores an immutable proposal version/hash, exact target and arguments, expiry, and required approver policy.
+4. Authorized human approves or rejects after seeing evidence and impact.
+5. Execution service re-checks authorization, approval freshness, idempotency, and expected shipment version.
+6. Service publishes or performs the command, verifies the effect, and records audit/compensation status.
+
+If any argument changes, request a new approval. A generic approve button or a model statement that an action was approved is not sufficient evidence.
+
+### Reliability, Idempotency, Provider Fallback, And Budgets
+
+Use a typed failure taxonomy rather than retrying every exception:
+
+| Failure | Typical response |
+|---|---|
+| Client validation, authorization, policy rejection | Do not retry; return the correct 4xx/policy result |
+| Provider throttling | Honor retry guidance, exponential backoff with jitter, reduce concurrency, or queue within the deadline |
+| Transient timeout or selected 5xx | Retry only idempotent model/read operations within attempt and elapsed-time limits |
+| Invalid structured output | Validate; allow at most a small repair/retry budget; then abstain or return a typed failure |
+| Context too large | Deterministically trim/retrieve/summarize within policy; do not repeatedly send the same oversized request |
+| Provider outage | Open the circuit and route only to a pre-approved compatible fallback |
+| Safety or data-residency constraint | Do not weaken the constraint to make fallback succeed |
+| Tool write ambiguous after timeout | Query operation status by idempotency key before retrying; never assume failure means no side effect |
+
+Idempotency has multiple levels:
+
+- A client idempotency key prevents duplicate assistance runs for the same request and policy version.
+- A run identifier and step identifier prevent duplicate workflow steps after worker retries.
+- A proposal identifier/version prevents approval from moving to changed arguments.
+- A command idempotency key and expected shipment version prevent duplicate or stale writes.
+- An outbox publishes approved commands atomically with local state; an inbox/consumer record prevents repeated downstream effects.
+
+Streaming requires special care. If a provider fails before any event is delivered, the gateway may retry within policy. After partial content is visible, silently restarting on another provider can duplicate or contradict text. Emit a terminal failure event, preserve the run state, and let the client start or resume through an explicit supported contract. The authoritative structured result is committed only after full validation.
+
+Provider fallback is a policy decision, not a catch block. The fallback must be approved for the tenant, region, data classification, modality, context size, structured-output/tool capability, latency target, and quality threshold. Record both attempted and selected provider/model identifiers. Re-run output validation, citation checks, and safety controls after fallback. Use a deterministic non-AI workflow when no compliant model path remains.
+
+Define a budget envelope before the run:
+
+| Budget | Example control |
+|---|---|
+| Input/context | Maximum prompt tokens, retrieved documents, bytes per tool result, and conversation turns |
+| Output | Maximum output tokens and structured collection sizes |
+| Workflow | Maximum model calls, retrieval calls, tool proposals, and agentic iterations |
+| Time | Per-stage timeout and total end-to-end deadline |
+| Concurrency | Per-user, tenant, provider, and deployment limits |
+| Money | Estimated preflight cost, maximum run cost, daily tenant budget, and alert/stop thresholds |
+| Quality | Minimum citation coverage/confidence and mandatory abstention below policy thresholds |
+
+Track cost per **validated successful task**, not only cost per token. Include retries, retrieval/reranking, failed outputs, tool calls, and human-review burden. Cache only when authorization, tenant, model/prompt version, tool/data version, and privacy rules make the cache key and invalidation safe.
+
+### Prompt Injection, PII, And Data Protection
+
+Treat user text, carrier notes, emails, PDFs, retrieved documents, web pages, tool descriptions, and tool results as untrusted data. Prompt delimiters help organization but are not an authorization control.
+
+Controls:
+
+- Keep system policy and tool authorization outside retrieved content and outside model discretion.
+- Filter retrieval by authorization before content reaches the model; do not retrieve broadly and ask the model to hide forbidden text.
+- Allowlist tools and constrain arguments from trusted application context. Never accept a document instruction to reveal secrets, change policy, or call a write tool.
+- Scan inputs and outputs for sensitive data according to purpose; minimize, redact, tokenize, or block PII and secrets before provider or telemetry export.
+- Preserve evidence provenance and classify sources so low-trust content cannot silently override approved policy.
+- Use outbound network and tool egress controls, result-size limits, sandboxing for risky execution, and data-loss-prevention rules.
+- Define retention and deletion for prompts, retrieved context, responses, evaluation samples, traces, and memory separately.
+- Red-team direct and indirect injection, cross-tenant retrieval, data exfiltration, encoded payloads, malicious tool results, approval spoofing, and denial-of-wallet attacks.
+
+Do not promise that one moderation call or prompt can eliminate injection. A strong answer describes layered controls, limited blast radius, observable failures, and a safe non-AI fallback.
+
+### Evaluation, Release Gates, And Production Feedback
+
+Build the evaluation set before claiming the copilot works. Include normal delayed shipments, missing scans, customs holds, conflicting carrier/customer notes, expired policy, ambiguous causes, restricted documents, multilingual text where relevant, provider/tool failures, prompt injection, PII, and cases that require abstention or escalation.
+
+Measure by stage:
+
+- **Retrieval:** recall at k, ranking quality, permission leakage, freshness, evidence coverage, and citation resolution.
+- **Structured response:** schema validity, required-field validity, exception classification, unsupported claims, citation correctness, abstention precision/recall, and missing-evidence identification.
+- **Tools/workflow:** correct tool selection and arguments, unauthorized action rate, duplicate-action rate, approval enforcement, recovery, escalation, step count, and task completion.
+- **Operations:** p50/p95 latency, time to first stream event, provider/error rate, tokens, cost per validated successful task, human acceptance/edit rate, and time to resolution.
+- **Safety:** direct/indirect injection success, cross-tenant leakage, PII/secret leakage, over-refusal, and subgroup/language slices.
+
+Use deterministic checks wherever possible. A model-based judge can help with nuanced rubrics, but calibrate it against blinded human labels, report disagreements and slices, and never use the same unreviewed judge as the sole launch authority. Keep evaluation data versioned with source/provenance, annotation guidance, prompt/model/retrieval/tool versions, and contamination checks.
+
+Release gate example:
+
+- Zero successful unauthorized writes and zero cross-tenant evidence leakage in the required suite.
+- Required structured-output and citation thresholds pass with confidence bounds where practical.
+- No regression beyond declared quality, safety, p95 latency, and cost tolerances.
+- Provider fallback and deterministic fallback drills pass.
+- Human reviewers sign off high-risk and difficult-case slices.
+
+Sample production outcomes through a privacy-reviewed feedback workflow. Separate explicit operator corrections from implicit clicks, investigate failures, add reviewed cases to a new dataset version, run regression evaluation, and release through a canary/rollback process. Do not train automatically on raw production conversations.
+
+### OpenTelemetry And AI Operations
+
+Use one correlation identifier from the incoming HTTP request through retrieval, model calls, tool/MCP calls, Service Bus commands, approval, and verification. A useful trace hierarchy is:
+
+```text
+shipment.exception.assist
+  |- authorize_context
+  |- retrieve_evidence
+  |    |- search
+  |    `- rerank
+  |- model.generate
+  |- validate_and_verify
+  |- approval.create
+  `- tool.execute_and_verify
+```
+
+Record provider and actual model/deployment identifiers, operation, response/finish reason, input/output token usage when available, cache/fallback status, stage latency, retrieval counts, citation/validation outcome, tool name and outcome, approval state, error type, and estimated cost. Use bounded identifiers and low-cardinality dimensions for metrics.
+
+Do not record raw prompts, completions, retrieved documents, bearer tokens, secrets, unrestricted PII, or hidden chain-of-thought by default. If authorized content capture is required for debugging/evaluation, use explicit sampling, access control, redaction, encryption, retention, and deletion policy.
+
+OpenTelemetry GenAI conventions and vendor integrations continue to evolve. Pin the convention/instrumentation version used by the project, document it, and map a small stable internal telemetry contract to the current attributes. Do not hard-code business dashboards to one preview attribute without a compatibility layer.
+
+Operational signals:
+
+- RED for the copilot API: request rate, error/abstention/limit rate, and duration/TTFT.
+- Saturation: worker queue age, concurrent model calls, provider quota, retrieval capacity, connection pools, and approval backlog.
+- Quality canaries: schema validity, citation support, evaluation sample failures, fallback frequency, tool/approval anomalies, and cost per success.
+- Alerts should connect to a runbook and recent deployment/provider/configuration changes. AI may summarize evidence, but an operator owns the incident decision.
+
+### Architecture ADR Prompt
+
+In an interview, compare three deployable shapes: a modular monolith, an API plus event-driven workers, and separate model/retrieval/agent services. Start with the simplest boundary that satisfies security and reliability. Extract components only for measured independent scaling, failure isolation, data/permission ownership, deployment cadence, runtime/GPU needs, or team ownership. Record APIs/events, consistency, retry/idempotency, observability, rollback, and the trigger that would justify extraction. AI does not automatically imply microservices.
+
+### AI Integration Mock Interview Questions
+
+#### Why not put the model call directly in the Shipment API controller?
+
+The controller should remain a thin transport boundary. A provider-neutral copilot service centralizes authorization context, model routing, budgets, structured-output validation, retrieval, evaluation metadata, and fallback. This prevents provider SDK types and inconsistent safety logic from spreading through the application.
+
+#### What does Microsoft.Extensions.AI give you, and what must you still build?
+
+It provides .NET abstractions such as `IChatClient` for chat and streaming across compatible implementations, plus composable middleware/instrumentation patterns. The application still owns provider approval and routing, tenant/business authorization, prompt and output contracts, retries, idempotency, cost policy, RAG, tool approval, evaluation, and incident response.
+
+#### How would you guarantee structured output?
+
+Define a typed business DTO and schema, request schema-constrained output when supported, deserialize as untrusted data, validate schema and business invariants, verify citations, and reject or repair within a bounded budget. No provider feature eliminates application validation.
+
+#### How would you stream safely?
+
+Use SSE for one-way updates unless bidirectional communication requires WebSockets. Include run and event sequence identifiers, cancellation, heartbeats, typed terminal events, and a separately committed final validated result. Do not silently switch providers after partial visible output.
+
+#### Classic RAG or agentic retrieval?
+
+Start with classic permission-aware hybrid retrieval because it is predictable and cheap. Use bounded agentic retrieval for complex multi-part questions only when evaluation shows enough quality gain to justify extra calls, latency, and cost; enforce authorization and limits on every iteration.
+
+#### Is MCP the security layer for tools?
+
+No. MCP can standardize tool discovery and invocation, but application identity, authorization, capability allowlists, input/output validation, rate limits, idempotency, approval, and audit still enforce security. Treat MCP servers and results as untrusted integration boundaries.
+
+#### How do Entra ID and managed identity fit?
+
+Entra authenticates users/workloads and supplies validated claims or service identity. Use delegated user authorization for operator access and managed identity for supported Azure service-to-service calls with least-privilege roles. Never confuse provider authentication with permission to see a shipment or execute a business action.
+
+#### When is it safe to retry an AI request?
+
+Retry transient idempotent model/read operations with capped attempts, elapsed time, jitter, and provider guidance. Do not retry authorization, validation, or policy failures. For ambiguous writes, query by idempotency key before retrying, and for partial streams surface an explicit failure rather than silently duplicating output.
+
+#### How do you design model fallback?
+
+Pre-approve compatible fallbacks by region, data classification, capability, context size, latency, cost, and measured quality. Record the selected provider/model and re-run validation and safety checks. If no compliant model is available, use the deterministic workflow; do not weaken controls.
+
+#### How do you control tokens and cost?
+
+Set preflight and runtime limits for context, output, retrieval, calls/steps, time, concurrency, and money. Attribute usage by tenant/use case/model, alert and stop at thresholds, and optimize cost per validated successful task rather than cost per token alone.
+
+#### How do you defend against prompt injection and PII leakage?
+
+Treat all external/retrieved/tool content as untrusted, filter retrieval before context construction, keep authorization outside the model, allowlist and validate tools, minimize/redact data, control egress and retention, and red-team direct/indirect injection and cross-tenant leakage. Prompt wording is only one layer.
+
+#### How do you know the copilot is production-ready?
+
+Show a versioned difficult-case/adversarial dataset, separate retrieval/generation/tool metrics, human-calibrated judging, zero unauthorized writes and tenant leakage in required tests, latency/cost/SLO evidence, fallback and rollback drills, privacy-reviewed telemetry, and a blocked-release demonstration.
+
+#### What would you trace?
+
+Trace authorization/context construction, retrieval/reranking, each model attempt/fallback, validation/citation checks, approval, tool/MCP calls, command publication, and verification. Record bounded metadata, usage, cost, latency, and errors; do not log secrets, unrestricted content, or hidden reasoning.
+
 ## Other Interview Topics They May Ask
 
 ### REST vs SOAP
@@ -2013,7 +2427,13 @@ Study Power Automate flows, Parse JSON, HTTP action, custom connectors, and erro
 
 ### Hour 6
 
-Practice the full shipment system design answer out loud.
+Practice the full shipment system design answer out loud, then explain where the AI exception copilot attaches without moving shipment authority into the model.
+
+### Optional Hours 7 And 8 For AI-Focused Roles
+
+- Draw the provider-neutral copilot architecture and explain the C# interfaces, streaming contract, structured-output validation, and Entra/workload identity boundary.
+- Practice classic versus agentic RAG, tools/MCP and exact-action approval, retry/idempotency/fallback, token/cost budgets, injection/PII controls, evaluation gates, and OpenTelemetry traces.
+- Run the AI mock questions above without notes and defend one architecture ADR: modular monolith versus event-driven workers versus separate services.
 
 ### Final 30 Minutes
 
@@ -2028,6 +2448,11 @@ Memorize these lines:
 - "RabbitMQ is strong for exchange-based routing and existing broker environments."
 - "Power Automate is useful for low-code operational workflows, but production flows still need error handling, logging, and secure connections."
 - "For JSON without a class, I use JsonDocument/JsonElement and LINQ projection."
+- "The model proposes; normal application authorization and approval control consequential writes."
+- "Provider abstraction does not replace business validation, evaluation, or fallback policy."
+- "Classic RAG first; agentic retrieval only when measured quality justifies its latency and cost."
+- "A streamed draft is not the authoritative result; commit only the final validated contract."
+- "I optimize and alert on cost per validated successful task, not token price alone."
 
 ## Sources For Review
 
@@ -2043,3 +2468,9 @@ Memorize these lines:
 - JSON RFC 8259: https://www.rfc-editor.org/rfc/rfc8259
 - XML 1.0 specification: https://www.w3.org/TR/xml/
 - XSLT 3.0 specification: https://www.w3.org/TR/xslt-30/
+- Microsoft .NET `IChatClient` guidance: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
+- Microsoft .NET managed identity with Azure OpenAI: https://learn.microsoft.com/en-us/dotnet/ai/how-to/app-service-aoai-auth
+- Microsoft Agent Framework overview and feature-status notes: https://learn.microsoft.com/en-us/agent-framework/overview/
+- Model Context Protocol specification: https://modelcontextprotocol.io/specification/
+- OpenTelemetry GenAI semantic-convention location/status: https://opentelemetry.io/docs/specs/semconv/gen-ai/
+- OWASP GenAI Security Project: https://genai.owasp.org/

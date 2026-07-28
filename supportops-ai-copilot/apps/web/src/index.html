@@ -1,0 +1,294 @@
+<!doctype html>
+<!--
+  ==========================================================================
+  FILE: apps/web/src/index.html
+
+  THINK OF THIS FILE AS: the structure of the console — every field, button,
+  and empty container that app.js later fills with data.
+
+  It contains no logic at all. HTML describes WHAT is on the page; app.js
+  decides what happens when you interact with it, and styles.css decides how it
+  looks. Keeping the three separate is why each file stays readable.
+
+  THE CONNECTION TO app.js IS THE `id` ATTRIBUTES.
+    Every element with an id here is looked up by that exact name in app.js:
+      <button id="createTicketButton">  <-  bindAction("createTicketButton", ...)
+      <div id="ticketList">             <-  elements.ticketList
+    That means the ids are a CONTRACT between the two files. Rename one here
+    without renaming it there and the console breaks at startup — which is
+    actually the good outcome, since app.js looks everything up immediately and
+    fails loudly rather than producing a button that silently does nothing.
+
+  THE LAYOUT:
+    header  - status badges (API up? ready? which ticket is selected?)
+    aside   - connection settings and identity, always visible
+    main    - four tabs: Workflow, Policies, Metrics, Events
+
+  A NOTE ON THE FORM VALUES: the fields are pre-filled with a working example —
+  a "Charged twice" billing ticket. Deliberate: billing is the only category the
+  pilot allows in docker-compose.yml, so the default values are ones that will
+  actually succeed when you press the AI analysis buttons.
+  ==========================================================================
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Makes the page scale properly on a phone rather than rendering a
+         zoomed-out desktop layout. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SupportOps Copilot Console</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- The top bar: identity of the app, and three live status badges. -->
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SupportOps</p>
+        <h1>Copilot Console</h1>
+      </div>
+      <!-- `aria-live="polite"` tells screen readers to announce changes in here
+           when convenient, rather than interrupting. Without it, a status
+           changing from "API" to "API error" would be silent for anyone using a
+           screen reader — they would have no idea the request had failed. -->
+      <div class="status-strip" aria-live="polite">
+        <!-- All three start as "neutral" (grey). app.js swaps the class to
+             "ok", "warn", or "error" to change the colour. -->
+        <span id="apiStatus" class="status-pill neutral">API</span>
+        <span id="readyStatus" class="status-pill neutral">Ready</span>
+        <span id="selectionStatus" class="status-pill neutral">No ticket selected</span>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <!-- The sidebar stays visible across all tabs, because these settings
+           apply to every action. -->
+      <aside class="side-panel" aria-label="Connection and identity">
+        <section class="panel">
+          <h2>Connection</h2>
+          <!-- `for="apiBaseUrl"` links the label to the input, so clicking the
+               label focuses the field and screen readers announce them
+               together. It must match the input's id. -->
+          <label for="apiBaseUrl">API URL</label>
+          <!-- This value is overwritten at startup by app.js, which guesses the
+               address from the current page or restores a saved one. The value
+               here is just a sensible fallback if the script fails to load. -->
+          <input id="apiBaseUrl" type="url" value="http://127.0.0.1:8765" />
+          <button id="checkHealthButton" type="button">Check Stack</button>
+        </section>
+
+        <section class="panel">
+          <h2>Actor</h2>
+          <!-- THE IDENTITY FIELDS. These three become the X-Tenant-Id,
+               X-User-Id, and X-Role headers on every API request.
+
+               That they are plain editable text fields is the honest reflection
+               of how this API works: it TRUSTS these headers rather than
+               verifying them. Anyone can type "admin" here. That is acceptable
+               only because a gateway is assumed to sit in front in a real
+               deployment — see dependencies.py and docs/threat-model.md. -->
+          <label for="tenantId">Tenant</label>
+          <!-- Pre-filled with the values created by the seed script
+               (apps/api/supportops_api/seed.py), so the console works
+               immediately after seeding with no typing. -->
+          <input id="tenantId" value="tenant_demo" />
+          <label for="userId">User</label>
+          <input id="userId" value="user_demo_agent" />
+          <label for="role">Role</label>
+          <!-- The four roles from ALLOWED_ROLES in dependencies.py. Defaults to
+               "agent", the least powerful — so you have to deliberately choose
+               a higher one. Note that creating a policy needs "lead", which
+               app.js handles by overriding the role for that one call. -->
+          <select id="role">
+            <option value="agent">agent</option>
+            <option value="lead">lead</option>
+            <option value="admin">admin</option>
+            <option value="service">service</option>
+          </select>
+        </section>
+
+        <!-- Purely decorative: a reminder of the six moving parts in the
+             system. No ids, so app.js never touches this. -->
+        <section class="panel service-map" aria-label="Deployment services">
+          <h2>Services</h2>
+          <div class="service-grid">
+            <span>Web</span>
+            <span>API</span>
+            <span>Worker</span>
+            <span>Postgres</span>
+            <span>Redis</span>
+            <span>Metrics</span>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <!-- The tab buttons. `data-tab` holds the id of the panel each one
+             shows — read by bindTabs() in app.js as `tab.dataset.tab`.
+
+             Keeping the mapping here in the markup, rather than as a list in
+             the JavaScript, means adding a tab is a change in one file. -->
+        <nav class="tabs" aria-label="Workspace tabs">
+          <button class="tab active" type="button" data-tab="workflowPanel">Workflow</button>
+          <button class="tab" type="button" data-tab="policiesPanel">Policies</button>
+          <button class="tab" type="button" data-tab="metricsPanel">Metrics</button>
+          <button class="tab" type="button" data-tab="eventsPanel">Events</button>
+        </nav>
+        <!-- `type="button"` on every button here is important: inside a form,
+             the default type is "submit", which would reload the page. -->
+
+        <!-- ============ TAB 1: THE MAIN WORKFLOW ============
+             This panel walks through the whole product in order:
+             create a ticket -> analyse it -> review the draft. -->
+        <section id="workflowPanel" class="tab-panel active">
+          <div class="panel-grid two-columns">
+            <section class="panel">
+              <h2>New Ticket</h2>
+              <label for="externalId">External ID</label>
+              <!-- Left empty: app.js fills it with a timestamp-based value, so
+                   each submission is unique. Without that, the second create
+                   would be recognised as a duplicate by routes/tickets.py and
+                   return the existing ticket instead — correct behaviour that
+                   looks like a bug when you are testing. -->
+              <input id="externalId" />
+              <label for="subject">Subject</label>
+              <!-- "Charged twice" is chosen carefully: it matches the billing
+                   keywords in the baseline classifier AND the high-priority
+                   terms, so it demonstrates several rules at once. -->
+              <input id="subject" value="Charged twice" />
+              <label for="body">Body</label>
+              <!-- Contains "ORD-123", which matches the order-number pattern in
+                   baseline.py — so the extracted_fields in the result will
+                   actually have something in them. -->
+              <textarea id="body" rows="6">I was charged twice for order ORD-123.</textarea>
+              <label for="customerId">Customer ID</label>
+              <input id="customerId" value="customer-123" />
+              <button id="createTicketButton" type="button">Create Ticket</button>
+            </section>
+
+            <section class="panel">
+              <h2>Tickets</h2>
+              <div class="button-row">
+                <button id="refreshTicketsButton" type="button">Refresh</button>
+                <!-- THE TWO ANALYSIS PATHS, side by side — the clearest
+                     illustration of the core design decision in this project.
+
+                     "Sync Analysis"  - calls the AI and WAITS. The page pauses.
+                     "Queue Analysis" - hands the job to the background worker
+                                        and returns instantly; you then press
+                                        "Refresh" under Analysis Runs to watch
+                                        the status change.
+
+                     Both must have a ticket selected first, which is why you
+                     click a row in the list below before pressing them. -->
+                <button id="syncAnalysisButton" type="button">Sync Analysis</button>
+                <button id="queueAnalysisButton" type="button">Queue Analysis</button>
+              </div>
+              <!-- Empty on purpose. renderTickets() in app.js fills it, and
+                   shows "No tickets loaded." when there is nothing. -->
+              <div id="ticketList" class="list"></div>
+            </section>
+          </div>
+
+          <div class="panel-grid two-columns">
+            <section class="panel">
+              <h2>Recommendations</h2>
+              <div class="button-row">
+                <button id="refreshRecommendationsButton" type="button">Refresh</button>
+                <!-- THE HUMAN APPROVAL STEP — the safety mechanism at the heart
+                     of the product. Nothing the AI writes reaches a customer
+                     until a person presses this.
+
+                     The console only supports approving. Rejecting or editing
+                     would need extra fields for the corrected text; this is the
+                     minimum needed to demonstrate the flow and generate data
+                     for the metrics. -->
+                <button id="approveButton" type="button">Approve</button>
+              </div>
+              <div id="recommendationList" class="list"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Analysis Runs</h2>
+              <div class="button-row">
+                <!-- The manual poll. A real UI would refresh on a timer;
+                     leaving it manual makes the asynchronous behaviour visible
+                     rather than hiding it, which suits a teaching console. -->
+                <button id="refreshRunsButton" type="button">Refresh</button>
+              </div>
+              <div id="runList" class="list"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ============ TAB 2: THE COMPANY RULEBOOK ============
+             Policies are plain-English rules pasted into the AI's instructions.
+             Creating one requires the "lead" role, which app.js supplies just
+             for that request. -->
+        <section id="policiesPanel" class="tab-panel">
+          <div class="panel-grid two-columns">
+            <section class="panel">
+              <h2>New Policy</h2>
+              <label for="policyName">Name</label>
+              <input id="policyName" value="Refund review" />
+              <label for="policyContent">Content</label>
+              <!-- A realistic example rule. Text typed here is sent verbatim to
+                   the AI on every future analysis for this company — which is
+                   also why writing policies is a privileged action. -->
+              <textarea id="policyContent" rows="6">Agents must verify duplicate charges before promising refunds.</textarea>
+              <button id="createPolicyButton" type="button">Create Policy</button>
+            </section>
+
+            <section class="panel">
+              <h2>Policies</h2>
+              <div class="button-row">
+                <button id="refreshPoliciesButton" type="button">Refresh</button>
+              </div>
+              <div id="policyList" class="list"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ============ TAB 3: THE SCOREBOARD ============
+             One button loads all five metrics endpoints at once. -->
+        <section id="metricsPanel" class="tab-panel">
+          <section class="panel">
+            <h2>Tenant Metrics</h2>
+            <div class="button-row">
+              <button id="loadMetricsButton" type="button">Load Metrics</button>
+            </div>
+            <!-- The tiles: approval rate, cost, pilot decision, and so on. -->
+            <div id="metricCards" class="metric-grid"></div>
+            <h2>Pilot Feedback</h2>
+            <!-- The individual drafts humans rejected or heavily rewrote.
+                 Clicking one logs the full record to the Events tab, including
+                 the AI's draft and the human's final version side by side —
+                 the single most instructive thing in the console. -->
+            <div id="pilotFeedbackList" class="list"></div>
+          </section>
+        </section>
+
+        <!-- ============ TAB 4: THE EVENT LOG ============
+             Every action writes its full request or response here, newest
+             first. It means you can see exactly what the API returned without
+             opening the browser's developer tools. -->
+        <section id="eventsPanel" class="tab-panel">
+          <section class="panel">
+            <h2>Events</h2>
+            <!-- `<pre>` preserves whitespace and line breaks, which is what
+                 makes the indented JSON readable rather than collapsing it into
+                 one long line. `aria-live` announces new entries to screen
+                 readers. -->
+            <pre id="eventLog" class="event-log" aria-live="polite"></pre>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <!-- Loaded at the END of the body, deliberately. By this point every
+         element above exists, so app.js can look them all up immediately at
+         startup — which is why it needs no DOMContentLoaded wrapper. Placing
+         this in the <head> instead would make every getElementById return
+         null. -->
+    <script src="app.js"></script>
+  </body>
+</html>

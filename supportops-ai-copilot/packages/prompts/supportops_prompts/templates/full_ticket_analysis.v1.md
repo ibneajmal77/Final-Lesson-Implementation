@@ -1,4 +1,4 @@
-﻿# Prompt: $prompt_id
+# Prompt: $prompt_id
 
 ## Task
 
@@ -19,6 +19,16 @@ Allowed priorities:
 - normal
 - high
 - urgent
+
+
+Allowed evidence IDs:
+
+- ticket-subject
+- ticket-body
+- customer-id
+- policy-context
+
+Do not invent evidence IDs. Do not choose tools, permissions, or actions outside the JSON schema.
 
 ## Inputs
 

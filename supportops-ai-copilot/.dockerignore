@@ -1,13 +1,55 @@
+# ============================================================================
+# FILE: .dockerignore
+#
+# THINK OF THIS FILE AS: the packing list of things that must stay out of a
+# Docker build shipment.
+#
+# When Docker builds Dockerfile.api or Dockerfile.web, it first sends the project
+# directory to the Docker engine as the build context. Each pattern below means
+# do not send this. That makes builds faster and keeps local clutter out.
+#
+# THIS IS DIFFERENT FROM .gitignore:
+#   .gitignore      -> controls what Git records in the repository
+#   .dockerignore   -> controls what Docker can see while building an image
+#
+# A file can need both protections. The `.env` file, for example, should be
+# neither committed nor copied into an image because it can contain passwords
+# and API keys. Runtime settings are supplied by docker-compose.yml instead.
+#
+# BUILD FLOW:
+#   docker compose build (docker-compose.yml)
+#     -> send the directory, minus the patterns HERE
+#       -> run Dockerfile.api or Dockerfile.web
+#         -> produce the API/worker or web image
+#
+# WHO USES IT / WHAT LIVES HERE: Docker reads this file automatically for the
+# builds defined by docker-compose.yml, Dockerfile.api, and Dockerfile.web.
+# ============================================================================
+# Git history and internal bookkeeping are unnecessary inside a running
+# container and can make the build context much larger.
 .git/
+# Python virtual environments contain packages installed for one developer's
+# operating system. Dockerfile.api installs a clean, reproducible set from
+# requirements.txt instead.
 .venv/
 venv/
+# Generated Python bytecode and caches. Python recreates these whenever needed;
+# sending them would only add stale, machine-specific files.
 __pycache__/
+# Test, type-checker, and lint caches produced by pytest, mypy, and ruff. None is
+# application source, and none is needed by Dockerfile.api or Dockerfile.web.
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 ruff_cache/
+# Local coverage reports produced by the development tools in
+# requirements-dev.txt. CI may generate these again, but the app never reads them.
 htmlcov/
 .coverage
+# Local secrets and per-machine settings. docker-compose.yml passes environment
+# values into containers at runtime, after the image has already been built.
 .env
+# Captured server output from local debugging. Useful to the developer who made
+# it, but unrelated to the application files copied by the Dockerfiles.
 server.out.log
 server.err.log

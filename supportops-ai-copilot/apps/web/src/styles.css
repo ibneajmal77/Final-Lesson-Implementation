@@ -1,0 +1,472 @@
+/* ==========================================================================
+   FILE: apps/web/src/styles.css
+
+   THINK OF THIS FILE AS: everything about how the console LOOKS. It contains
+   no behaviour and no content — index.html says what is on the page, app.js
+   says what happens when you use it, and this file says how it appears.
+
+   HOW CSS WORKS, in one sentence: each block below names some elements (the
+   "selector"), then lists properties to apply to them.
+     .panel { padding: 16px; }   ->  every element with class="panel" gets
+                                     16 pixels of internal spacing
+
+   THE FILE IS ORGANISED TOP TO BOTTOM AS:
+     1. Colour variables      - the palette, defined once
+     2. Global resets         - a few base rules for the whole page
+     3. Layout                - the header, sidebar, and workspace grid
+     4. Components            - panels, buttons, lists, tabs, metric tiles
+     5. Responsive rules      - how it rearranges on smaller screens
+
+   TWO CSS FEATURES USED THROUGHOUT, worth knowing if they are unfamiliar:
+     CUSTOM PROPERTIES (--name)  - variables. Defined once at the top, used as
+                                   var(--name) everywhere else.
+     GRID                        - a layout system for arranging things in rows
+                                   and columns.
+
+   Properties within each block are in alphabetical order — a convention that
+   makes a specific property easy to find in a long list.
+   ========================================================================== */
+
+/* :root is the whole document. Declaring variables here makes them available
+   everywhere below.
+
+   THE VALUE OF DOING IT THIS WAY: the entire colour scheme is these fourteen
+   lines. Changing the brand colour is one edit here rather than a search across
+   the file, and — importantly — it is impossible to end up with three slightly
+   different greens because someone typed the hex code from memory. */
+:root {
+  /* Tells the browser this page is designed for a light background, so it
+     styles scrollbars and form controls to match rather than assuming dark. */
+  color-scheme: light;
+
+  /* The neutral palette */
+  --bg: #f5f7fa;          /* page background: very light grey */
+  --panel: #ffffff;       /* cards sit slightly brighter than the page, which is
+                             what makes them read as raised */
+  --ink: #17202a;         /* main text: near-black, softer than pure #000 */
+  --muted: #5c6670;       /* secondary text: labels, metadata */
+  --line: #d9e0e7;        /* borders */
+
+  /* The brand colours */
+  --brand: #0f766e;        /* teal: buttons */
+  --brand-strong: #115e59; /* a darker teal for hover and emphasis */
+  --accent: #2563eb;       /* blue: selection and the active tab. Deliberately
+                              different from the brand teal, so "this is
+                              selected" never gets confused with "this is a
+                              button" */
+
+  /* THE STATUS COLOURS. These carry meaning rather than decoration, and they
+     map to the classes app.js applies to the status badges. */
+  --danger: #b42318;      /* error */
+  --ok: #087443;          /* healthy */
+  --warn: #9a6700;        /* degraded but not broken */
+}
+
+/* Applies to every element on the page.
+
+   `box-sizing: border-box` is the single most useful line in any stylesheet.
+   By default, setting an element's width to 100% and then adding padding makes
+   it wider than 100% — so it overflows its container. This changes the rule so
+   padding and borders are counted INSIDE the declared width, which is what
+   almost everyone expects. Without it, the form inputs below would spill out of
+   their panels. */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;                    /* browsers add a default margin; this removes it so
+                                   the dark header reaches the edges of the window */
+  background: var(--bg);
+  color: var(--ink);
+  /* A "font stack": try each in turn until one is available. Starting with
+     Inter and falling back to the system's own interface font means the page
+     looks native on Windows, macOS, and Linux without downloading anything —
+     which keeps the page fast and works offline. */
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.45;            /* space between lines. Around 1.4-1.6 is the
+                                   comfortable range for reading */
+}
+
+/* Form controls do NOT inherit the page font by default — a long-standing quirk
+   of browsers. Without this line, every input and button would render in the
+   browser's own default font and look out of place. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* --- The dark top bar ---------------------------------------------------- */
+.topbar {
+  align-items: center;
+  background: #0b1f2a;          /* a hard-coded near-black, used only here */
+  color: #ffffff;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;   /* title on the left, status badges on the right */
+  min-height: 88px;
+  /* `clamp(min, preferred, max)` scales the side padding with the window:
+     never below 18px, never above 40px, and 4% of the viewport width in
+     between. Comfortable on a wide screen without wasting space on a narrow
+     one. */
+  padding: 18px clamp(18px, 4vw, 40px);
+}
+
+/* The small "SupportOps" label above the title. "Eyebrow" is the typographic
+   name for exactly this — a short line sitting above a heading. */
+.eyebrow {
+  color: #9ed8d2;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 2px;
+  text-transform: uppercase;
+}
+
+/* Removes the default space ABOVE headings and paragraphs, so spacing is
+   controlled by the containers rather than fighting browser defaults. */
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(26px, 4vw, 38px);   /* scales with the window, within limits */
+  line-height: 1.05;                   /* tighter than body text: large type needs
+                                          less spacing to look right */
+  margin-bottom: 0;
+}
+
+h2 {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+/* Two different things sharing one rule, because both are simply "a row of
+   items that wraps onto the next line if it runs out of room". `flex-wrap` is
+   what prevents buttons overflowing their panel on a narrow screen. */
+.status-strip,
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* --- The status badges --------------------------------------------------- */
+.status-pill {
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;         /* any large value gives a fully rounded end. A
+                                   common trick — it stays correct at any height */
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 28px;
+  padding: 5px 10px;
+}
+
+/* THE FOUR STATES, swapped by setPill() in app.js. It replaces the whole class
+   attribute — `status-pill ok` — so exactly one of these applies at a time. */
+.status-pill.neutral {
+  background: rgba(255, 255, 255, 0.12);   /* barely visible: "not checked yet" */
+}
+
+.status-pill.ok {
+  background: var(--ok);
+}
+
+.status-pill.warn {
+  background: var(--warn);
+}
+
+.status-pill.error {
+  background: var(--danger);
+}
+
+/* --- The main two-column layout ------------------------------------------ */
+.app-shell {
+  display: grid;
+  gap: 18px;
+  /* Two columns: a sidebar that flexes between 240px and 300px, then `1fr`
+     meaning "all the remaining space" for the workspace.
+
+     The min/max on the sidebar matters: a fixed 300px would crowd a small
+     laptop, while an unconstrained one would stretch absurdly wide. */
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  padding: 18px clamp(18px, 4vw, 40px) 40px;
+}
+
+.side-panel,
+.workspace {
+  display: flex;
+  flex-direction: column;       /* stack children vertically */
+  gap: 14px;
+  /* `min-width: 0` looks pointless and prevents a real bug. Grid items default
+     to a minimum width based on their content, so a long unbroken string — a
+     UUID, say — would force the column wider than its share and break the
+     layout. This allows them to shrink and let the text wrap instead. */
+  min-width: 0;
+}
+
+/* The white cards everything sits inside. */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.panel-grid {
+  display: grid;
+  gap: 14px;
+}
+
+/* `minmax(0, 1fr)` rather than plain `1fr`, for the same reason as min-width
+   above: it lets a column shrink below its content's natural width, so long IDs
+   wrap instead of stretching the layout. A very common grid pitfall. */
+.two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* --- Form controls -------------------------------------------------------- */
+label {
+  color: var(--muted);          /* quieter than the input's own text, so the eye
+                                   goes to the value rather than the label */
+  display: block;               /* puts the label on its own line above the field */
+  font-size: 12px;
+  font-weight: 700;
+  margin: 12px 0 5px;           /* more space above than below, which visually
+                                   groups each label with the field it belongs to */
+}
+
+input,
+select,
+textarea {
+  background: #ffffff;
+  border: 1px solid #c9d3de;
+  border-radius: 6px;
+  color: var(--ink);
+  min-height: 38px;             /* comfortably tappable on a touchscreen */
+  padding: 8px 10px;
+  width: 100%;                  /* fills the panel. Only safe because of the
+                                   border-box rule at the top of this file */
+}
+
+textarea {
+  min-height: 116px;
+  /* `vertical` allows the user to drag it taller but NOT wider. Horizontal
+     resizing would let it break out of the grid column. */
+  resize: vertical;
+}
+
+button {
+  align-items: center;
+  background: var(--brand);
+  border: 1px solid var(--brand-strong);
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;              /* the hand cursor: a small but important signal
+                                   that something is clickable */
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  margin-top: 12px;
+  min-height: 38px;             /* matches the inputs, so a button beside a field
+                                   lines up */
+  padding: 8px 12px;
+}
+
+button:hover {
+  background: var(--brand-strong);   /* darkens on hover: immediate feedback that
+                                        the cursor is on target */
+}
+
+/* Tabs and secondary buttons share the same quieter styling, so the coloured
+   primary buttons stand out as the main actions. */
+button.secondary,
+.tab {
+  background: #ffffff;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.tabs {
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;             /* on a very narrow screen the tabs scroll
+                                   sideways rather than wrapping into a
+                                   confusing second row */
+}
+
+.tab {
+  /* Square bottom corners, so the active tab visually joins the panel beneath
+     it rather than floating above it. */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-top: 0;                /* cancels the general button margin, which would
+                                   otherwise push the tabs down */
+}
+
+.tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+/* THE TAB SWITCHING MECHANISM, and it is just these two rules.
+
+   Every panel is hidden by default; the one with class "active" is shown.
+   bindTabs() in app.js does nothing more than move that one class around. No
+   JavaScript show/hide logic at all — the CSS does the work. */
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* --- The data lists ------------------------------------------------------- */
+.list {
+  display: grid;
+  gap: 10px;
+  /* Reserves space even when empty, so the panel does not collapse to nothing
+     and then jump when data arrives. Avoiding that jolt is worth one line. */
+  min-height: 64px;
+}
+
+/* One row, built by item() in app.js. */
+.list-item {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+/* The selected ticket or recommendation.
+
+   TWO signals rather than one: a coloured border AND an inset bar down the left
+   edge (`box-shadow` with an inset offset). Using two makes the selection clear
+   to someone who cannot easily distinguish the border colour — colour alone is
+   a weak signal. */
+.list-item.selected {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.list-title {
+  font-weight: 800;
+}
+
+.list-meta {
+  color: var(--muted);
+  font-size: 12px;
+  /* `overflow-wrap: anywhere` allows a break mid-"word", which matters because
+     these lines contain 36-character UUIDs with no spaces. Without it, a UUID
+     would push the panel wider and break the grid. */
+  overflow-wrap: anywhere;
+}
+
+/* --- The metric tiles ----------------------------------------------------- */
+.metric-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));   /* four across on a wide screen */
+}
+
+.metric {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-height: 86px;             /* keeps every tile the same height regardless of
+                                   how long its value is, so the grid stays even */
+  padding: 12px;
+}
+
+.metric-value {
+  color: var(--brand-strong);
+  font-size: 24px;              /* much larger than the label above it: the number
+                                   is what you are looking for */
+  font-weight: 800;
+}
+
+/* --- The decorative service list in the sidebar --------------------------- */
+.service-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-grid span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 8px;
+  text-align: center;
+}
+
+/* --- The event log -------------------------------------------------------- */
+.event-log {
+  background: #111827;          /* dark, with light green text — the familiar
+                                   terminal look, which signals "raw output"
+                                   rather than "part of the interface" */
+  border-radius: 6px;
+  color: #d1fae5;
+  margin: 0;                    /* <pre> has a default margin; this removes it so
+                                   the log fills its panel */
+  min-height: 280px;
+  overflow: auto;               /* scrolls internally rather than stretching the
+                                   page as entries accumulate */
+  padding: 14px;
+  /* `pre-wrap` keeps the newlines and indentation of the formatted JSON while
+     still wrapping long lines. Plain `pre` would force horizontal scrolling for
+     every long line. */
+  white-space: pre-wrap;
+}
+
+/* --- Responsive rules ------------------------------------------------------
+   A "media query" applies its rules only when the condition holds. These two
+   blocks are what make the console usable on a tablet and a phone.
+
+   Note the breakpoints are chosen from where THIS layout starts to break, not
+   from any particular device's dimensions — which is the right way round.
+   -------------------------------------------------------------------------- */
+
+/* Tablet and small laptop: below 980px the two-column layouts stop working. */
+@media (max-width: 980px) {
+  /* The sidebar stops being a column and stacks above the workspace, and the
+     paired panels stack too. One column is far better than two cramped ones. */
+  .app-shell,
+  .two-columns {
+    grid-template-columns: 1fr;
+  }
+
+  /* The header stacks: title above the badges, rather than squeezing both onto
+     one line. */
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  /* Metric tiles drop from four across to two. */
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Phone: below 560px even two columns of tiles are too narrow to read. */
+@media (max-width: 560px) {
+  .metric-grid,
+  .service-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,7 +1,49 @@
+# ============================================================================
+# FILE: pyproject.toml
+#
+# THINK OF THIS FILE AS: the shared settings for the development tools. One
+# file configuring three of them:
+#
+#   pytest - the test runner
+#   ruff   - the linter and formatter (style and obvious mistakes)
+#   mypy   - the type checker
+#
+# WHY THEY SHARE ONE FILE: pyproject.toml is the modern Python standard for tool
+# configuration. Before it, each tool had its own file — pytest.ini, .flake8,
+# mypy.ini, setup.cfg — cluttering the project root. Consolidating them means one
+# place to look, and settings that cannot drift apart.
+#
+# WHY THESE SETTINGS EXIST AT ALL: they are what make the tools agree with each
+# other and with CI. Without the pythonpath list below, the tests would not
+# import; without the line-length setting, ruff would flag half the codebase.
+# Every value here is doing real work.
+#
+# THE FORMAT IS TOML: [section.subsection] headings, then key = value lines.
+#
+# NOTE WHAT IS ABSENT: there is no [project] section, so this is NOT an
+# installable package definition. This repository is a collection of packages
+# run in place rather than installed — which is exactly why the pythonpath
+# settings below are needed.
+# ============================================================================
+
+# --- pytest: the test runner ------------------------------------------------
 [tool.pytest.ini_options]
+# Where to look for tests, so a bare `pytest` finds them without arguments.
 testpaths = ["tests"]
+
+# THE LINE THAT MAKES THE TESTS WORK AT ALL.
+#
+# This is a monorepo: several separate packages, each in its own folder, none of
+# them installed. Python would have no idea where `supportops_api` lives.
+# Listing the folders here adds them to the import path for the test run.
+#
+# The same list appears in THREE other places — Dockerfile.api's PYTHONPATH,
+# migrations/env.py, and the mypy section below. That duplication is a real
+# maintenance burden: adding a package means updating all four, and forgetting
+# one produces an import error in only some situations.
 pythonpath = [
     "apps/api",
+    "apps/worker",
     "packages/db",
     "packages/domain",
     "packages/model_gateway",
@@ -9,19 +51,62 @@ pythonpath = [
     "packages/evals",
     "packages/observability",
 ]
+
+# Options applied to every run. `-p no:cacheprovider` disables pytest's cache
+# directory, so no .pytest_cache folder is created — keeping the working tree
+# clean and avoiding a stale cache in CI, where the machine is discarded anyway.
 addopts = "-p no:cacheprovider"
 
+# Declares a custom marker, so tests can be tagged `@pytest.mark.integration`.
+#
+# Declaring it here matters: pytest warns about unrecognised markers, and a typo
+# like `@pytest.mark.integraton` would otherwise silently do nothing — the test
+# would look tagged while being treated as an ordinary one.
+#
+# The marker separates tests needing real services from those that do not, which
+# is how CI runs them as two separate jobs.
+markers = [
+    "integration: requires external PostgreSQL and Redis services",
+]
+
+# --- ruff: the linter -------------------------------------------------------
 [tool.ruff]
+# 100 characters, wider than Python's traditional 79. A common modern choice:
+# 79 dates from physical terminals, and modern screens comfortably fit more.
+# The value matters less than it being FIXED — it ends the argument, and the
+# comments throughout this codebase are wrapped to match.
 line-length = 100
+
+# Which Python version to assume. Lets ruff suggest modern syntax the project can
+# actually use — `str | None` rather than `Optional[str]`, for instance — while
+# not suggesting anything 3.11 does not support.
 target-version = "py311"
+
 cache-dir = "ruff_cache"
 
 [tool.ruff.lint]
+# Which families of checks to run. Each letter is a rule set:
+#   E  - style errors (spacing, indentation)         [pycodestyle]
+#   F  - real mistakes: unused imports, undefined names  [pyflakes]
+#   I  - import ordering                             [isort]
+#   UP - suggests newer syntax where the old form still works  [pyupgrade]
+#   B  - likely bugs: mutable default arguments, and similar traps  [bugbear]
+#
+# "F" and "B" are the two that catch genuine bugs rather than style. B in
+# particular catches the mutable-default trap that appears as a comment in
+# several files here — `default={}` shared between every instance.
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
+# Tells the import sorter which packages are OURS.
+#
+# Imports are grouped: standard library first, then third-party, then the
+# project's own. Without this list, ruff would assume `supportops_api` is a
+# third-party package and sort it into the wrong group — producing an endless
+# stream of pointless import reshuffling in every review.
 known-first-party = [
     "supportops_api",
+    "supportops_worker",
     "supportops_db",
     "supportops_domain",
     "supportops_model_gateway",
@@ -29,3 +114,27 @@ known-first-party = [
     "supportops_evals",
     "supportops_observability",
 ]
+
+# --- mypy: the type checker -------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+
+# WHAT IT CHECKS: the application code only. Note `tests` is absent.
+#
+# A pragmatic and common choice. Test code often does deliberately odd things
+# with types — passing deliberately wrong values, using minimal fake objects —
+# and enforcing strict typing there tends to produce noise rather than value.
+files = ["apps", "packages"]
+
+show_error_codes = true    # includes the rule name in each message, so a specific
+                           # check can be looked up or silenced precisely
+pretty = true              # formats errors with the source line and a pointer
+
+# Excludes the import shim at the repository root (supportops_evals/__init__.py).
+# That file does deliberate path manipulation which a type checker cannot make
+# sense of, and it is not really application code.
+#
+# The `^` anchors the pattern to the start, so only the root-level folder is
+# excluded — the real package at packages/evals/supportops_evals/ is still
+# checked.
+exclude = ["^supportops_evals/"]

@@ -1,19 +1,118 @@
+# ============================================================================
+# FILE: Dockerfile.api
+#
+# THINK OF THIS FILE AS: the recipe for packaging the Python side of the app
+# into a container.
+#
+# WHAT A CONTAINER IS, briefly: a self-contained box holding an operating
+# system, Python, this project's libraries, and its code — everything needed to
+# run, with nothing depending on what happens to be installed on the host
+# machine. That is what makes "it works on my laptop" stop being a problem: the
+# box that ran on the laptop is the identical box that runs in production.
+#
+# IT BUILDS ONE IMAGE THAT SERVES THREE PURPOSES.
+#   Look at docker-compose.yml and you will see this same Dockerfile used by
+#   three services:
+#     api     - runs the CMD at the bottom (the web server)
+#     worker  - overrides it with `python -m supportops_worker.main`
+#     migrate - overrides it with `alembic upgrade head`
+#
+#   One image, three commands. Deliberate: all three need the same code and the
+#   same libraries, so three separate images would triple the build time and
+#   introduce the risk of them drifting apart. Overriding the command is the
+#   normal way to do this.
+#
+# HOW TO READ A DOCKERFILE: each instruction creates a LAYER, and layers are
+# cached. If nothing above a layer changed, Docker reuses it instead of redoing
+# the work. That caching behaviour is why the instruction ORDER below matters so
+# much — see the note at the COPY of requirements.txt.
+# ============================================================================
+
+# The starting point: a minimal Linux with Python 3.11 already installed.
+#
+# "-slim" is the trimmed variant — around 150MB rather than nearly 1GB, because
+# it omits compilers, documentation, and tools that a running application does
+# not need. Smaller images pull faster, start faster, and present a smaller
+# attack surface.
+#
+# The version is pinned to 3.11 rather than "latest". Essential for
+# reproducibility: "latest" would silently become 3.12 one day and the build
+# could break with no change on our side.
 FROM python:3.11-slim
 
+# Stops Python writing .pyc bytecode cache files. Pointless in a container — the
+# files are written once and the container is discarded, so they only add size.
 ENV PYTHONDONTWRITEBYTECODE=1
+
+# Makes Python write output immediately rather than buffering it.
+#
+# IMPORTANT FOR LOGGING. By default Python holds output in a buffer and flushes
+# it in chunks, so `docker logs` would show nothing for a while and then a burst.
+# Worse, a crash could lose whatever was still buffered — including the log lines
+# explaining the crash. This makes logs appear as they happen.
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app/apps/api:/app/packages/db:/app/packages/domain:/app/packages/model_gateway:/app/packages/prompts:/app/packages/evals:/app/packages/observability
+
+# Tells Python where to find this project's packages.
+#
+# This is a "monorepo": several separate packages in one repository, each in its
+# own folder, none of them installed in the usual way. Without this line, `import
+# supportops_api` would fail — Python simply would not know to look there.
+#
+# The same list appears in migrations/env.py and pyproject.toml, which is a
+# genuine maintenance burden: adding a package means updating all three, and
+# forgetting one produces an import error in only some situations.
+ENV PYTHONPATH=/app/apps/api:/app/apps/worker:/app/packages/db:/app/packages/domain:/app/packages/model_gateway:/app/packages/prompts:/app/packages/evals:/app/packages/observability
 
 WORKDIR /app
 
+# --- THE CACHING TRICK, and the most important detail in this file -----------
+#
+# requirements.txt is copied and installed BEFORE the application code is copied.
+# It looks like a needless extra step; it is a large build-speed optimisation.
+#
+# Docker reuses a cached layer only if nothing above it changed. Installing
+# dependencies takes a minute or more; copying code takes a second. By putting
+# the slow step above the frequently-changing step, a normal code change reuses
+# the cached dependency layer and the rebuild takes seconds.
+#
+# Reverse the order — copy everything first, then install — and every single code
+# change would reinstall every library from scratch.
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir -r requirements.txt
+# `--no-cache-dir` tells pip not to keep its download cache. Useful on a
+# developer machine, pure waste in an image that will never install anything
+# again — it would add tens of megabytes for no benefit.
+#
+# The `&&` chains both commands into ONE layer. Two RUN instructions would create
+# two layers, and the intermediate state would be stored in the image forever.
 
+# Now the code — the part that changes on nearly every build, so it goes last.
 COPY alembic.ini .
 COPY apps ./apps
 COPY packages ./packages
+# Note what is NOT copied: tests, docs, infra, requirements-dev.txt. A production
+# image should contain what it needs to run and nothing more. (A .dockerignore
+# file typically enforces this more strictly.)
 
+# Documentation, essentially. EXPOSE does not actually publish the port — that is
+# done by the `ports:` entry in docker-compose.yml. It records the intent, so
+# anyone inspecting the image can see which port it listens on.
 EXPOSE 8765
 
+# The default command, used by the `api` service. The other two services override
+# it in docker-compose.yml.
+#
+# `uvicorn` is the web server that runs FastAPI applications.
+# "supportops_api.main:app" means "the object called `app` inside the file
+# supportops_api/main.py" — the one built at the bottom of that file.
+#
+# `--host 0.0.0.0` is REQUIRED IN A CONTAINER and a very common stumbling block.
+# The default, 127.0.0.1, accepts connections only from inside the container
+# itself — so the port mapping would appear to do nothing and every request would
+# be refused. 0.0.0.0 means "accept connections on any network interface".
+#
+# The bracketed form is "exec form": the command runs directly rather than
+# inside a shell, so it receives stop signals properly and shuts down cleanly
+# instead of being killed after a timeout.
 CMD ["python", "-m", "uvicorn", "supportops_api.main:app", "--host", "0.0.0.0", "--port", "8765"]

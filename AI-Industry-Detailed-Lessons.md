@@ -1,6 +1,6 @@
 # Detailed AI Industry Lessons
 
-Updated: June 25, 2026
+Updated: July 28, 2026
 
 ## How to use this file
 
@@ -49,6 +49,20 @@ A project is complete only when it includes:
 - Deployment instructions
 - Monitoring plan
 - Cost estimate
+
+### Python and .NET implementation policy
+
+Python remains the primary teaching and reference path for model, data, evaluation, and training work. Learners targeting .NET roles complete the parallel application-engineering labs in model APIs, RAG, controlled agents, MCP, production architecture, observability, and the capstone.
+
+The .NET lane must:
+
+- Use C# and ASP.NET Core with a supported provider SDK or supported `Microsoft.Extensions.AI` abstraction
+- Preserve the same API contracts, evaluation data, authorization rules, telemetry fields, and failure cases as the Python reference
+- Keep provider and framework code behind application-owned interfaces
+- Pin supported package versions and avoid depending on preview-only behavior
+- Produce runnable code, automated tests, traces, measured quality-latency-cost results, and a short design decision record
+
+The learner does not need to duplicate the entire capstone in two languages. The chosen backend must satisfy the same acceptance evidence.
 
 ## Learning environment
 
@@ -775,6 +789,7 @@ Production applications cannot assume that every request succeeds, every respons
 - Pydantic
 - OpenTelemetry
 - Redis
+- Parallel .NET lane: C#, ASP.NET Core, `System.Text.Json`, a supported provider SDK or supported `Microsoft.Extensions.AI` abstraction, and OpenTelemetry for .NET
 
 ### Guided implementation
 
@@ -788,6 +803,16 @@ Production applications cannot assume that every request succeeds, every respons
 - Add a circuit breaker
 - Record usage and cost
 
+### Parallel .NET implementation lab
+
+- Implement the same provider-owned boundaries behind an application-owned C# interface
+- Expose authenticated ASP.NET Core endpoints for synchronous, server-sent-event streaming, and schema-constrained requests
+- Validate structured output before it reaches domain code
+- Propagate cancellation and deadlines through model calls and streamed responses
+- Classify provider errors and apply retry, circuit-breaker, and fallback policies only where safe
+- Emit correlated traces plus token, latency, model-version, tenant, and cost attributes without recording sensitive prompt content
+- Run the shared contract fixtures against the Python reference and the .NET implementation
+
 ### Practical assignment
 
 Build a multi-provider AI gateway.
@@ -799,6 +824,8 @@ Build a multi-provider AI gateway.
 - Retries apply only to safe failures
 - Usage is attributed to user and tenant
 - Fallback is observable
+- The .NET lab passes the same valid, invalid-schema, rate-limit, timeout, cancellation, and fallback fixtures as the Python path
+- Acceptance evidence includes an API contract, automated test report, one redacted trace, and a quality-latency-cost comparison
 
 ### Production concerns
 
@@ -815,6 +842,8 @@ Build a multi-provider AI gateway.
 - When should a request not be retried?
 - How do structured outputs improve reliability?
 - How do you track cost by customer?
+- How do ASP.NET Core cancellation, streaming, dependency injection, and typed serialization affect a model integration?
+- When should a .NET service use a provider SDK directly versus a provider-neutral abstraction?
 
 ## Prompt and context engineering
 
@@ -1119,6 +1148,8 @@ Employees need reliable answers from changing internal sources without exposing 
 - Produce citations and abstentions
 - Enforce access control
 - Diagnose failures
+- Select classic retrieval or bounded agentic retrieval from measured requirements
+- Compare retrieval quality, answer quality, latency, and cost across both paths
 
 ### Required concepts
 
@@ -1130,6 +1161,10 @@ Employees need reliable answers from changing internal sources without exposing 
 - Grounded generation
 - Citations
 - Conversational retrieval
+- Retrieval as a tool
+- Query planning
+- Parallel focused subqueries
+- Iterative retrieval with explicit stopping conditions
 - Freshness
 - Caching
 - Tenant isolation
@@ -1144,6 +1179,7 @@ Employees need reliable answers from changing internal sources without exposing 
 - Reranking model
 - Model API
 - OpenTelemetry
+- Parallel .NET lane: ASP.NET Core, a supported model SDK or provider-neutral AI abstraction, and a compatible vector or search client
 
 ### Guided implementation
 
@@ -1157,10 +1193,31 @@ Employees need reliable answers from changing internal sources without exposing 
 - Add user and document permissions
 - Add retrieval traces
 - Add feedback
+- Establish classic hybrid retrieval as the default baseline
+- Add a planner that invokes agentic retrieval only for complex or multi-part questions
+- Decompose an approved question into a bounded number of focused subqueries
+- Run independent subqueries in parallel with concurrency, time, token, and spending limits
+- Merge, deduplicate, rerank, and cite evidence before generation
+- Stop when evidence is sufficient or any step, latency, token, or cost budget is exhausted
+
+### Classic-versus-agentic retrieval lab
+
+- Evaluate both paths on the same simple, multi-part, ambiguous, insufficient-evidence, and adversarial query set
+- Record retrieval metrics, answer correctness, groundedness, citation accuracy, end-to-end latency, token use, and cost
+- Route simple questions to classic RAG unless measured evidence justifies extra planning
+- Test decomposition explosion, repeated queries, unavailable retrievers, partial results, permission changes, timeouts, citation mismatch, and attempts to exceed limits
+- Require permission checks on every derived subquery and every retrieved item
+
+### Parallel .NET implementation lab
+
+- Implement the query planner and retrieval tools behind C# interfaces
+- Use bounded asynchronous concurrency and cancellation propagation for focused subqueries
+- Reuse the shared evaluation set and emit compatible retrieval, model, citation, and cost traces
+- Demonstrate classic fallback when planning fails or the agentic budget is exhausted
 
 ### Practical assignment
 
-Build an enterprise knowledge assistant.
+Build an enterprise knowledge assistant with a classic RAG baseline and a selectively invoked, bounded agentic-retrieval path.
 
 ### Evaluation criteria
 
@@ -1170,6 +1227,10 @@ Build an enterprise knowledge assistant.
 - Citations are verifiable
 - Updates meet a defined freshness objective
 - Failures are attributed to pipeline stages
+- Classic and agentic paths are compared on the same versioned evaluation set
+- The report states when agentic retrieval improves quality enough to justify its additional latency and cost
+- Maximum subqueries, iterations, concurrency, latency, tokens, and spending are enforced in automated failure tests
+- The .NET lab, when selected, passes the same authorization, citation, budget, and fallback acceptance fixtures
 
 ### Production concerns
 
@@ -1179,6 +1240,9 @@ Build an enterprise knowledge assistant.
 - Citation mismatch
 - Provider outages
 - Long-context cost
+- Unbounded planning or retrieval loops
+- Permission leakage through derived subqueries
+- Planner-generated irrelevant or adversarial queries
 
 ### Interview preparation
 
@@ -1187,6 +1251,8 @@ Build an enterprise knowledge assistant.
 - Why hybrid retrieval?
 - How do you enforce document access?
 - RAG versus fine-tuning
+- When is classic RAG preferable to agentic retrieval?
+- How do you stop, evaluate, and safely fall back from an agentic retrieval loop?
 
 ## AI evaluation engineering
 
@@ -1374,6 +1440,8 @@ A model can generate text, but business automation requires validated arguments,
 - Build explicit workflow state
 - Add approval and compensation
 - Evaluate execution
+- Design governed request, session, durable, preference, retrieval-backed, and summarized memory
+- Enforce consent, provenance, retention, correction, and deletion for memory writes
 
 ### Required concepts
 
@@ -1386,6 +1454,16 @@ A model can generate text, but business automation requires validated arguments,
 - Compensation
 - Human approval
 - Durable state
+- Request context
+- Session memory
+- Durable workflow memory
+- User-preference memory
+- Retrieval-backed memory
+- Summarized memory
+- Memory write policy
+- Consent and purpose limitation
+- Provenance and versioning
+- Expiration, correction, and deletion
 - Audit log
 - Step and spending limits
 
@@ -1396,6 +1474,7 @@ A model can generate text, but business automation requires validated arguments,
 - PostgreSQL
 - Redis
 - LangGraph or another selected workflow framework after manual implementation
+- Parallel .NET lane: ASP.NET Core, application-owned workflow interfaces, and optionally supported Semantic Kernel packages after the manual workflow is understood
 
 ### Guided implementation
 
@@ -1408,9 +1487,26 @@ A model can generate text, but business automation requires validated arguments,
 - Add compensation for partial writes
 - Record complete traces
 
+### Governed agent-memory lab
+
+- Keep request context, session state, durable workflow checkpoints, user preferences, retrieval-backed facts, and summaries in separate stores or explicitly typed records
+- Define an allowlist-based write policy describing what may be remembered, for which purpose, for how long, and with whose consent
+- Store subject, tenant, source, provenance, purpose, consent state, classification, version, creation time, and expiration with every durable memory item
+- Provide user-visible correction and deletion operations and invalidate derived summaries, indexes, and caches
+- Prevent the model from silently converting untrusted tool output into durable memory
+- Evaluate relevance, factual consistency, stale-memory handling, cross-tenant isolation, correction propagation, and verified forgetting
+- Test missing consent, poisoning, duplicate writes, expired records, revoked access, deletion during an active session, and summary drift
+
+### Parallel .NET implementation lab
+
+- Implement the controlled workflow and typed memory policy behind ASP.NET Core services
+- Require authorization and idempotency checks at the application boundary before every tool or memory write
+- Persist workflow checkpoints separately from user-profile memory
+- Run the same approval, recovery, isolation, expiration, correction, and deletion fixtures as the Python implementation
+
 ### Practical assignment
 
-Build a support-resolution workflow.
+Build a support-resolution workflow with governed memory and an equivalent .NET service slice when the .NET lane is selected.
 
 ### Evaluation criteria
 
@@ -1419,6 +1515,10 @@ Build a support-resolution workflow.
 - Partial failures can resume or compensate
 - Human approval captures the exact proposed action
 - Task completion and invalid-action rates are measured
+- Durable memory is written only under an explicit policy with recorded consent, purpose, provenance, and expiration
+- Correction and deletion remove or invalidate derived memory within a documented objective
+- Automated tests prove that memory cannot cross tenant, user, or purpose boundaries
+- Acceptance evidence includes a memory schema, write-policy decision table, retention/deletion test report, and memory-quality evaluation
 
 ### Production concerns
 
@@ -1428,6 +1528,9 @@ Build a support-resolution workflow.
 - Long-running state
 - Credential scope
 - Audit retention
+- Memory poisoning and stale preferences
+- Sensitive-data retention
+- Confusing resumable workflow state with user memory
 
 ### Interview preparation
 
@@ -1435,6 +1538,8 @@ Build a support-resolution workflow.
 - How do you make tool calls safe?
 - Why is idempotency important?
 - How do you recover after partial failure?
+- What should an agent remember, and what must it never write?
+- How do consent, provenance, expiration, correction, and deletion change a memory design?
 
 ## MCP and agent integration
 
@@ -1454,6 +1559,9 @@ Organizations need reusable integrations, but dynamic tool discovery increases t
 - Restrict capabilities
 - Log and evaluate MCP operations
 - Understand agent interoperability
+- Package reusable, versioned agent capabilities, sometimes called skills, with explicit contracts and permissions
+- Map approved capabilities to MCP tools, resources, or prompts without granting implicit authority
+- Explain the additional controls required for computer-use and coding agents
 
 ### Required concepts
 
@@ -1468,6 +1576,13 @@ Organizations need reusable integrations, but dynamic tool discovery increases t
 - Authorization
 - Server trust
 - Dynamic discovery
+- Capability or skill manifest without treating one vendor-specific file convention as universal
+- Version compatibility
+- Permission and resource declaration
+- Capability-to-MCP mapping
+- Sandboxed execution
+- Filesystem, process, network, and credential boundaries
+- Proposed change, approval, execution, and audit separation
 
 ### Tools
 
@@ -1475,6 +1590,8 @@ Organizations need reusable integrations, but dynamic tool discovery increases t
 - OAuth or service identity
 - JSON Schema
 - OpenTelemetry
+- Parallel .NET lane: an established .NET MCP SDK and ASP.NET Core identity and authorization components
+- Disposable container or equivalent restricted sandbox for the automation lab
 
 ### Guided implementation
 
@@ -1485,10 +1602,29 @@ Organizations need reusable integrations, but dynamic tool discovery increases t
 - Add audit logs
 - Test malicious tool descriptions and inputs
 - Define an allowlist
+- Create a reusable capability package with a name, semantic version, input/output schema, owner, allowed data, required permissions, resource limits, and compatibility tests
+- Pin and approve capability versions instead of accepting arbitrary dynamic upgrades
+- Map each capability deliberately to an MCP tool, resource, or prompt and document identity propagation
+
+### Sandboxed computer and coding-agent lab
+
+- Run one read-only inspection and one proposed source change against a disposable test repository
+- Deny host credentials, unrestricted filesystem access, privileged processes, and network access by default
+- Restrict paths, commands, CPU, memory, time, output, and step count
+- Present the exact diff and command plan for human approval before any write or execution with side effects
+- Log the capability version, requesting identity, authorization decision, proposed action, approval, execution result, and produced artifact
+- Treat screenshots, repository text, tool descriptions, and command output as untrusted input
+- Never permit autonomous destructive or production remediation actions in this lab
+
+### Parallel .NET MCP lab
+
+- Expose the read-only policy capability through an authenticated .NET MCP server
+- Consume it from an allowlisted client while preserving user and tenant identity
+- Run the shared discovery, schema, authorization, injection, version-mismatch, cancellation, and audit fixtures
 
 ### Practical assignment
 
-Integrate one production workflow tool through MCP.
+Integrate one versioned production capability through MCP and complete the restricted automation lab in a disposable environment.
 
 ### Evaluation criteria
 
@@ -1497,6 +1633,10 @@ Integrate one production workflow tool through MCP.
 - Tool capabilities are restricted
 - Every operation is traceable
 - Untrusted tool content cannot override application policy
+- Capability versions, schemas, owners, permissions, and resource limits are reviewable and pinned
+- A capability receives only the authority explicitly granted to its MCP mapping
+- The automation lab proves that denied paths, commands, networks, credentials, and unapproved writes remain blocked
+- Acceptance evidence includes the capability manifest, MCP mapping, compatibility tests, sandbox policy, proposed diff, approval record, and audit trace
 
 ### Production concerns
 
@@ -1506,6 +1646,9 @@ Integrate one production workflow tool through MCP.
 - Capability escalation
 - Cross-tenant data
 - Prompt injection through tool results
+- Capability supply-chain changes
+- Sandbox escape and credential theft
+- Confusing model intent with user authorization
 
 ### Interview preparation
 
@@ -1513,6 +1656,8 @@ Integrate one production workflow tool through MCP.
 - What security risks does dynamic tool discovery introduce?
 - How should identity propagate?
 - MCP versus a direct API integration
+- How do reusable agent capabilities differ from tools, prompts, and MCP resources?
+- How would you sandbox a computer-use or coding agent and preserve meaningful user authorization?
 
 ## PyTorch and training fundamentals
 
@@ -2376,6 +2521,7 @@ AI systems combine many slow and failure-prone dependencies, making reliability 
 ### Learning objectives
 
 - Decompose production services
+- Choose between a modular monolith, event-driven workers, and independently deployed services
 - Define service objectives
 - Add retries, fallbacks, and circuit breakers
 - Design queues and background processing
@@ -2399,6 +2545,11 @@ AI systems combine many slow and failure-prone dependencies, making reliability 
 - Load shedding
 - Dead-letter queue
 - Disaster recovery
+- Modular monolith
+- Event-driven worker
+- Independently deployed service
+- Service and data ownership
+- Architecture decision record
 
 ### Tools
 
@@ -2409,10 +2560,13 @@ AI systems combine many slow and failure-prone dependencies, making reliability 
 - Object storage
 - Docker
 - Cloud load balancer
+- Parallel .NET lane: ASP.NET Core, hosted or background workers, a supported queue client, and OpenTelemetry for .NET
 
 ### Guided implementation
 
-- Separate model, retrieval, and tool services
+- Begin with explicit model, retrieval, tool, evaluation, and policy modules inside a deployable modular monolith
+- Separate asynchronous or long-running work through events and workers where delivery, replay, and cancellation semantics are defined
+- Extract an independently deployed service only when scaling, isolation, ownership, compliance, or release evidence justifies the operational cost
 - Define health and readiness checks
 - Add retry budgets
 - Add circuit breakers
@@ -2420,6 +2574,20 @@ AI systems combine many slow and failure-prone dependencies, making reliability 
 - Add dead-letter handling
 - Test dependency failures
 - Define recovery objectives
+
+### Architecture decision exercise
+
+- Write an ADR comparing a modular monolith, event-driven workers, and microservices for the same model, retrieval, and agent workload
+- Evaluate team ownership, deployment coupling, latency, data consistency, independent scaling, failure isolation, security boundaries, operability, and cost
+- Include context and constraints, options, measured evidence, decision, rejected alternatives, consequences, migration triggers, and reversal plan
+- Draw request, event, data-ownership, failure, and identity-propagation flows for the selected design
+
+### Parallel .NET implementation lab
+
+- Implement the selected architecture as an ASP.NET Core API with explicit application modules
+- Move one justified long-running operation to a background worker through a durable queue
+- Preserve correlation, cancellation, idempotency, tenant identity, and authorization across the API-to-worker boundary
+- Do not introduce a separately deployed service unless the ADR evidence selects it
 
 ### Practical assignment
 
@@ -2432,6 +2600,9 @@ Harden the production Applied AI platform with failure injection.
 - Write operations remain safe under retries
 - Queued work can be replayed
 - Recovery procedures are tested
+- The ADR makes a defensible choice from measured constraints rather than assuming microservices
+- A failure-injection report demonstrates the selected topology's isolation, replay, and degradation behavior
+- Acceptance evidence includes the ADR, diagrams, benchmark, operating-cost estimate, migration triggers, and recovery test
 
 ### Interview preparation
 
@@ -2439,6 +2610,8 @@ Harden the production Applied AI platform with failure injection.
 - Retry versus circuit breaker
 - Readiness versus liveness
 - Graceful degradation
+- When should an AI system remain a modular monolith, add event-driven workers, or extract microservices?
+- Which measurements would cause you to reverse that architecture decision?
 
 ## Observability, feedback, and cost
 
@@ -2457,6 +2630,8 @@ Infrastructure metrics can look healthy while AI task quality declines or costs 
 - Protect sensitive telemetry
 - Connect traces to feedback
 - Calculate cost per successful task
+- Apply RED, USE, and the four golden signals
+- Correlate software, AI-quality, deployment, and resource evidence during incidents
 
 ### Required concepts
 
@@ -2470,6 +2645,11 @@ Infrastructure metrics can look healthy while AI task quality declines or costs 
 - Cost attribution
 - Sampling
 - Redaction
+- RED: request rate, errors, and duration
+- USE: utilization, saturation, and errors
+- Four golden signals: latency, traffic, errors, and saturation
+- Deployment and configuration change events
+- Incident evidence, hypotheses, and runbook approvals
 
 ### Tools
 
@@ -2478,6 +2658,7 @@ Infrastructure metrics can look healthy while AI task quality declines or costs 
 - Grafana
 - Cloud monitoring
 - AI tracing platform
+- Parallel .NET lane: OpenTelemetry for ASP.NET Core, outbound HTTP, database, queue, and custom AI spans
 
 ### Guided implementation
 
@@ -2488,10 +2669,30 @@ Infrastructure metrics can look healthy while AI task quality declines or costs 
 - Add safety-event metrics
 - Redact sensitive content
 - Build operational and product dashboards
+- Build RED views for each request-driven service
+- Build USE views for CPU, memory, network, queue, database, and accelerator resources where present
+- Alert on actionable golden-signal symptoms and link alerts to traces, deployments, model, prompt, index, and capability versions, and runbooks
+
+### Optional AIOps project: IncidentPilot
+
+- Correlate redacted logs, metrics, traces, alerts, deployment changes, and configuration changes for a controlled incident dataset
+- Use deterministic correlation and anomaly rules as the baseline before adding an AI-assisted explanation
+- Produce ranked root-cause hypotheses with cited evidence, confidence, contradictions, and explicit unknowns
+- Draft an incident timeline, impact statement, recommended diagnostic steps, and a proposed versioned runbook
+- Require a named human to approve the exact runbook step before any execution
+- Keep execution disabled in the default project; never perform autonomous remediation
+- Audit inputs, model and prompt version, retrieved evidence, hypotheses, approvals, and any permitted test-environment execution
+- Evaluate known incidents, misleading correlations, missing telemetry, prompt injection in logs, repeated alerts, false positives, and provider failure
+
+### Parallel .NET observability lab
+
+- Instrument the ASP.NET Core request, model, retrieval, MCP, tool, memory, database, and queued-work paths
+- Export compatible RED, USE, golden-signal, AI-quality, safety, and cost telemetry
+- Demonstrate one end-to-end incident trace and one redaction test
 
 ### Practical assignment
 
-Create observability dashboards for the enterprise assistant.
+Create observability dashboards for the enterprise assistant and optionally build IncidentPilot against a controlled incident dataset.
 
 ### Evaluation criteria
 
@@ -2500,6 +2701,10 @@ Create observability dashboards for the enterprise assistant.
 - Costs are attributed by tenant and feature
 - Sensitive content is controlled
 - Alerts correspond to actionable conditions
+- RED, USE, and golden-signal dashboards use documented queries, thresholds, owners, and runbook links
+- Alerts correlate with model, prompt, retrieval-index, capability, deployment, and configuration versions
+- IncidentPilot, when selected, cites evidence, exposes uncertainty, resists hostile telemetry, and cannot remediate without explicit human approval
+- Acceptance evidence includes dashboard exports, alert tests, a redaction test, incident fixtures, hypothesis-scoring results, and an immutable approval/audit example
 
 ### Interview preparation
 
@@ -2507,6 +2712,8 @@ Create observability dashboards for the enterprise assistant.
 - Cost per token versus cost per successful task
 - How do you trace RAG failures?
 - How do you prevent telemetry from leaking PII?
+- How do RED, USE, and the four golden signals complement AI-quality metrics?
+- How would you evaluate an AI incident assistant without letting it become an unsafe remediation agent?
 
 ## Cloud deployment and infrastructure
 
@@ -3097,12 +3304,15 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Ticket ingestion
 - Multi-format document ingestion
 - Hybrid retrieval
+- Classic-versus-agentic retrieval routing with enforced budgets
 - Reranking
 - Evidence-backed generation
 - Structured extraction
 - Tool calling
 - MCP integration
 - Human approval
+- Governed agent memory with consent, provenance, expiration, correction, and deletion
+- Versioned reusable capabilities with explicit MCP mappings and permissions
 - Feedback collection
 - Prompt versioning
 - Model and adapter versioning
@@ -3113,6 +3323,7 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Safety controls
 - Cost controls
 - Logs, metrics, and traces
+- RED, USE, and four-golden-signal dashboards
 - Canary deployment
 - Incident handling
 
@@ -3122,6 +3333,7 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Workflow map
 - Architecture diagram
 - Architecture decision records
+- A topology ADR comparing a modular monolith, event-driven workers, and microservices
 - Data model
 - API specification
 - Threat model
@@ -3135,6 +3347,9 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Cost model
 - Load-test report
 - Failure-injection report
+- Classic-versus-agentic RAG quality-latency-cost report
+- Memory governance and verified-deletion report
+- Capability manifest, MCP mapping, and sandbox-policy evidence
 - Business-outcome report
 
 ### Implementation milestones
@@ -3142,15 +3357,18 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Establish deterministic and human baselines
 - Build the secure backend
 - Build ingestion and retrieval
+- Benchmark classic RAG before adding bounded agentic retrieval
 - Add model generation
 - Add evaluation
 - Add tools and approval
+- Add governed memory and versioned capability controls
 - Add feedback
 - Build training data
 - Train LoRA or QLoRA
 - Run DPO experiment
 - Deploy hosted and open-model options
 - Add observability
+- Add RED, USE, and golden-signal views
 - Add security tests
 - Run load and failure tests
 - Release a canary
@@ -3167,6 +3385,20 @@ A company wants to reduce support handling time, improve answer consistency, and
 - Cost per resolved case is reported
 - Failure behavior is demonstrated
 - Documentation allows another engineer to operate the system
+- The selected backend passes shared API, RAG, agent, MCP, authorization, evaluation, and telemetry acceptance fixtures
+- Agentic retrieval cannot exceed configured subquery, iteration, concurrency, latency, token, or spending limits
+- Memory correction and deletion propagate to derived summaries, indexes, and caches within a tested objective
+- Every capability and MCP operation is versioned, authorized, sandboxed where executable, and auditable
+- The topology ADR is supported by measurements and includes migration and reversal triggers
+
+### Parallel .NET capstone variant
+
+- Python remains the reference path; learners targeting .NET roles may implement the production backend in C# and ASP.NET Core
+- Use supported provider integrations behind application-owned interfaces for structured output, streaming, RAG, tools, and fallback
+- Implement authenticated MCP consumption or serving, governed memory, background work, and OpenTelemetry instrumentation
+- Preserve the same schemas, evaluation set, permission model, safety controls, quality thresholds, latency and cost budgets, and failure tests as the reference path
+- Include a reproducible build, automated tests, container configuration, API contract, redacted trace, and deployment/runbook evidence
+- Do not require both full Python and full .NET capstones; compare only the shared contract and benchmark slices needed to prove equivalence
 
 ### Capstone interview defense
 
@@ -3181,10 +3413,17 @@ Prepare to explain:
 - How training changed behavior
 - How deployment and rollback work
 - How quality, latency, cost, and business value are measured
+- Why the selected Python or .NET implementation preserves domain boundaries and avoids framework lock-in
+- Why classic or agentic retrieval was selected for each query class
+- How memory, capabilities, MCP, sandboxing, and human authorization are governed
 
 ## Role-selection lessons
 
 After the shared lessons, choose one primary specialization.
+
+### Core scope boundary
+
+Diffusion and generative image or video engineering, general reinforcement learning beyond LLM post-training literacy, and symbolic or neuro-symbolic AI are legitimate specialist domains but are deferred from the required core. Add them only for a role or project that needs them; they are not prerequisites for the Applied AI, RAG, agent, .NET AI, or production-system outcomes in this curriculum.
 
 ### Applied AI Engineer specialization
 
@@ -3452,6 +3691,27 @@ Practice:
 - Search system
 - Recommendation system
 - Fraud detection
+- Classic versus bounded agentic RAG
+- Governed agent memory
+- MCP capability and identity propagation
+- Modular monolith versus event-driven workers versus microservices
+- AI incident-assistance system with human-approved runbooks
+
+### .NET Applied AI and AI API design
+
+Practice:
+
+- Provider-independent model integration in ASP.NET Core
+- Structured-output validation and typed contracts
+- Server-sent-event streaming, cancellation, timeouts, retries, and fallback
+- Token, context, rate-limit, and cost budgeting
+- Embeddings, ingestion, hybrid retrieval, reranking, and citations
+- Classic-versus-agentic retrieval tradeoffs and bounded execution
+- Tool calling, governed memory, MCP identity, authorization, and audit
+- Prompt-injection defenses across documents, tools, memory, and telemetry
+- Evaluation gates, OpenTelemetry traces, RED, USE, and golden signals
+- Queue, batch, accelerator, and provider failure modes
+- Architecture evolution from modular monolith to workers or services
 
 ### Project deep dives
 
@@ -3505,6 +3765,17 @@ Required evidence:
 - Cost analysis
 - Model-adaptation project
 - Technical presentation
+
+### Parallel .NET Applied AI readiness
+
+Required evidence:
+
+- Authenticated ASP.NET Core model API with structured output, streaming, cancellation, retry, and observable fallback
+- Production RAG slice with authorization, citations, evaluation, and classic-versus-agentic comparison
+- Controlled tool workflow with governed memory
+- Authenticated MCP client or server with identity propagation and capability-version controls
+- OpenTelemetry traces plus RED, USE, golden-signal, AI-quality, safety, and cost dashboards
+- Architecture ADR, containerized deployment, failure tests, security tests, and interview defense
 
 ### LLM Engineer readiness
 
