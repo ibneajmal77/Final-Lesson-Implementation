@@ -1,154 +1,176 @@
-# START HERE — Luxoft Senior Full Stack Developer (Abu Dhabi, VR-122402)
+# 00 — START HERE
 
 **Candidate:** Muhammad Awais
-**Role:** Senior Full Stack Developer — Abu Dhabi, UAE · permanent
+**Role:** Senior Full Stack Developer — Abu Dhabi, UAE (permanent)
 **Specialization:** C#/VB.NET · **Industry:** BCM (Banking & Capital Markets)
-**Budget:** AED 25,000–35,000 gross/month
-**Recruiter:** Yevheniia Zlatieva (DXC/Luxoft)
+**Budget:** AED 25,000–35,000 gross/month · **Request ID:** VR-122402
+**Recruiter:** Yevheniia Zlatieva (Luxoft / DXC)
 
-## ⏰ THE TIMELINE
+---
+
+# ⏰ THE TIMELINE
 
 | Stage | When | Format | What it decides |
 |---|---|---|---|
-| **1. Technical discussion** | **Mon 03 Aug 2026, 17:00 Dubai — 1 hour** | Video, *"code exercise could be done"* | Are you technically real? |
-| 2. Hiring manager discussion | TBD, after stage 1 | Video | Seniority, ownership, communication |
-| 3. Final client discussion | TBD | Video with the Abu Dhabi client | Domain fit, client-facing polish |
+| **1. Technical discussion** | **Mon 03 Aug 2026, 17:00 Dubai — 1 hour** | Video. *"Code exercise could be done."* | **Are you technically real?** |
+| 2. Hiring manager | After stage 1 | Video | Seniority, ownership, communication |
+| 3. Client discussion | TBD | Video, with the Abu Dhabi client | Domain fit, client-facing polish |
 
-**You have Fri evening + Sat + Sun + Mon daytime. ~3 days.** Plan below is built for exactly that.
-
----
-
-## 1. The one-paragraph read on your situation
-
-This is **not** the AI/cloud role your CV is optimised for. It is a **.NET + Python + real-time data
-role in capital markets**, with **WPF (desktop) listed as Advanced** — almost certainly a
-portfolio/order management or trading-adjacent system for an Abu Dhabi financial institution.
-Your .NET depth, distributed systems, Python, SQL, design patterns and Azure are **direct hits**.
-Your three gaps are **WPF, low-level multithreading fluency, and financial domain**. Close those
-and you're strong. Ignore them and round 1 will expose you.
-
-**Monday is 1 hour.** Realistically that's ~10 min intro/project walkthrough, ~30 min deep technical
-Q&A, ~10 min code exercise, ~10 min your questions. Optimise for *that*, not for a 5-hour exam.
+## ⚠️ You have tonight and tomorrow daytime. Use the plan in Part 4.
 
 ---
 
-## 2. Priority order — where your hours go
+# 1. THE SITUATION, IN ONE PARAGRAPH
+
+This is **not** the AI/cloud role your CV is optimised for.
+
+It's a **.NET + Python + real-time data role in capital markets**, with **WPF desktop listed as
+Advanced** — almost certainly a portfolio or order management system for an Abu Dhabi financial
+institution.
+
+- **Direct hits:** your .NET depth, distributed systems, Python, SQL, design patterns, Azure.
+- **Three gaps:** **WPF**, **low-level threading fluency**, **financial domain**.
+
+Close those and you're strong. Ignore them and round one exposes you.
+
+⚠️ **Monday is one hour.** Realistically: ~10 minutes intro and project walkthrough, ~30 minutes deep
+technical Q&A, ~10 minutes code exercise, ~10 minutes your questions. **Optimise for that, not for a
+five-hour exam.**
+
+---
+
+# 2. HOW EVERY FILE IS WRITTEN
+
+The whole pack uses one format, so you always know what you're looking at:
+
+> **Q:** the question they ask
+> **Say:** the exact words you speak — short, then stop
+> **Remember:** a one-line hook so it sticks
+> ⚠️ the follow-up they'll try, or the trap
+
+**Every file opens with "THE ANSWERS THAT WIN"** — a table of the handful of answers that carry that
+topic. **If you're short on time, read only those tables.** They are about 15 minutes total across
+the whole pack and they cover most of what gets asked.
+
+**Every file ends with rapid-fire questions.** Cover the answer column and say them out loud.
+⚠️ **Reading silently is worth about 20% of the value. Speaking is what builds recall under
+pressure.**
+
+---
+
+# 3. PRIORITY ORDER — WHERE YOUR HOURS GO
 
 | # | Topic | File | Monday weight | Why |
 |---|---|---|---|---|
-| 🔴 1 | **Project walkthrough** (your 3-min story) | `02` §4 | Very high | Guaranteed first question. Sets the whole tone. |
-| 🔴 2 | **C# / .NET internals** | `03` | Very high | Their core specialization. Must be flawless. |
-| 🔴 3 | **Multithreading & real-time** | `04` | Very high | Explicit must-have; loved in trading interviews. |
-| 🔴 4 | **WPF / desktop** | `05` | High | Listed *Advanced*; zero on your CV. Biggest risk. |
-| 🟠 5 | **Design patterns + coding exercise** | `08` A/B, `16` B | High | "Code exercise could be done" — be ready. |
-| 🟠 6 | **SQL** (+ MongoDB, columnar) | `07` | High | Explicit must-have; classic Luxoft screen topic. |
-| 🟠 7 | **Python advanced** | `06` | **High** | Listed *Advanced* — equal billing with .NET. Internals (GIL, memory) are what get tested. |
-| 🟡 7b | JS / TypeScript / React | `17` | Low (~90 min) | Listed *Medium* only. But your CV claims a lot here — read `17` §0 for the calibration line. |
-| 🟡 8 | System design / SOA / distributed | `08` | Medium | Your strength — go deep if invited. |
-| 🟡 9 | REST + auth protocols | `09` | Medium | Easy points, don't fumble. |
-| 🟡 10 | Azure / DevOps / CI-CD | `10` | Low-med | Your strength. Keep answers *short*. |
-| 🟢 11 | Finance domain | `11` | Low Mon, **high for stage 3** | Show curiosity Monday; master before client round. |
-| 🟢 12 | Performance & profiling | `12` | Low-med | Nice-to-have = cheap differentiator. |
-| 🟢 13 | Behavioural / STAR | `13` | Low Mon, **high stage 2** | Decides the offer later. |
+| 🔴 1 | **The cram sheet** | `15` | **Highest** | Everything that matters, compressed. Read it last, keep it open |
+| 🔴 2 | **Project walkthrough** (your 3-minute story) | `02` | Very high | Guaranteed first question. Sets the tone |
+| 🔴 3 | **C# / .NET internals** | `03` | Very high | Their core specialization. Must be flawless |
+| 🔴 4 | **Multithreading & real-time** | `04` | Very high | Explicit must-have, and the round that separates candidates |
+| 🔴 5 | **WPF / desktop** | `05` | High | Listed *Advanced*, zero on your CV. **Biggest risk** |
+| 🟠 6 | **Patterns + the coding exercise** | `08`, `16` | High | *"Code exercise could be done"* |
+| 🟠 7 | **SQL** (+ Mongo, columnar) | `07` | High | Explicit must-have. Classic Luxoft screen topic |
+| 🟠 8 | **Python advanced** | `06` | High | Listed *Advanced* — equal billing with .NET. **Internals get tested, not usage** |
+| 🟡 9 | System design & distributed | `08` | Medium | Your strength — go deep if invited |
+| 🟡 10 | REST + auth | `09` | Medium | Easy points. Don't fumble them |
+| 🟡 11 | Azure / DevOps | `10` | Low-med | Your strength. ⚠️ **Keep answers short** |
+| 🟡 12 | JS / TypeScript / React | `17` | Low (~60 min) | Listed *Medium* only. Read Part 0 and Part 7 |
+| 🟢 13 | Finance domain | `11` | Low Monday, **high for stage 3** | Show curiosity now, master before the client round |
+| 🟢 14 | Performance & profiling | `12` | Low-med | Nice-to-have = cheap differentiator |
+| 🟢 15 | Behavioural / STAR | `13` | Low Monday, **high stage 2** | Decides the offer later |
 
 ---
 
-## 3. File map
+# 4. 🎯 THE PLAN FOR THE TIME YOU ACTUALLY HAVE
 
-```
-00-START-HERE.md ..................... this file: plan, schedule, how to use the pack
-01-role-decoded.md ................... what the JD really means, likely client, Luxoft context
-02-gap-analysis-positioning.md ....... CV vs JD, your narrative, 3-min project story, gap scripts
-03-csharp-dotnet.md .................. C#, CLR, GC, memory, LINQ, EF — Q&A + code
-04-multithreading-concurrency.md ..... threads, TPL, async, locks, lock-free, real-time — Q&A + code
-05-wpf-desktop.md .................... WPF/XAML/MVVM zero → interview-ready + the build project
-06-python.md ......................... advanced Python, GIL, asyncio, pandas/numpy — Q&A + code
-07-sql-databases.md .................. SQL tuning, indexes, isolation, MongoDB, columnar/time-series
-08-design-patterns-architecture.md ... GoF + enterprise patterns, algorithms, 3 design walkthroughs
-09-rest-api-security.md .............. REST design, OAuth2/OIDC/JWT/Kerberos/mTLS — Q&A
-10-azure-devops.md ................... Azure services, CI/CD, IaC, observability — Q&A
-11-finance-domain.md ................. instruments, order lifecycle, OMS/EMS/PMS, FIX, P&L, risk, quant
-12-performance-profiling.md .......... profiling .NET & Python, benchmarking, load testing
-13-behavioural-and-questions.md ...... STAR stories, their questions, your questions, follow-up email
-15-cheatsheet-cram.md ................ ⭐ rapid revision — read Monday afternoon, keep open on the call
-16-mock-drills.md .................... 95 rapid-fire Qs + 8 coding exercises + mock interview scripts
-17-javascript-typescript-react.md .... JS/TS/React/Angular in plain words, built on C# comparisons
-```
+## Tonight (Sunday) — 4 to 5 hours
 
----
-
-## 4. THE 3-DAY PLAN
-
-### 🌙 Friday evening (tonight, 2–3 h) — *orientation + the thing that takes longest to sink in*
-1. Read `01-role-decoded.md` and `02-gap-analysis-positioning.md` (45 min).
-2. **Write and say out loud** your 3-minute project walkthrough from `02` §4 (45 min).
-   Record yourself on your phone. Play it back. Redo it. This is the highest-ROI hour of the weekend.
-3. Skim `05-wpf-desktop.md` §1–4 so WPF concepts start marinating overnight (30 min).
-4. Set up the WPF project skeleton (`dotnet new wpf`) so Saturday starts with code, not setup (15 min).
-
-### ☀️ Saturday (6–7 h) — *the two hard gaps*
 | Block | Time | What |
 |---|---|---|
-| AM-1 | 2.5 h | **Build the WPF app** (`05` §12). Real-time DataGrid, MVVM, background ticks. Actually run it. |
-| AM-2 | 1 h | `05` §5–11 Q&A — read *after* building; it will now make sense. |
-| PM-1 | 2 h | `04-multithreading-concurrency.md` end to end. Write the code samples yourself. |
-| PM-2 | 1 h | `03-csharp-dotnet.md` §1–6 (CLR, GC, value vs reference, boxing, `struct`). |
-| Night | 30 m | `15-cheatsheet-cram.md` skim. Sleep on it. |
+| 1 | **45 min** | ⭐ **Read the "ANSWERS THAT WIN" table at the top of every file.** That's `03`, `04`, `05`, `06`, `07`, `08`, `09`, `10`, `11`, `12`, `17`. This is the single highest-value 45 minutes available to you. |
+| 2 | **45 min** | **Write and say out loud your 60-second pitch and 3-minute project walkthrough** (`02`). Record it on your phone. Play it back. Redo it. |
+| 3 | **90 min** | `05` **WPF** — Parts 0, 3, 4, 5, 7. ⚠️ **Learn the Part 7 answer properly** (10k ticks into a grid). It can carry the whole WPF portion. |
+| 4 | **60 min** | `04` **Concurrency** end to end. Then `03` Parts 0–2. |
+| 5 | **20 min** | `15` cram sheet, skim. **Then sleep.** Sleep consolidates this more than another hour would. |
 
-### ☀️ Sunday (6–7 h) — *breadth + the exercise + polish*
+**If you can find 2 extra hours: build the WPF app** (`05` Part 12). It converts theory into
+*"I built a real-time positions grid this weekend"* — which changes your WPF answer completely.
+
+## Monday morning — 3 to 4 hours
+
 | Block | Time | What |
 |---|---|---|
-| AM-1 | 1.5 h | `03` rest + `07-sql-databases.md`. Write 5 SQL queries by hand (`07` §9). |
-| AM-2 | 1.5 h | `08` Part A patterns + `16` Part B coding — **solve 3 on paper, timed 25 min each**. |
-| PM-1 | 2 h | `06-python.md` (§5 GIL first, it's the big one) + `09-rest-api-security.md`. |
-| PM-1b | 1 h | `17-javascript-typescript-react.md` — read §0 and Part 7 twice; skim the rest once. |
-| PM-2 | 1.5 h | `11-finance-domain.md` — read twice. Then `08` §C4 design walkthrough **out loud**. |
-| Night | 1 h | `16` Part A rapid-fire (target 70+/95), then `16` §C3 self-run mock, camera on. |
+| 1 | **60 min** | `16` **Part A rapid-fire — out loud, no notes.** Target 100+ of 120. Anything you miss, go back to that file's section. |
+| 2 | **45 min** | `07` SQL (write 3 queries by hand) + `03` rest |
+| 3 | **45 min** | `06` Python — Part 0 and Part 5 (the GIL) + `08` Part C4 **out loud** |
+| 4 | **30 min** | `09` REST/auth + `11` finance Part 0 and Part 10 |
+| 5 | **30 min** | `17` JavaScript — Part 0 and Part 0.5 only |
 
-### 🎯 Monday (interview 17:00 Dubai)
+## Monday afternoon
+
 | Time | What |
 |---|---|
-| Morning, 2 h | `15-cheatsheet-cram.md` cover to cover. Then `16` Part A rapid-fire — out loud, no notes. |
-| 14:00, 1 h | Re-run your 60-sec pitch 3×. Re-read `02` §5 (gap scripts) and `13` §4 (your questions). |
-| 15:30 | **Tech check:** camera, mic, lighting, headphones, link works, IDE open, screen-share tested. |
-| 16:00 | Light food. Water on desk. Phone silent. Close Slack/email. |
-| 16:40 | Notes on screen: 1-page cram sheet + your 5 questions + your pitch bullets. Nothing else. |
-| 16:55 | Join. Camera on, smile, breathe. |
+| **14:00** | ⭐ `15` **cram sheet, cover to cover.** Then say your pitch three times. |
+| **15:00** | Re-read the two honest answers (`15` §3) and your five questions (`13` Part 5). |
+| **15:30** | **Tech check:** camera, mic, lighting, headphones, link, IDE open, **screen share tested**. |
+| **16:00** | Light food. Water on the desk. Phone silent. Close Slack and email. |
+| **16:40** | On screen: the cram sheet, your five questions, your pitch bullets. **Nothing else.** |
+| **16:55** | Join. Camera on. Smile. Breathe. |
 
 ---
 
-## 5. The homework that changes everything
+# 5. THE FILE MAP
 
-**Build a small WPF app on Saturday morning. Timebox 2.5 hours.** Full instructions: `05` §12.
-
-You cannot credibly claim "Advanced WPF" from reading alone. But after building this you can honestly
-say *"I've been hands-on in WPF recently building a real-time positions grid"* — and answer ~20
-interview questions from lived experience instead of theory: data binding, `INotifyPropertyChanged`,
-`ObservableCollection`, dispatcher marshalling, UI virtualisation, throttling high-frequency updates,
-MVVM, commands, converters, and the classic *"how do you update the UI from a background thread at
-20 ticks/second without freezing it?"* — which is **exactly** the question a capital-markets desktop
-team asks.
-
----
-
-## 6. Three rules for the whole process
-
-1. **Lead with .NET, not AI.** Your CV reads "Senior Full Stack **AI** Engineer". This role wants a
-   .NET craftsman who handles real-time data and desktop UIs. Reorder the story: .NET → distributed/
-   real-time → Python/SQL → *then* AI as a bonus. See `02` §3.
-2. **Never bluff on WPF or finance.** Name what you've done, show transferable depth, show the
-   learning already started. In a capital-markets interview the interviewer *is* the domain expert.
-   Exact wording in `02` §5.
-3. **Quantify.** 200K events/day, <100 ms, 99.99% delivery, sub-2s RAG, sub-second APIs at peak,
-   90%+ coverage, environments in <5 min. Say these numbers out loud — most candidates can't.
+```
+00-START-HERE.md ..................... this file — the plan and how to use the pack
+01-role-decoded.md ................... what the job spec really means; who the client probably is
+02-gap-analysis-positioning.md ....... your CV vs theirs; the pitch; the project story; gap scripts
+03-csharp-dotnet.md .................. C#, CLR, GC, memory, LINQ, EF
+04-multithreading-concurrency.md ..... threads, async, locks, channels, real-time
+05-wpf-desktop.md .................... WPF from zero → interview-ready, plus the build project
+06-python.md ......................... Python internals, GIL, asyncio, Pandas — 150 rapid-fire
+07-sql-databases.md .................. SQL tuning, indexes, isolation, MongoDB, columnar
+08-design-patterns-architecture.md ... patterns, algorithms, 3 system-design walkthroughs
+09-rest-api-security.md .............. REST design, OAuth2/OIDC/JWT/Kerberos/mTLS
+10-azure-devops.md ................... Azure, CI/CD, observability — ⚠️ keep answers short
+11-finance-domain.md ................. instruments, order lifecycle, OMS/EMS/PMS, FIX, P&L, risk
+12-performance-profiling.md .......... profiling .NET and Python, benchmarking, load testing
+13-behavioural-and-questions.md ...... STAR stories, their questions, your questions, follow-up email
+15-cheatsheet-cram.md ................ ⭐ read Monday afternoon, keep open during the call
+16-mock-drills.md .................... 120 rapid-fire + 8 coding exercises + mock scripts
+17-javascript-typescript-react.md .... JS/TS/React in plain words, built on C# comparisons
+```
 
 ---
 
-## 7. Known unknowns (don't invent answers to these)
+# 6. THE THREE RULES FOR THE WHOLE PROCESS
 
-- **The end client is not named in the posting.** "BCM" = Luxoft's Banking & Capital Markets vertical.
-  Treat any guess as a hypothesis — ask them directly (question #2 in `14`).
+## 1. Lead with .NET, not AI.
+Your CV reads *"Senior Full Stack **AI** Engineer"*. This role wants a **.NET craftsman who handles
+real-time data and desktop UIs**. Reorder the story: **.NET → distributed/real-time → Python/SQL →
+*then* AI as a bonus.**
+
+## 2. Never bluff on WPF or finance.
+Name what you've done, show transferable depth, show that the learning has already started.
+⚠️ **In a capital-markets interview, the interviewer *is* the domain expert.**
+
+**Luxoft's assessor is measuring risk.** Every *"I don't know, but here's the closest thing I've
+done"* **reduces** their risk. Every bluff **increases** it — because the client round will catch it,
+and that embarrasses them.
+
+## 3. Quantify.
+200,000 events a day. Under 100 ms. 99.99% delivery. Sub-second APIs at peak. 90%+ coverage.
+Environments in under 5 minutes. **Say these numbers out loud — most candidates can't.**
+
+---
+
+# 7. KNOWN UNKNOWNS (don't invent answers to these)
+
+- **The end client isn't named in the posting.** "BCM" is Luxoft's Banking & Capital Markets vertical.
+  Treat any guess as a hypothesis and **ask** (question 2 in `13` Part 5). Guessing wrong sounds
+  sloppy; asking sounds engaged.
 - **VB.NET** appears in the specialization tag but nowhere in the requirements — likely a legacy
-  component or just Luxoft's internal taxonomy. Have a one-line answer ready (`02` §5).
-- The ChatGPT link you shared could not be read (client-side rendered, no content retrievable).
-  If it contained specific questions or notes, paste the text and I'll fold it in.
+  component, or just Luxoft's internal taxonomy. Have a one-line answer ready: *"I've not worked in
+  VB.NET recently, but it's the same CLR and the same framework — reading and maintaining it wouldn't
+  be a problem."*
+- **Money on Monday: don't.** If asked: *"Yevheniia shared the range and it works for me — I'd rather
+  focus on the technical fit today."*

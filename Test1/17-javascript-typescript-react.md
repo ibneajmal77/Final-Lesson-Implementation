@@ -1,129 +1,168 @@
-# 17 — JavaScript, TypeScript, React & Angular — in plain words
+# 17 — JAVASCRIPT, TYPESCRIPT & REACT, IN PLAIN ENGLISH
 
-> **Read this one first, before anything else in this file:**
+> **Read this box first.**
 >
-> The JD asks for *"JavaScript with frameworks — **Medium** level"*. Medium. Not advanced. React is
-> never even named. **This is a backend/desktop role.** You do **not** need to be a React expert.
+> The job asks for *"JavaScript with frameworks — **Medium** level"*. Medium. Not advanced.
+> React is never even named. **This is a backend and desktop role.**
 >
-> What you need is: understand the ideas well enough to explain them simply, and have honest,
-> confident answers if they probe. Budget **90 minutes**, not a day.
+> You do not need to be a React expert. You need to explain the ideas simply and answer honestly
+> if they probe. Budget **90 minutes**, not a day.
 >
-> Everything below is explained by comparing it to **C# / .NET**, which you already know deeply.
+> Every idea below is explained by comparing it to **C# / .NET**, which you already know deeply.
 > That's the fastest route into your memory.
+
+**Format used throughout:**
+**Q:** what they ask → **Say:** the words you speak → **Remember:** the hook.
 
 ---
 
-## 0. FIRST — the honest calibration line (use this if frontend comes up)
+# PART 0 — THE HONEST CALIBRATION LINE (use it if frontend comes up)
 
-Your CV lists a lot of frontend. If your real depth is thinner, **say so early and simply**. It costs
-you nothing and protects you completely:
+Your CV lists a lot of frontend. If your real depth is thinner, **say so early and simply.**
+It costs you nothing and protects you completely.
 
 > *"Quick note on the front end — I've worked across React, Angular and Vue on the platforms I've
 > built, but I'd describe myself as a backend-heavy full stack engineer. I'm comfortable building and
 > reviewing UI code and I understand the architecture side — component design, state management,
-> build tooling, micro-frontends. But my real depth is .NET, distributed systems and data. If you
-> need someone whose primary craft is front end, I'm not that person; if you need someone who can
-> work across the stack with backend depth, that's me."*
+> build tooling. But my real depth is .NET, distributed systems and data. If you need someone whose
+> primary craft is front end, I'm not that person. If you need someone who can work across the stack
+> with backend depth, that's me."*
 
-**Why this is the right move:** interviewers don't punish honest calibration — they punish discovering
-a gap themselves. And for *this* role, backend depth is what they're buying anyway. Saying it out
-loud actually strengthens your positioning.
-
-⚠️ Related: consider softening the frontend claims on your CV (see `02` §6). "React 19, Angular 2–20,
-Vue 3" invites a drill you don't need.
+**Why this works:** interviewers don't punish honest calibration. They punish *discovering* a gap
+themselves. And for this role backend depth is what they're buying anyway.
 
 ---
 
-# PART 1 — JAVASCRIPT (the language underneath everything)
+# PART 0.5 — THE 10 JAVASCRIPT ANSWERS THAT WIN
 
-## 1.1 The one-paragraph mental model
+| # | The question | The answer, in one breath |
+|---|---|---|
+| 1 | **Is JS single-threaded?** | "Yes — one thread. But it never sits and waits. Slow work is handed to the runtime and the callback queues up. Same as one UI thread with no thread pool." |
+| 2 | **The event loop** | "Run the synchronous code. Then drain all the promises. Then take one timer. **Sync → promises → timers.**" |
+| 3 | **`var` / `let` / `const`** | "`const` by default, `let` when you must reassign, never `var`. `var` is function-scoped and causes loop bugs." |
+| 4 | **Is `const` immutable?** | "No. The variable can't be re-pointed. The object it points at can still change. Like `readonly` on a reference field in C#." |
+| 5 | **`==` vs `===`** | "Always `===`. `==` converts types first and the rules are strange. The one exception is `x == null`, which conveniently catches both `null` and `undefined`." |
+| 6 | **Array methods** | "**They're LINQ with different names.** `map`=`Select`, `filter`=`Where`, `reduce`=`Aggregate`, `find`=`FirstOrDefault`." |
+| 7 | **A Promise is…** | "A placeholder for a value that isn't ready. It's a `Task<T>`." |
+| 8 | **`this`** | "In a normal function it depends on how it was called. In an arrow function it's whatever it was outside. **Use arrows in callbacks and the problem disappears.**" |
+| 9 | **TypeScript at runtime** | "The types are erased. They exist for the editor and the build. So I validate real API data at the boundary with Zod." |
+| 10 | **React in one line** | "**UI = f(state).** I describe what the screen should look like for the current state, and React works out the minimum change." |
 
-JavaScript runs in a browser (or Node.js). It is **single-threaded** — one thing at a time — but it
-never sits and waits. When something slow happens (a network call), JS hands it off and carries on;
-when the result arrives, the callback goes in a queue and runs when the thread is free.
+---
 
-**C# comparison:** it's like an app with **one** UI thread and no thread pool. Everything is
-`async/await` on that one thread. If you block it, the whole page freezes — exactly like blocking
-the WPF dispatcher (`05` §7). **That comparison alone answers half of the JS questions you'll get.**
+# PART 1 — JAVASCRIPT: THE LANGUAGE
 
-## 1.2 `var` vs `let` vs `const` — know this cold, it's the most-asked JS question
+## 1.1 The mental model
 
-| | Scope | Can reassign? | Hoisting |
+JavaScript runs in a browser or in Node.js. It has **one thread**. But it never blocks and waits.
+When something slow happens — a network call — JS hands it off to the runtime and carries on.
+When the result arrives, the callback goes into a queue and runs when the thread is free.
+
+**Say:** *"It's like an application with one UI thread and no thread pool. Everything is async on that
+one thread. Block it and the whole page freezes — exactly like blocking the WPF dispatcher."*
+
+**Remember:** **One thread. Never waits. Never block it.**
+
+---
+
+## 1.2 `var` vs `let` vs `const`
+
+| | Scope | Reassign? | Before declaration |
 |---|---|---|---|
-| `var` | **function** scope | yes | hoisted, value is `undefined` |
-| `let` | **block** scope `{}` | yes | hoisted but unusable before declaration ("temporal dead zone") |
-| `const` | **block** scope | **no** | same as `let` |
+| `var` | **whole function** | yes | exists, value is `undefined` |
+| `let` | **the block `{ }`** | yes | error — "temporal dead zone" |
+| `const` | **the block `{ }`** | **no** | same as `let` |
 
-**Simple answer to give:** *"Use `const` by default, `let` when you need to reassign, and never `var`
-— `var` is function-scoped, which causes surprising bugs in loops."*
-
-⚠️ **`const` does not mean immutable.** It means the *variable* can't be re-pointed. The object it
-points at can still change:
 ```js
 const user = { name: "Awais" };
-user.name = "Ali";        // ✅ allowed — we changed the object
-user = { name: "Ali" };   // ❌ error — we tried to re-point the variable
+user.name = "Ali";        // fine — we changed the object
+user = { name: "Ali" };   // ERROR — we tried to re-point the variable
 ```
-**C# comparison:** `const` here behaves like `readonly` on a reference field — the reference is
-fixed, the object isn't.
+
+**Say:** *"`const` by default, `let` when I need to reassign, never `var`. And `const` isn't
+immutability — it fixes the variable, not the object. It's `readonly` on a reference field in C#."*
+
+**Remember:** **`const` locks the label, not the thing.**
+
+---
 
 ## 1.3 `==` vs `===`
 
-- `===` compares **value and type**. No surprises.
-- `==` converts types first, and the rules are strange: `0 == "0"` is true, `null == undefined` is
-  true, `"" == 0` is true.
+`===` compares **value and type**, no surprises.
+`==` converts types first, and the rules are strange: `0 == "0"` is true, `"" == 0` is true,
+`null == undefined` is true.
 
-**Answer:** *"Always `===`. The only common exception is `x == null`, which conveniently checks for
-both `null` and `undefined`."*
+**Say:** *"Always `===`. The only exception I use is `x == null`, which checks for `null` and
+`undefined` in one go."*
+
+---
 
 ## 1.4 `null` vs `undefined`
-- `undefined` = "nobody set this yet" (the default).
-- `null` = "someone deliberately set this to nothing".
-- **C#:** both are roughly `null`, but JS splits "never assigned" from "assigned nothing".
 
-## 1.5 Truthy and falsy
-Falsy values (everything else is truthy): `false`, `0`, `""`, `null`, `undefined`, `NaN`.
-⚠️ Gotcha: `[]` and `{}` are **truthy**. And `if (count)` is a bug when `count` can legitimately be 0
-— use `if (count !== undefined)` or `??`.
+- `undefined` = "nobody set this yet" — the default.
+- `null` = "someone deliberately set this to nothing".
+
+**Say:** *"C# has one `null`. JavaScript splits 'never assigned' from 'assigned nothing'."*
+
+---
+
+## 1.5 Truthy, falsy, and the three operators that save you
+
+Falsy: `false`, `0`, `""`, `null`, `undefined`, `NaN`. Everything else is truthy —
+**including `[]` and `{}`**, which surprises people.
 
 ```js
-const name = input ?? "default";   // ?? only falls back on null/undefined  ✅ safer
-const name = input || "default";   // || also falls back on 0 and ""       ⚠️ common bug
-const city = user?.address?.city;  // ?. optional chaining — no crash if address is missing
+const name = input ?? "default";    // ?? only falls back on null/undefined   ✅
+const name = input || "default";    // || ALSO falls back on 0 and ""         ⚠️ common bug
+const city = user?.address?.city;   // ?. no crash if address is missing
+count ??= 0;                        // assign only if null/undefined
 ```
-**C#:** `??` and `?.` are literally the same operators you use in C#. Easy win.
 
-## 1.6 The event loop (the one "how does it work" question)
+**Say:** *"`??` and `?.` are literally the same operators as C#. `||` is the trap — it treats `0` and
+empty string as missing, which is a real bug when zero is a valid value."*
 
-**Explain it like this — simple and correct:**
-> *"JavaScript has one thread. Slow things like network calls are handed to the runtime, and when
-> they finish, their callbacks are put in a queue. The event loop takes the next callback from the
-> queue whenever the thread is free. So JS is single-threaded but non-blocking. If you run a long
-> loop, nothing else happens — the page freezes — which is the same problem as blocking the WPF
-> dispatcher thread."*
+**Remember:** **`??` for missing. `||` for falsy. They are not the same.**
 
-If they push further: **microtasks** (promises) run before **macrotasks** (`setTimeout`), and all
+---
+
+## 1.6 The event loop (the classic "how does it work" question)
+
+**Say this, it's simple and correct:**
+
+> *"JavaScript has one thread. Slow things like network calls are handed to the runtime. When they
+> finish, their callbacks go into a queue. The event loop takes the next callback whenever the thread
+> is free. So JS is single-threaded but non-blocking. If I run a long loop nothing else happens —
+> the page freezes. Same problem as blocking the WPF dispatcher."*
+
+If they push further: **microtasks (promises) run before macrotasks (`setTimeout`)**, and *all*
 microtasks drain before the next macrotask.
+
 ```js
 console.log("1");
-setTimeout(() => console.log("2"), 0);   // macrotask — runs last
-Promise.resolve().then(() => console.log("3"));  // microtask — runs before setTimeout
+setTimeout(() => console.log("2"), 0);            // macrotask — last
+Promise.resolve().then(() => console.log("3"));   // microtask — before the timer
 console.log("4");
 // Output: 1, 4, 3, 2
 ```
-That output order is a classic interview question. **Memory hook: "sync → promises → timers."**
 
-## 1.7 Promises & async/await
+**Remember: sync → promises → timers.**
 
-A **Promise** is a placeholder for a value that isn't ready yet. **C#: it's a `Task<T>`.**
-States: pending → fulfilled or rejected.
+**Q: `setTimeout(fn, 0)` — does it run immediately?**
+**Say:** *"No. It runs after the current synchronous code and after all pending promises. The zero is
+a minimum delay, not a guarantee."*
+
+---
+
+## 1.7 Promises and async/await
+
+A Promise is a placeholder for a value that isn't ready yet. **It's a `Task<T>`.**
+States: **pending** → **fulfilled** or **rejected**.
 
 ```js
-// async/await — identical in spirit to C#
 async function loadUser(id) {
   try {
     const res = await fetch(`/api/users/${id}`);
-    if (!res.ok) throw new Error(res.status);
+    if (!res.ok) throw new Error(res.status);     // fetch does NOT throw on 404/500!
     return await res.json();
   } catch (err) {
     console.error(err);
@@ -131,57 +170,296 @@ async function loadUser(id) {
   }
 }
 
-await Promise.all([a, b, c]);      // C#: Task.WhenAll — all must succeed
-await Promise.allSettled([a, b]);  // never rejects; tells you each outcome
-await Promise.race([a, timeout]);  // C#: Task.WhenAny — first one wins
+await Promise.all([a, b, c]);        // C#: Task.WhenAll — all must succeed, fails fast
+await Promise.allSettled([a, b]);    // never rejects; reports each outcome
+await Promise.race([a, timeout]);    // C#: Task.WhenAny — first to settle wins
+await Promise.any([a, b]);           // first to SUCCEED wins
 ```
-⚠️ `fetch` does **not** throw on a 404 or 500 — you must check `res.ok` yourself. Common gotcha.
 
-## 1.8 `this` — the confusing one, made simple
+**Q: The single most-missed gotcha?**
+**Say:** *"`fetch` does not throw on a 404 or a 500. It only rejects on a network failure. You have to
+check `res.ok` yourself. That surprises everyone coming from `HttpClient`, which has
+`EnsureSuccessStatusCode`."*
 
-**Simple rule:** in a normal `function`, `this` depends on **how it was called**. In an **arrow
-function**, `this` is whatever it was in the surrounding code — arrows don't have their own `this`.
+**Q: Sequential vs parallel?**
+```js
+const a = await fetchA();  const b = await fetchB();     // sequential — 2 seconds
+const [a, b] = await Promise.all([fetchA(), fetchB()]);  // parallel — 1 second
+```
+**Remember:** **Two awaits in a row is sequential. `Promise.all` is parallel.**
 
-**Practical takeaway:** *"Use arrow functions in callbacks and you almost never have a `this`
-problem."* That's the whole answer at medium level. Don't go deeper unless asked.
+**Q: Unhandled rejection?**
+**Say:** *"A rejected promise nobody catches. In Node it crashes the process by default in modern
+versions. Always `.catch` or wrap in try/catch — same discipline as an unobserved `Task` exception."*
 
-## 1.9 Closures
+---
 
-A function that "remembers" the variables around it, even after the outer function has finished.
+## 1.8 `this` — made simple
+
+**Say:** *"In a normal `function`, `this` depends on **how it was called**. In an **arrow function**,
+`this` is whatever it was in the surrounding code — arrows don't have their own `this`."*
+
+```js
+const obj = {
+  name: "book",
+  normal() { console.log(this.name); },          // "book" — called as obj.normal()
+  arrow: () => console.log(this.name),           // undefined — took `this` from outside
+};
+
+setTimeout(obj.normal, 0);          // undefined — lost its owner
+setTimeout(() => obj.normal(), 0);  // "book" — arrow keeps the call intact
+```
+
+**The practical answer at medium level:** *"Use arrow functions in callbacks and you almost never
+have a `this` problem."* Don't go deeper unless asked.
+
+## 1.9 `call`, `apply`, `bind` (they may ask — it was missing before)
+
+```js
+greet.call(obj, "hi", "there");   // run now, `this` = obj, args listed
+greet.apply(obj, ["hi", "there"]); // run now, `this` = obj, args as an Array
+const bound = greet.bind(obj);     // returns a NEW function permanently bound to obj
+```
+
+**Remember:** **Call = Comma. Apply = Array. Bind = Bound for later.**
+
+---
+
+## 1.10 Closures
+
+A function that **remembers the variables around it**, even after the outer function has finished.
 
 ```js
 function makeCounter() {
-  let count = 0;                 // stays alive because the inner function uses it
+  let count = 0;                // stays alive because the inner function uses it
   return () => ++count;
 }
 const next = makeCounter();
 next(); // 1
 next(); // 2
 ```
-**C#:** exactly a lambda capturing a local variable (`03` §5). Same concept, same memory-leak risk.
 
-## 1.10 The array methods you must recognise
+**Say:** *"Exactly a C# lambda capturing a local variable. Same concept, and the same memory-leak
+risk if the closure outlives what it captured."*
+
+---
+
+## 1.11 Hoisting
+
+**Say:** *"Declarations are processed before the code runs. A `var` exists from the top of its
+function with the value `undefined`. `let` and `const` exist too but you can't touch them until the
+declaration line — that gap is the temporal dead zone, and touching it throws. Function declarations
+are fully hoisted, so you can call them before they appear."*
+
+---
+
+## 1.12 Prototypes and classes (was missing — a real interview topic)
+
+**Say:** *"JavaScript doesn't have classes underneath. Every object has a hidden link to another
+object — its prototype. When you ask for a property that isn't there, JS walks up that chain until it
+finds it or reaches null. That's prototypal inheritance. The `class` keyword added in ES6 is
+**syntax sugar** over exactly this — it isn't a new inheritance model."*
+
 ```js
-arr.map(x => x * 2)          // transform      → C# .Select()
-arr.filter(x => x > 10)      // keep some      → C# .Where()
-arr.reduce((sum, x) => sum + x, 0)  // fold    → C# .Aggregate()
-arr.find(x => x.id === 5)    // first match    → C# .FirstOrDefault()
-arr.some(...) / arr.every(...)  //             → C# .Any() / .All()
-arr.sort((a, b) => a - b)    // ⚠️ sorts IN PLACE and sorts as strings by default
-```
-**Memory hook: JS array methods are LINQ with different names.** `map`=`Select`, `filter`=`Where`,
-`reduce`=`Aggregate`, `find`=`FirstOrDefault`. If you remember only that, you can read any JS code.
+class Instrument {
+  #isin;                                   // # = genuinely private field
+  constructor(symbol) { this.symbol = symbol; }
+  describe() { return this.symbol; }       // lives on the prototype, shared by all instances
+  static create(s) { return new Instrument(s); }
+  get display() { return this.symbol.toUpperCase(); }
+}
 
-## 1.11 Spread, destructuring, modules
+class Equity extends Instrument {
+  constructor(symbol, sector) {
+    super(symbol);                         // must come before using `this`
+    this.sector = sector;
+  }
+}
+```
+
+**Remember:** **Prototype chain = lookup by walking up. `class` is sugar over it.**
+
+---
+
+## 1.13 The array methods you must recognise
+
 ```js
-const merged = { ...defaults, ...overrides };   // copy + override (shallow!)
-const [first, second] = myArray;                 // destructuring
-const { name, age = 18 } = user;                 // with a default
-
-export function calc() {}      // ES module export
-import { calc } from "./calc"; // import
+arr.map(x => x * 2)                  // transform     → C# .Select()
+arr.filter(x => x > 10)              // keep some     → C# .Where()
+arr.reduce((sum, x) => sum + x, 0)   // fold          → C# .Aggregate()
+arr.find(x => x.id === 5)            // first match   → C# .FirstOrDefault()
+arr.findIndex(...)                   //               → C# .FindIndex()
+arr.some(...) / arr.every(...)       //               → C# .Any() / .All()
+arr.includes(x)                      //               → C# .Contains()
+arr.flat() / arr.flatMap(...)        //               → C# .SelectMany()
+arr.sort((a, b) => a - b)            // ⚠️ IN PLACE, and sorts as STRINGS by default
+arr.slice(1, 3)                      // copy a section — does NOT change the original
+arr.splice(1, 2)                     // ⚠️ REMOVES items — CHANGES the original
 ```
-⚠️ Spread is a **shallow** copy — nested objects are still shared. Same as `MemberwiseClone` in C#.
+
+**Remember:** **JS array methods are LINQ with different names.** And **`slice` copies, `splice`
+cuts.**
+
+**Q: The sort trap?**
+**Say:** *"`[10, 9, 1].sort()` gives `[1, 10, 9]` because it converts to strings. Numbers always need
+a comparator: `.sort((a, b) => a - b)`. And it sorts in place, which surprises people expecting LINQ's
+immutability."*
+
+---
+
+## 1.14 Spread, destructuring, rest
+
+```js
+const merged = { ...defaults, ...overrides };   // copy and override — SHALLOW
+const copy = [...arr];                          // shallow copy of an array
+const [first, second, ...rest] = myArray;       // destructure with rest
+const { name, age = 18, address: { city } = {} } = user;  // with default and nesting
+function f(...args) {}                          // rest parameter — C#'s params
+```
+
+**Say:** *"Spread is a shallow copy. Nested objects are still shared — the same as `MemberwiseClone`
+in C#. If I need a real deep copy, `structuredClone(obj)` is now built in."*
+
+---
+
+## 1.15 Objects, Map and Set (was missing)
+
+```js
+Object.keys(o) / Object.values(o) / Object.entries(o)
+Object.freeze(o)             // shallow — top-level properties become read-only
+
+const m = new Map();         // ANY type as a key, keeps insertion order, has .size
+m.set(objKey, value); m.get(objKey); m.has(k); m.delete(k);
+
+const s = new Set([1, 2, 2]);   // unique values
+[...new Set(arr)]               // the idiomatic way to dedupe an array
+```
+
+**Q: Object vs Map?**
+**Say:** *"An object only takes string or symbol keys, and it inherits from `Object.prototype` so
+there are inherited keys to worry about. A `Map` takes any key including an object, preserves
+insertion order, and has a real `.size`. For a genuine dictionary I use `Map`; for a record with known
+fields I use an object. `Map` is `Dictionary<K,V>`, `Set` is `HashSet<T>`."*
+
+---
+
+## 1.16 Numbers — and the finance-relevant trap
+
+```js
+0.1 + 0.2                   // 0.30000000000000004
+0.1 + 0.2 === 0.3           // false
+Number.MAX_SAFE_INTEGER     // 9007199254740991 — beyond this, integers lose precision
+10n ** 20n                  // BigInt for exact large integers
+```
+
+**Say (this lands well in a capital-markets interview):**
+*"JavaScript has one number type — a 64-bit float. There is no decimal. So money in the browser is
+handled either as integer minor units, or as a string from the API, or with a library like
+decimal.js. Never do currency arithmetic in raw JS floats. It's the same reason I use `decimal` in C#
+and `Decimal` in Python."*
+
+**Also:** `NaN !== NaN` — use `Number.isNaN(x)`. And `typeof NaN` is `"number"`.
+
+---
+
+## 1.17 Modules — ESM vs CommonJS (was missing)
+
+```js
+// ESM — the modern standard, works in browsers and Node
+export function calc() {}
+export default Thing;
+import { calc } from "./calc.js";
+
+// CommonJS — older Node
+module.exports = { calc };
+const { calc } = require("./calc");
+```
+
+**Say:** *"ESM is static — imports are resolved before the code runs, which is what makes tree-shaking
+possible. CommonJS is dynamic — `require` is a function call at runtime. ESM is the standard now;
+CommonJS is what you meet in older Node code. Mixing them is the source of most Node build pain."*
+
+---
+
+## 1.18 The DOM and events (was missing)
+
+```js
+document.querySelector(".row");
+el.addEventListener("click", handler);
+el.removeEventListener("click", handler);   // must be the SAME function reference
+```
+
+**Q: Event bubbling and delegation?**
+**Say:** *"An event fires on the element, then bubbles up through its ancestors. There's also a
+capture phase going down first, but bubbling is what you use. **Event delegation** means putting one
+listener on the parent instead of one on every child — you check `event.target` to see which child was
+clicked. For a table with 5,000 rows that's one listener instead of five thousand. `e.stopPropagation()`
+halts the bubble, `e.preventDefault()` cancels the default browser behaviour."*
+
+**Remember:** **One listener on the parent beats a thousand on the children.**
+
+---
+
+## 1.19 Debounce and throttle
+
+**Say:** *"Debounce waits until the user **stops** — good for a search box. Throttle runs **at most
+once per interval** — good for scroll or a price feed. In WPF I'd solve the same problem by batching
+onto a `DispatcherTimer`."*
+
+```js
+const debounce = (fn, ms) => {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+};
+```
+
+---
+
+## 1.20 Web Workers and real-time (relevant to this role)
+
+**Say:** *"If I genuinely need to compute something heavy in the browser without freezing the page, I
+move it to a **Web Worker** — a separate thread that talks to the main thread by message passing, with
+no shared memory. It's the browser's answer to the same problem the GIL creates in Python: one thread
+can't do everything."*
+
+**For live data:** *"For streaming prices to a browser I'd use **WebSockets** — full duplex, low
+overhead — or **SignalR** if the backend is .NET, since it handles reconnection and transport
+fallback for me. **Server-Sent Events** if the flow is one-way only. And on the client I'd conflate
+and batch updates exactly like I would in WPF: don't re-render per tick, coalesce to the latest per
+instrument and flush on an interval."*
+
+**That answer connects the frontend to the real job. Use it.**
+
+---
+
+## 1.21 Storage, and CORS (both were missing)
+
+| | Lives for | Size | Sent to server? |
+|---|---|---|---|
+| `localStorage` | Forever, until cleared | ~5 MB | No |
+| `sessionStorage` | The tab | ~5 MB | No |
+| Cookie | Its expiry | ~4 KB | **Yes, every request** |
+
+**Say:** *"Tokens go in an `HttpOnly`, `Secure`, `SameSite` cookie, not `localStorage` — anything in
+`localStorage` is readable by any injected script, so one XSS is a total compromise."*
+
+**Q: What is CORS?**
+**Say:** *"The browser blocks a page on one origin from reading a response from a different origin
+unless the server opts in with `Access-Control-Allow-Origin` headers. For anything non-simple the
+browser first sends an `OPTIONS` preflight. Important detail: **CORS is a browser rule, not server
+security** — it protects users, it doesn't protect the API. The API still needs its own
+authentication and authorisation."*
+
+**Remember:** **CORS protects the user's browser, not your server.**
+
+---
+
+## 1.22 Memory leaks in JS
+
+**Say:** *"The usual causes are listeners that are never removed, timers that are never cleared,
+closures holding a big object, and detached DOM nodes still referenced by JS. `WeakMap` and
+`WeakRef` exist for caches that shouldn't keep things alive. It's the same class of problem as event
+handler leaks in WPF."*
 
 ---
 
@@ -189,117 +467,150 @@ import { calc } from "./calc"; // import
 
 ## 2.1 What it is, in one sentence
 
-> *"TypeScript is JavaScript plus a type system that runs at compile time. It compiles to plain
-> JavaScript, and the types disappear at runtime — they exist to catch mistakes in the editor and
-> the build, not to enforce anything when the code runs."*
+**Say:** *"TypeScript is JavaScript plus a type system that runs at compile time. It compiles to plain
+JavaScript and **the types disappear at runtime** — they exist to catch mistakes in the editor and
+the build, not to enforce anything when the code runs."*
 
-**That last part is the key insight and a common question.** There is **no runtime type checking**.
-If JSON arrives from an API with the wrong shape, TypeScript will not save you — which is why people
-add runtime validation with **Zod** at the boundaries.
+**That last part is the key insight and a common question.** If JSON arrives from an API with the
+wrong shape, TypeScript will not save you. That's why people add runtime validation with **Zod** at
+the boundaries.
 
-**C# comparison:** it's like having C#'s compiler checking a dynamically-typed language, but with the
-type information stripped out before the program runs. Types are a *development* tool, not a runtime
-guarantee.
+**Say the cross-language link — it's a strong moment:**
+*"It's the identical model to Python's type hints. Erased at runtime, checked by a separate tool,
+so you validate real data at the boundary — Zod in TypeScript, Pydantic in Python."*
+
+---
 
 ## 2.2 The basic types
+
 ```ts
 let name: string = "Awais";
-let age: number = 34;                 // one number type — no int/decimal/float distinction
+let age: number = 34;                  // one number type — no int/decimal/float
 let ok: boolean = true;
 let ids: number[] = [1, 2, 3];
-let pair: [string, number] = ["a", 1];   // tuple
-let anything: any;        // ⚠️ turns type checking OFF — avoid
-let safe: unknown;        // ✅ like 'any' but you must check before using it
-function fail(): never {} // never returns (always throws or loops forever)
+let pair: [string, number] = ["a", 1];  // tuple — fixed length, fixed types
+let anything: any;                      // ⚠️ turns checking OFF
+let safe: unknown;                      // ✅ must be narrowed before use
+function fail(): never { throw new Error(); }   // never returns
 ```
-**`any` vs `unknown` — a favourite question.** `any` disables checking entirely (dangerous).
-`unknown` says "I don't know the type yet, so you must narrow it before use" (safe).
-**Memory hook: `any` = "I give up". `unknown` = "prove it first". Always prefer `unknown`.**
+
+**Q: `any` vs `unknown`?** *(a favourite)*
+**Say:** *"`any` disables type checking entirely — it's contagious and dangerous. `unknown` says
+'I don't know yet, so prove it before you use it'. Always prefer `unknown` at a boundary."*
+
+**Remember:** **`any` = "I give up". `unknown` = "prove it first".**
+
+---
 
 ## 2.3 `interface` vs `type`
 
-Both describe a shape. Practical differences:
-- `interface` can be **re-opened** and added to (declaration merging); `type` cannot.
-- `type` can do things `interface` can't: unions, intersections, mapped/conditional types.
+- `interface` can be **re-opened** and added to (declaration merging). `type` cannot.
+- `type` can do things `interface` can't: unions, intersections, mapped and conditional types.
 
-**Answer to give:** *"I use `interface` for object shapes that others might extend, and `type` for
-unions and anything computed. In practice either works for most cases — the team should just be
-consistent."* That's the honest, senior answer; interviewers don't want dogma here.
+**Say:** *"I use `interface` for object shapes others might extend, and `type` for unions and anything
+computed. In practice either works for most cases — the team should just be consistent."*
+That's the honest senior answer. Interviewers don't want dogma here.
 
-## 2.4 Union types & narrowing — the most useful TS idea
+---
+
+## 2.4 Union types and narrowing — the most useful TS idea
+
 ```ts
-type Status = "new" | "filled" | "cancelled";   // only these three strings are allowed
+type Status = "new" | "filled" | "cancelled";     // only these three strings allowed
 
 function describe(x: string | number) {
   if (typeof x === "string") return x.toUpperCase();  // TS knows it's a string here
-  return x.toFixed(2);                                 // and a number here
+  return x.toFixed(2);                                // and a number here
 }
 ```
-This is **narrowing**: TypeScript follows your `if` checks and works out the type. Ways to narrow:
-`typeof`, `instanceof`, `in`, a literal check, or a custom type guard (`function isX(v): v is X`).
 
-**C# comparison:** unions are like a much more flexible version of an enum, and narrowing is like
-pattern matching (`is Type t`) in C#.
+**Say:** *"This is narrowing — TypeScript follows my `if` checks and works out the type in each
+branch. I can narrow with `typeof`, `instanceof`, `in`, a literal check, or a custom type guard
+written `function isX(v): v is X`. It's the same idea as pattern matching in C#."*
 
-## 2.5 Discriminated unions — the pattern worth knowing by name
+---
+
+## 2.5 Discriminated unions — the one advanced pattern worth knowing
+
 ```ts
 type Result =
   | { kind: "ok"; value: number }
   | { kind: "error"; message: string };
 
 function handle(r: Result) {
-  switch (r.kind) {                  // the 'kind' field tells TS which shape it is
-    case "ok":    return r.value;    // TS knows .value exists
-    case "error": return r.message;  // TS knows .message exists
+  switch (r.kind) {                   // the 'kind' field tells TS which shape it is
+    case "ok":    return r.value;     // TS knows .value exists
+    case "error": return r.message;   // TS knows .message exists
   }
 }
 ```
-**Why it matters:** it's the type-safe way to model "one of several possibilities" — states, API
-results, order statuses. If you remember **one** advanced TS pattern, remember this one. It's also a
-great answer to *"how would you model an order's state in TypeScript?"*
+
+**Say:** *"A shared literal field acts as a tag, so the compiler knows exactly which shape you have in
+each branch — and it will tell you if you forget a case. It's the type-safe way to model 'one of
+several possibilities': order states, API results, connection states. If I remember one advanced
+TypeScript pattern, it's this one."*
+
+**Great answer to:** *"How would you model an order's state in TypeScript?"*
+
+---
 
 ## 2.6 Generics
-```ts
-function first<T>(items: T[]): T | undefined {
-  return items[0];
-}
-first([1, 2, 3]);     // T is number
-first(["a", "b"]);    // T is string
 
-// with a constraint — T must have an id
-function byId<T extends { id: number }>(items: T[], id: number) {
+```ts
+function first<T>(items: T[]): T | undefined { return items[0]; }
+
+function byId<T extends { id: number }>(items: T[], id: number) {   // constraint
   return items.find(i => i.id === id);
 }
 ```
-**C#:** identical concept and almost identical syntax — `<T>` and `where T : ...` becomes
-`T extends ...`. You already understand this; just note the keyword difference.
 
-## 2.7 Utility types (the ones that come up)
+**Say:** *"Identical concept to C#, almost identical syntax. `where T : ...` becomes `T extends ...`."*
+
+---
+
+## 2.7 Utility types
+
 ```ts
 interface Order { id: number; symbol: string; qty: number; price: number; }
 
-Partial<Order>            // all fields optional      — for update/patch payloads
-Required<Order>           // all fields required
-Readonly<Order>           // all fields readonly
-Pick<Order, "id"|"qty">   // just those fields
-Omit<Order, "price">      // everything except price
-Record<string, number>    // a dictionary            — C# Dictionary<string,int>
-ReturnType<typeof fn>     // the return type of fn
+Partial<Order>              // everything optional      — patch/update payloads
+Required<Order>             // everything required
+Readonly<Order>             // everything readonly
+Pick<Order, "id" | "qty">   // just those fields
+Omit<Order, "price">        // everything except price
+Record<string, number>      // a dictionary             — C# Dictionary<string,int>
+ReturnType<typeof fn>       // the return type of fn
+Awaited<T>                  // unwraps a Promise
 ```
-**Memory hook: Partial / Pick / Omit / Record are 90% of what you'll ever use.** Learn those four
-and you can read most real TypeScript.
 
-## 2.8 Other things worth one line each
-- `strict: true` in `tsconfig.json` — turns on all the good checks including `strictNullChecks`
-  (which makes `null`/`undefined` explicit, like C#'s nullable reference types). **Always on.**
-- `?` = optional property: `email?: string` means `string | undefined`.
-- `readonly` on properties — compile-time only.
-- `enum` — TS has them, but they generate runtime code; most teams now prefer a union of string
-  literals (`type Status = "new" | "filled"`). Worth saying — it shows currency.
-- `satisfies` (TS 4.9+) — checks a value matches a type *without* widening it. Nice-to-know.
-- `.d.ts` declaration files — types for JS libraries that don't ship their own.
-- **Zod** — runtime validation that also gives you the TS type. The standard answer to "types
-  disappear at runtime, so how do you trust API data?"
+**Remember:** **`Partial`, `Pick`, `Omit`, `Record` are 90% of what you'll ever use.**
+
+## 2.8 `keyof`, `typeof` and mapped types (one level deeper, if pressed)
+
+```ts
+type OrderKey = keyof Order;                  // "id" | "symbol" | "qty" | "price"
+const defaults = { a: 1, b: 2 };
+type Defaults = typeof defaults;              // lift a VALUE into a TYPE
+type Nullable<T> = { [K in keyof T]: T[K] | null };   // a mapped type
+```
+
+**Say:** *"`keyof` gives you the union of a type's keys, `typeof` lifts a value into the type world,
+and a mapped type transforms every property. That's how `Partial` and `Readonly` are implemented —
+they're not magic, they're mapped types in the standard library."*
+
+## 2.9 Everything else worth one line
+
+- **`strict: true`** in `tsconfig.json` — turns on all the good checks including `strictNullChecks`,
+  which makes `null` and `undefined` explicit, like C#'s nullable reference types. **Always on.**
+- `email?: string` means `string | undefined`.
+- `x as Order` is a **type assertion** — you're telling the compiler to trust you. No runtime check.
+- `x!` is the non-null assertion — same "trust me", same risk. Prefer a real check.
+- **`enum`** — TS has it, but it generates runtime code. Most teams now use a union of string literals.
+  Saying that shows currency.
+- `satisfies` (4.9+) — check a value matches a type *without* widening it.
+- `.d.ts` files — types for JS libraries that don't ship their own.
+- **Zod** — runtime validation that also produces the TS type. The standard answer to
+  *"types disappear at runtime, so how do you trust API data?"*
 
 ---
 
@@ -307,234 +618,356 @@ and you can read most real TypeScript.
 
 ## 3.1 The mental model, in plain words
 
-> *"React is a library for building UI out of components. A component is a function that takes some
-> data (props) and returns what should appear on screen. When the data changes, React re-runs the
-> function and updates only the parts of the real page that actually changed."*
+**Say:** *"React builds UI out of components. A component is a function that takes data — props —
+and returns what should appear on screen. When the data changes, React re-runs the function and
+updates only the parts of the real page that actually differ."*
 
-**The one sentence that captures React:** **UI = f(state)**. You don't manipulate the screen; you
-describe what it should look like for the current state, and React does the updating.
+**The one sentence:** **UI = f(state).** You don't manipulate the screen. You describe what it should
+look like, and React works out the change.
 
-**C#/WPF comparison — this is your best bridge:**
+**Your best bridge — say this, it strengthens your WPF story too:**
+
 | React | WPF |
 |---|---|
 | Component | UserControl / View |
-| Props | Dependency properties passed in |
+| Props | Values passed in |
 | State (`useState`) | View-model property + `INotifyPropertyChanged` |
 | Re-render on state change | Binding updates the UI on `PropertyChanged` |
 | Virtual DOM diffing | WPF's own dirty-region rendering |
+| `useEffect` cleanup | `Dispose()` |
+| Context | A DI-injected singleton |
 
-**Say that comparison in the interview** — it shows you understand both, and it makes your WPF story
-stronger too.
+---
 
 ## 3.2 Components and props
+
 ```jsx
-function PriceTag({ symbol, price }) {        // props come in as an object
+function PriceTag({ symbol, price }) {          // props arrive as one object
   return <div>{symbol}: {price.toFixed(2)}</div>;
 }
 
-<PriceTag symbol="AAPL" price={182.35} />     // used like an HTML tag
+<PriceTag symbol="AAPL" price={182.35} />
 ```
+
 - **JSX** is HTML-looking syntax that compiles to function calls. It's not a template language.
 - **Props are read-only.** A component never modifies its own props. Data flows **down**.
 - To send data **up**, the parent passes a function down and the child calls it.
-  **Memory hook: "props down, events up."**
 
-## 3.3 The hooks you must know (there are only ~5 that matter)
+**Remember:** **Props down, events up.**
+
+---
+
+## 3.3 The hooks that matter (there are only about six)
 
 ### `useState` — local state
 ```jsx
 const [count, setCount] = useState(0);
 setCount(count + 1);           // fine for simple cases
-setCount(prev => prev + 1);    // ✅ safer — use when the new value depends on the old one
+setCount(prev => prev + 1);    // ✅ safer when the new value depends on the old
 ```
-⚠️ **State updates are asynchronous and batched.** Reading `count` right after `setCount` gives you
-the *old* value. That's why the `prev =>` form exists. **Very common interview question.**
 
-### `useEffect` — run code after render (side effects)
+**Q: Why isn't `count` updated right after `setCount`?** *(very common)*
+**Say:** *"State updates are batched and asynchronous. Reading the variable immediately after gives me
+the old value, because the component hasn't re-run yet. That's why the updater form `setX(prev => ...)`
+exists — it's the safe way when the new value depends on the previous one."*
+
+### `useEffect` — run code after render
 ```jsx
 useEffect(() => {
   const timer = setInterval(tick, 1000);
-  return () => clearInterval(timer);   // cleanup — runs on unmount or before the next run
+  return () => clearInterval(timer);   // cleanup — on unmount, or before the next run
 }, []);                                 // dependency array
 ```
-The **dependency array** decides when it runs:
-- `[]` → once, after the first render (like a constructor / `OnLoaded`)
+
+The dependency array decides when it runs:
+- `[]` → once after the first render (like a constructor / `OnLoaded`)
 - `[userId]` → whenever `userId` changes
 - *omitted* → after **every** render (usually a bug)
 
-⚠️ **The cleanup function is the #1 thing juniors forget** — it's how you unsubscribe. Without it you
-leak timers and subscriptions. **C#: it's `Dispose()`.** Saying that connection is a strong answer.
+**Say about the cleanup:** *"Returning a function is how you unsubscribe. Without it you leak timers
+and subscriptions. **It's `Dispose()`.**"*
 
-⚠️ **Modern point worth making:** *"The React team's guidance now is that you probably need `useEffect`
-less than you think — it's for synchronising with something outside React, like a subscription or a
-timer. Data fetching is better handled by a library like TanStack Query, and anything derivable from
-existing state should just be calculated during render, not stored in state."* **That single answer
-marks you as current rather than someone who learned React in 2019.**
+**The modern point, and it marks you as current rather than someone who learned React in 2019:**
+*"The React team's guidance now is that you need `useEffect` less than you think. It's for
+synchronising with something outside React — a subscription, a timer, a WebSocket. Data fetching
+belongs in a library like TanStack Query, and anything derivable from existing state should just be
+calculated during render, not stored in state."*
 
 ### `useRef` — a box that survives re-renders without causing one
 ```jsx
 const inputRef = useRef(null);       // grab a DOM element
 const renderCount = useRef(0);       // or hold a mutable value
 ```
-**Memory hook: state re-renders, ref doesn't.**
+**Remember:** **State re-renders. Ref doesn't.**
 
 ### `useMemo` / `useCallback` — caching
-- `useMemo` caches a **computed value**; `useCallback` caches a **function**.
-- Both exist to avoid re-doing expensive work or breaking a child's memoisation.
-- ⚠️ **Honest senior answer:** *"I don't reach for them by default — they add complexity and have
-  their own cost. I use them when profiling shows a real problem, or when a function is a dependency
-  of an effect. And React 19's compiler increasingly handles this automatically."*
+- `useMemo` caches a **computed value**. `useCallback` caches a **function**.
+- **Honest senior answer:** *"I don't reach for them by default. They add complexity and have their
+  own cost. I use them when profiling shows a real problem, or when a function is a dependency of an
+  effect. And React 19's compiler increasingly handles this automatically."*
 
 ### `useContext` — avoid passing props through many layers
 ```jsx
 const ThemeContext = createContext("light");
 const theme = useContext(ThemeContext);
 ```
-⚠️ Context is for **low-frequency** values (theme, current user, locale). Every consumer re-renders
-when it changes, so it's a poor fit for fast-changing data. **C#: it's like a DI-injected singleton.**
+**Say:** *"Context is for low-frequency values — theme, current user, locale. Every consumer re-renders
+when it changes, so it's a poor fit for fast-moving data like prices. It's like a DI-injected
+singleton."*
+
+### `useReducer` — when state transitions get complicated
+```jsx
+const [state, dispatch] = useReducer(reducer, initialState);
+dispatch({ type: "fill", qty: 100 });
+```
+**Say:** *"When the next state depends on the current state in several ways, a reducer keeps all the
+transitions in one place. It's a state machine — which is exactly how you'd model an order
+lifecycle."*
 
 ### The Rules of Hooks (they will check this)
-1. Only call hooks at the **top level** — never inside `if`, loops or nested functions.
+1. Only call hooks at the **top level** — never inside `if`, a loop, or a nested function.
 2. Only call them from React components or custom hooks.
 
-**Why?** React tracks hooks **by call order**. Skip one with an `if` and the order shifts and state
-gets attached to the wrong hook. That "why" is what separates a good answer from a memorised one.
+**Q: Why?**
+**Say:** *"React tracks hooks by **call order**, not by name. Skip one behind an `if` and the order
+shifts, so state gets attached to the wrong hook."* **That "why" is what separates a good answer from
+a memorised one.**
 
-## 3.4 Keys in lists — guaranteed question
+---
+
+## 3.4 Keys in lists — a guaranteed question
+
 ```jsx
-{orders.map(o => <Row key={o.id} order={o} />)}    // ✅ stable, unique id
-{orders.map((o, i) => <Row key={i} />)}            // ⚠️ index — breaks on reorder/insert/delete
+{orders.map(o => <Row key={o.id} order={o} />)}    // ✅ stable, unique
+{orders.map((o, i) => <Row key={i} />)}            // ⚠️ index — breaks on reorder/insert
 ```
-**Why keys exist:** React uses them to work out which items are the same between renders. With index
-keys, inserting at the top makes React think every row changed — you get wrong state in the wrong
-row and unnecessary re-renders. **Simple answer: "use a stable unique ID, never the array index,
-unless the list never changes order."**
 
-## 3.5 Re-rendering — how to explain it simply
-A component re-renders when: its **state** changes, its **props** change, its **parent** re-renders,
-or a **context** it uses changes.
+**Say:** *"Keys let React match items between renders. With index keys, inserting at the top makes
+React think every row changed — you get the wrong state in the wrong row and unnecessary re-renders.
+Use a stable unique ID. Index is only safe if the list never reorders."*
 
-Re-rendering is **not** the same as updating the page — React compares the new output with the old
-(reconciliation, "virtual DOM diffing") and only touches the real DOM where something differs.
+---
 
-To reduce unnecessary re-renders: `React.memo` on the component, stable props (`useCallback`/
-`useMemo`), lift state no higher than it needs to be, and split components so a fast-changing piece
-of state doesn't re-render the whole tree.
+## 3.5 Re-rendering, explained simply
+
+A component re-renders when its **state** changes, its **props** change, its **parent** re-renders, or
+a **context** it uses changes.
+
+**Say:** *"Re-rendering isn't the same as updating the page. React runs the function, compares the new
+output with the old — that's reconciliation, the virtual DOM diff — and only touches the real DOM
+where something actually differs."*
+
+To reduce unnecessary re-renders: `React.memo` on the component, stable props via `useCallback`/
+`useMemo`, keep state as low as possible, and split components so a fast-changing piece of state
+doesn't re-render the whole tree.
+
+---
 
 ## 3.6 Controlled vs uncontrolled inputs
+
 - **Controlled:** React state is the source of truth (`value={x} onChange={...}`). Preferred.
 - **Uncontrolled:** the DOM holds the value; you read it with a ref.
-**C#/WPF:** controlled = two-way binding; uncontrolled = reading `TextBox.Text` directly.
+
+**Say:** *"Controlled is two-way binding. Uncontrolled is reading `TextBox.Text` directly."*
+
+---
 
 ## 3.7 State management — the architecture answer (your comfort zone)
-> *"I'd start with local component state, lift it up when it's shared, and use context for
-> low-frequency global values like the current user or theme. I only add a state library when there's
-> genuine shared client state — Redux Toolkit or Zustand. The big shift is that most of what people
-> used to put in Redux was actually **server** state, and that belongs in a data-fetching library
-> like TanStack Query or RTK Query, which handles caching, refetching and staleness for you."*
 
-That's a genuinely senior answer and it's architectural, not syntactic — which plays to your strength.
+**Say:** *"I'd start with local component state, lift it up when it's shared, and use context for
+low-frequency global values like the current user or theme. I only add a state library when there's
+genuine shared client state — Redux Toolkit or Zustand. The big shift is that most of what people used
+to put in Redux was actually **server** state, and that belongs in a data-fetching library like
+TanStack Query or RTK Query, which handles caching, refetching and staleness for you."*
 
-## 3.8 Things worth one line each
+**That's a genuinely senior answer, and it's architectural rather than syntactic — which plays to your
+strength.**
+
+---
+
+## 3.8 Everything else, one line each
+
 - **Error boundaries** — catch render errors in a subtree so the whole app doesn't die. Class
-  components only (or a library). **C#: a try/catch around a region of UI.**
-- **StrictMode** in development deliberately runs effects twice to expose missing cleanup. Surprises
-  people — good to know.
-- **Server Components (RSC)** — components that render on the server and ship no JS to the browser.
-  Next.js App Router. One line: *"they cut bundle size and let you fetch data server-side, with
-  client components only where you need interactivity."*
-- **Suspense** — declare a loading fallback while something loads.
-- **Custom hooks** — just a function starting with `use` that calls other hooks. How you share logic.
-  **C#: extracting a shared service.**
+  components only, or a library. *"A try/catch around a region of UI."*
+- **StrictMode** in development deliberately runs effects twice, to expose missing cleanup.
+- **Fragments** `<>...</>` — group children without adding a DOM node.
+- **Portals** — render into a different part of the DOM. Modals and tooltips.
+- **`lazy` + `Suspense`** — code-split a component and show a fallback while it loads.
+- **Server Components** — render on the server, ship no JS for that component. *"Smaller bundles,
+  server-side data fetching, client components only where you need interactivity."*
+- **Custom hooks** — any function starting with `use` that calls other hooks. How you share logic.
+  *"Extracting a shared service."*
 - **Testing** — React Testing Library: test what the user sees and does, not internal state.
+- **React 19** — the compiler auto-memoises, plus `use()` and Actions for forms.
 
 ---
 
-# PART 4 — ANGULAR (30-second version — only if they ask)
+# PART 4 — ANGULAR (30 seconds, only if they ask)
 
-Angular is a **full framework** (not a library like React): routing, HTTP, forms and DI are all
-built in and opinionated.
+Angular is a **full framework**, not a library. Routing, HTTP, forms and DI are all built in.
 
-**Why you'll find Angular easy to talk about: it's the most C#-like frontend framework.**
-- **Dependency injection** built in — constructor injection, exactly like ASP.NET Core.
-- **TypeScript-first**, decorators (`@Component`, `@Injectable`) — like C# attributes.
-- Structured into modules/components/services — like a layered .NET app.
-- **RxJS observables** for async streams — like `IObservable`/Rx.NET or `IAsyncEnumerable`.
-- **Signals** (Angular 16+) are the modern reactive primitive replacing much of RxJS and
-  zone.js-based change detection.
+**Say:** *"Angular is the most C#-like frontend framework — constructor dependency injection exactly
+like ASP.NET Core, TypeScript-first, decorators like attributes, and a module/component/service
+structure like a layered .NET app. RxJS observables are its async streams, the same shape as Rx.NET,
+and Signals since v16 are the modern reactive primitive replacing a lot of that."*
 
-**React vs Angular in one sentence:** *"React is a library — you assemble your own stack and it's
-more flexible; Angular is a full opinionated framework with DI, routing and forms included, which
-suits large enterprise teams that want consistency. I've worked with both; Angular's structure feels
-natural coming from .NET."*
+**React vs Angular in one sentence:** *"React is a library — you assemble your own stack, more
+flexible. Angular is an opinionated framework with DI, routing and forms included, which suits large
+enterprise teams that want consistency. I've worked with both, and Angular's structure feels natural
+coming from .NET."*
 
 ---
 
-# PART 5 — 40 QUESTIONS WITH SHORT ANSWERS (cover the right column and test yourself)
+# PART 5 — RAPID-FIRE: 110 QUESTIONS
 
-### JavaScript
+Cover the right column. Say the answer out loud.
+
+### JavaScript — language (1–30)
+
 | # | Q | A |
 |---|---|---|
-| 1 | `var` / `let` / `const` | function-scoped / block-scoped / block-scoped and can't be reassigned |
+| 1 | `var` / `let` / `const` | Function-scoped / block-scoped / block-scoped and not reassignable |
 | 2 | Is `const` immutable? | No — the variable can't be re-pointed; the object can still change |
-| 3 | `==` vs `===` | Type coercion vs strict. Always use `===` |
-| 4 | `null` vs `undefined` | Deliberately empty vs never set |
-| 5 | Falsy values | `false, 0, "", null, undefined, NaN` |
-| 6 | `??` vs `\|\|` | `??` only falls back on null/undefined; `\|\|` also on 0 and "" |
-| 7 | Is JS single-threaded? | Yes — one thread, but non-blocking via the event loop |
-| 8 | Event loop | Slow work is handed off; callbacks queue up and run when the thread is free |
-| 9 | Microtask vs macrotask | Promises run before `setTimeout`; sync → promises → timers |
-| 10 | What's a Promise | A placeholder for a future value — C#'s `Task<T>` |
-| 11 | `Promise.all` vs `allSettled` vs `race` | All must succeed / all outcomes reported / first wins |
-| 12 | Does `fetch` throw on 404? | **No** — check `res.ok` yourself |
-| 13 | Closure | A function that remembers the variables around it |
-| 14 | Arrow vs normal function | Arrows have no own `this` — they use the surrounding one |
-| 15 | `map`/`filter`/`reduce` | `Select` / `Where` / `Aggregate` in LINQ |
-| 16 | Shallow vs deep copy | Spread `{...x}` is shallow — nested objects still shared |
-| 17 | Hoisting | Declarations are moved up; `var` is `undefined`, `let`/`const` are unusable first |
-| 18 | Debounce vs throttle | Wait until it stops / run at most once per interval |
+| 3 | Temporal dead zone | The gap before a `let`/`const` declaration where touching it throws |
+| 4 | Hoisting | Declarations processed first; `var` is `undefined`, `let`/`const` unusable |
+| 5 | `==` vs `===` | Type coercion vs strict. Always `===` |
+| 6 | `null` vs `undefined` | Deliberately empty vs never set |
+| 7 | Falsy values | `false`, `0`, `""`, `null`, `undefined`, `NaN` |
+| 8 | Are `[]` and `{}` truthy? | Yes — a classic surprise |
+| 9 | `??` vs `\|\|` | `??` only on null/undefined; `\|\|` also on `0` and `""` |
+| 10 | `?.` | Optional chaining — no crash if the middle is missing |
+| 11 | `typeof null` | `"object"` — a famous historical bug |
+| 12 | `NaN === NaN` | `false`. Use `Number.isNaN(x)` |
+| 13 | `0.1 + 0.2` | `0.30000000000000004` — one float number type, no decimal |
+| 14 | Money in JS | Integer minor units, or a string from the API, or decimal.js. Never raw floats |
+| 15 | `BigInt` | Exact arbitrarily large integers: `10n` |
+| 16 | Prototype | Every object links to another; missing properties are looked up the chain |
+| 17 | Is `class` a real class? | No — syntax sugar over prototypes |
+| 18 | `#field` | A genuinely private class field |
+| 19 | `this` in a normal function | Depends on how it was called |
+| 20 | `this` in an arrow function | Taken from the surrounding scope; arrows have none of their own |
+| 21 | `call` / `apply` / `bind` | Run with args listed / args as an array / return a bound copy |
+| 22 | Closure | A function that remembers the variables around it |
+| 23 | IIFE | A function defined and called immediately — old-style module scoping |
+| 24 | Spread `{...x}` | Shallow copy and merge |
+| 25 | Deep clone | `structuredClone(obj)` |
+| 26 | Destructuring | `const { a, b = 1 } = obj` — pull fields out with defaults |
+| 27 | Rest parameter | `function f(...args)` — C#'s `params` |
+| 28 | Template literal | `` `Hello ${name}` `` — C#'s `$""` |
+| 29 | `Object.freeze` | Shallow — nested objects are still mutable |
+| 30 | Strict mode | `"use strict"` — stricter rules; ESM is always strict |
 
-### TypeScript
+### JavaScript — collections and async (31–58)
+
 | # | Q | A |
 |---|---|---|
-| 19 | What is TypeScript | JS + compile-time types; types are erased at runtime |
-| 20 | Does TS check types at runtime? | **No** — use Zod for runtime validation of API data |
-| 21 | `any` vs `unknown` | "I give up" vs "prove it before using it" — prefer `unknown` |
-| 22 | `interface` vs `type` | Interfaces merge/extend; types do unions and computed types |
-| 23 | Union type | `string \| number` — one of several allowed types |
-| 24 | Narrowing | TS follows your `typeof`/`in`/`instanceof` checks to work out the type |
-| 25 | Discriminated union | A shared literal field (`kind`) tells TS which shape it is |
-| 26 | Generics | `<T>` — same as C#; `extends` is C#'s `where` constraint |
-| 27 | Four utility types | `Partial`, `Pick`, `Omit`, `Record` |
-| 28 | `strict: true` | Turns on all checks incl. `strictNullChecks` — always on |
-| 29 | Why avoid `enum` | Generates runtime code; string literal unions are lighter |
-| 30 | Type guard | `function isOrder(x): x is Order` — teaches TS to narrow |
+| 31 | `map` / `filter` / `reduce` | `Select` / `Where` / `Aggregate` |
+| 32 | `find` / `some` / `every` | `FirstOrDefault` / `Any` / `All` |
+| 33 | `flatMap` | `SelectMany` |
+| 34 | `slice` vs `splice` | Copies a section vs removes/inserts and mutates |
+| 35 | `sort` trap | Sorts in place, and as strings by default. Always pass `(a,b)=>a-b` |
+| 36 | Dedupe an array | `[...new Set(arr)]` |
+| 37 | `Map` vs object | Any key type, ordered, real `.size` vs string keys only. `Map` = `Dictionary` |
+| 38 | `Set` | `HashSet<T>` — unique values, fast membership |
+| 39 | `WeakMap` | Keys don't stop garbage collection — for caches |
+| 40 | `Object.entries` | `[key, value]` pairs, handy with `map` |
+| 41 | Is JS single-threaded? | Yes — one thread, non-blocking via the event loop |
+| 42 | Event loop | Slow work is handed off; callbacks queue and run when the thread is free |
+| 43 | Microtask vs macrotask | Promises before timers. **Sync → promises → timers** |
+| 44 | `setTimeout(fn, 0)` | Runs after the sync code and after all pending promises |
+| 45 | `setTimeout` vs `setInterval` | Once after a delay vs repeatedly. Always clear them |
+| 46 | Promise | A placeholder for a future value — C#'s `Task<T>` |
+| 47 | Promise states | Pending → fulfilled or rejected. Settles once, permanently |
+| 48 | `Promise.all` | All must succeed; fails fast — `Task.WhenAll` |
+| 49 | `allSettled` / `race` / `any` | All outcomes / first to settle / first to succeed |
+| 50 | Two `await`s in a row | Sequential. Use `Promise.all` for parallel |
+| 51 | Does `fetch` throw on 404? | **No** — check `res.ok` yourself |
+| 52 | Unhandled rejection | A rejected promise nobody caught; crashes modern Node |
+| 53 | `async` function returns | Always a Promise, even if you return a plain value |
+| 54 | `for await (const x of stream)` | Async iteration — like `await foreach` |
+| 55 | Generators in JS | `function*` and `yield` — same idea as C# `yield return` |
+| 56 | Debounce vs throttle | Wait until it stops vs at most once per interval |
+| 57 | Web Worker | A real second thread; message passing, no shared memory |
+| 58 | Live data to a browser | WebSockets, or SignalR with a .NET backend. SSE if one-way |
 
-### React
+### JavaScript — browser and platform (59–70)
+
 | # | Q | A |
 |---|---|---|
-| 31 | What is React in one line | UI = f(state); components are functions of data |
-| 32 | Props vs state | Passed in and read-only vs owned by the component and changeable |
-| 33 | How do you send data to a parent? | Parent passes a callback down; child calls it. "Props down, events up" |
-| 34 | Why is `setState` not immediate? | Updates are batched and async — use `setX(prev => ...)` |
-| 35 | `useEffect` dependency array | `[]` once / `[x]` when x changes / omitted every render (usually a bug) |
-| 36 | Why return a function from `useEffect`? | Cleanup — unsubscribe/clear timers. It's `Dispose()` |
-| 37 | Rules of hooks + why | Top level only, same order every render — React tracks hooks by call order |
-| 38 | Why keys in lists? | So React can match items between renders; never use the index |
-| 39 | `useMemo` vs `useCallback` | Cache a value vs cache a function; use only when measured |
-| 40 | When to reach for Redux? | Rarely — server state belongs in TanStack Query; local state first |
+| 59 | Event bubbling | The event travels up through the ancestors after firing |
+| 60 | Event capturing | The phase going down before it reaches the target |
+| 61 | Event delegation | One listener on the parent; check `event.target`. Scales to huge lists |
+| 62 | `stopPropagation` vs `preventDefault` | Stop the bubble vs cancel the browser's default action |
+| 63 | `removeEventListener` gotcha | Needs the same function reference — an inline arrow can't be removed |
+| 64 | ESM vs CommonJS | Static `import`, tree-shakeable vs dynamic `require` |
+| 65 | Tree shaking | Dropping unused exports at build time — only possible with static imports |
+| 66 | `localStorage` vs `sessionStorage` vs cookie | Forever / per tab / sent with every request |
+| 67 | Where do tokens go? | An `HttpOnly` `Secure` `SameSite` cookie — never `localStorage` |
+| 68 | What is CORS? | Browser rule: cross-origin reads need server opt-in headers |
+| 69 | Does CORS secure my API? | **No** — it protects the user's browser. The API still needs authn/authz |
+| 70 | JS memory leaks | Listeners never removed, timers never cleared, detached DOM nodes, big closures |
+
+### TypeScript (71–88)
+
+| # | Q | A |
+|---|---|---|
+| 71 | What is TypeScript? | JS plus compile-time types; erased at runtime |
+| 72 | Does TS check types at runtime? | **No** — use Zod at the boundary |
+| 73 | Same model as? | Python type hints — erased, checked by a separate tool |
+| 74 | `any` vs `unknown` | "I give up" vs "prove it before you use it". Prefer `unknown` |
+| 75 | `never` | The function never returns — throws or loops forever |
+| 76 | `interface` vs `type` | Interfaces merge and extend; types do unions and computed types |
+| 77 | Union type | `string \| number` |
+| 78 | Narrowing | TS follows `typeof` / `in` / `instanceof` checks to work out the type |
+| 79 | Type guard | `function isOrder(x): x is Order` — teaches TS to narrow |
+| 80 | Discriminated union | A shared literal tag field tells TS which shape it is |
+| 81 | Generics | `<T>`; `extends` is C#'s `where` constraint |
+| 82 | Four utility types | `Partial`, `Pick`, `Omit`, `Record` |
+| 83 | `keyof` | The union of a type's property names |
+| 84 | Mapped type | `{ [K in keyof T]: ... }` — how `Partial` is built |
+| 85 | `strict: true` | All checks on, including `strictNullChecks`. Always |
+| 86 | `x as Order` | A type assertion — no runtime check. Use sparingly |
+| 87 | Why avoid `enum`? | It generates runtime code; string literal unions are lighter |
+| 88 | `satisfies` | Check against a type without widening the value |
+
+### React (89–110)
+
+| # | Q | A |
+|---|---|---|
+| 89 | React in one line | **UI = f(state)** — components are functions of data |
+| 90 | JSX | HTML-looking syntax that compiles to function calls |
+| 91 | Props vs state | Passed in and read-only vs owned by the component and changeable |
+| 92 | Send data to a parent? | Parent passes a callback down; the child calls it. **Props down, events up** |
+| 93 | Why isn't `setState` immediate? | Batched and async — use `setX(prev => ...)` |
+| 94 | `useEffect` dependency array | `[]` once / `[x]` on change / omitted every render (usually a bug) |
+| 95 | Why return a function from `useEffect`? | Cleanup — unsubscribe, clear timers. It's `Dispose()` |
+| 96 | When do you actually need `useEffect`? | Only to sync with something outside React. Not for data fetching |
+| 97 | `useRef` | A mutable box that survives renders and does **not** trigger one |
+| 98 | `useMemo` vs `useCallback` | Cache a value vs cache a function. Only when measured |
+| 99 | `useContext` | Avoid prop drilling. Low-frequency values only. Like a DI singleton |
+| 100 | `useReducer` | Centralise complex state transitions — a state machine |
+| 101 | Rules of hooks, and why | Top level only — React tracks hooks by call order |
+| 102 | Custom hook | Any function starting with `use` that calls hooks. How you share logic |
+| 103 | Why keys in lists? | So React can match items between renders. Never the array index |
+| 104 | What causes a re-render? | State, props, parent re-render, or a context change |
+| 105 | Reconciliation | Compare new output to old; touch the real DOM only where it differs |
+| 106 | `React.memo` | Skip re-rendering when props are unchanged |
+| 107 | Controlled vs uncontrolled | React state owns the value vs the DOM owns it |
+| 108 | Error boundary | Catches render errors in a subtree. A try/catch around a region of UI |
+| 109 | StrictMode double-render | Development only — deliberately exposes missing cleanup |
+| 110 | When do you reach for Redux? | Rarely. Server state → TanStack Query. Local state first |
 
 ---
 
-# PART 6 — IF THEY ASK YOU TO WRITE CODE (unlikely, but 10 minutes to be safe)
+# PART 6 — IF THEY ASK YOU TO WRITE CODE (unlikely — 10 minutes to be safe)
 
-### A debounced search box (the classic small React exercise)
+### A debounced search box — the classic small exercise
 ```jsx
 function useDebounced(value, delay = 300) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);        // cancel the previous timer — the key line
+    return () => clearTimeout(t);       // cancels the previous timer — THE key line
   }, [value, delay]);
   return debounced;
 }
@@ -546,15 +979,16 @@ function Search({ onSearch }) {
   return <input value={text} onChange={e => setText(e.target.value)} />;
 }
 ```
-**Narrate:** controlled input · custom hook to share logic · the cleanup cancels the old timer, which
-is what makes it a debounce · dependency arrays are correct.
+**Narrate as you write:** *"Controlled input. Custom hook so the logic is reusable. The cleanup
+cancels the old timer — that's what makes it a debounce rather than a delay. Dependency arrays
+correct."*
 
 ### Typing a component in TypeScript
 ```tsx
 interface Props {
   symbol: string;
   price: number;
-  onSelect?: (symbol: string) => void;   // optional callback
+  onSelect?: (symbol: string) => void;
   children?: React.ReactNode;
 }
 
@@ -562,20 +996,36 @@ export function PriceRow({ symbol, price, onSelect }: Props) {
   return <div onClick={() => onSelect?.(symbol)}>{symbol} {price.toFixed(2)}</div>;
 }
 ```
-That's genuinely most of what "React with TypeScript" means day to day: **an interface for props**.
+**Say:** *"That's genuinely most of what 'React with TypeScript' means day to day — an interface for
+props."*
+
+### Group an array (covers half of all small JS exercises)
+```js
+const bySymbol = trades.reduce((acc, t) => {
+  (acc[t.symbol] ??= []).push(t);
+  return acc;
+}, {});
+// or, modern:
+const grouped = Object.groupBy(trades, t => t.symbol);
+```
 
 ---
 
 # PART 7 — YOUR 5 SAFE, HIGH-VALUE ANSWERS
 
 If you remember nothing else from this file, remember these five. They're architectural, they're
-true, and they play to your actual strength:
+true, and they play to your actual strength.
 
 1. **"UI = f(state)"** — React re-runs the component when state changes and updates only what
    differs. Same idea as WPF binding with `INotifyPropertyChanged`.
+
 2. **"Props down, events up"** — one-way data flow is what makes large UIs predictable.
+
 3. **"Most of what teams put in Redux was actually server state"** — that belongs in TanStack Query
    or RTK Query, which handles caching and staleness. Local state first, lift when shared.
-4. **"TypeScript's types are erased at runtime"** — so validate at the boundary with Zod. Types
-   catch developer mistakes, not bad data.
-5. **"My depth is backend"** — say it plainly (§0). For this role that's the right depth to have.
+
+4. **"TypeScript's types are erased at runtime — exactly like Python's type hints"** — so validate at
+   the boundary with Zod, the way I'd use Pydantic in Python. Types catch developer mistakes, not bad
+   data.
+
+5. **"My depth is backend"** — say it plainly (Part 0). For this role, that's the right depth to have.

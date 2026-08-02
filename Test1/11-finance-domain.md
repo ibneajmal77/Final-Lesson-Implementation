@@ -1,293 +1,374 @@
-# 11 — Capital Markets Domain Crash Course
+# 11 — CAPITAL MARKETS, IN PLAIN ENGLISH
 
-> JD nice-to-haves: **Portfolio / Order / Execution Management Systems**, **financial mathematics**,
-> **financial optimization**, columnar DBs. Industry tag: **BCM (Banking & Capital Markets)**.
+> Nice-to-haves in the job spec: **Portfolio / Order / Execution Management Systems**, **financial
+> mathematics**, **financial optimization**. Industry tag: **BCM — Banking & Capital Markets**.
 >
-> **Monday (Luxoft technical):** you need enough to show genuine interest and follow the conversation.
-> **Stage 3 (client):** you need this file cold. Read it twice; it's the highest-leverage
-> non-code file in the pack.
+> **For the technical round:** you need enough to show genuine interest and follow the conversation.
+> **For the client round:** you need this file cold.
+>
+> ⚠️ **Don't perform expertise.** The interviewer is the domain expert. What wins is
+> **engineering depth plus honest curiosity** — and they can tell the difference instantly.
 
 ---
 
-## 1. The 10-line map of the industry
+# PART 0 — THE 10 DOMAIN LINES THAT WIN
 
-- **Sell-side** = banks and brokers. They make markets, execute orders, provide research.
-- **Buy-side** = asset managers, hedge funds, pension funds, **sovereign wealth funds** — they *own*
-  the money and buy investments. **Abu Dhabi + portfolio management ⇒ almost certainly buy-side.**
-- **Front office** = portfolio managers, traders, analysts (they make money).
-  **Middle office** = risk, compliance, performance. **Back office** = settlement, accounting,
-  reconciliation, reporting.
-- Your app almost certainly sits **front-to-middle office**: a WPF desktop for PMs/traders, a Python
-  analytics layer, and services keeping positions, orders and risk correct.
-- **Custodian** = the bank that actually holds the assets. **Broker** = who executes your trade.
-  **Prime broker** = broker + financing + custody for funds.
-- The daily rhythm: **pre-trade** (idea, compliance check) → **trade** (order → execution) →
-  **post-trade** (confirm, allocate, settle, reconcile) → **valuation & reporting** (NAV, P&L, risk).
-
----
-
-## 2. Instruments — one line each (know these names)
-
-| Asset class | What it is | Tech implication |
+| # | The question | The answer, in one breath |
 |---|---|---|
-| **Equity** | Share of a company | Simple, high volume, corporate actions |
-| **Fixed income / bonds** | A loan; pays coupons, has maturity | Price ↔ yield maths, accrued interest, day-count conventions |
-| **FX** | Currency pairs, spot and forward | Multi-currency everything; base vs local currency |
-| **Money market / cash** | Deposits, T-bills | |
-| **Derivatives** — futures, options, swaps | Value *derived* from an underlying | Pricing models, Greeks, margin, notional ≠ market value |
-| **Funds / ETFs** | Pooled vehicles | Look-through to holdings |
-| **Private markets / real assets** | Illiquid, valued periodically | No live price → stale/manual valuation handling |
-
-**Terms you must not blink at:** ticker/symbol, **ISIN / CUSIP / SEDOL / FIGI** (instrument
-identifiers — the "primary key" problem of finance, and **instrument reference data / mastering is a
-genuinely hard engineering problem** worth mentioning), bid/ask/mid, spread, last traded price,
-volume, market cap, notional, par value, coupon, maturity, yield, duration, dividend, corporate
-action (split, merger, dividend — these **retroactively change history**, which is a beautiful
-data-engineering problem to raise).
+| 1 | **Buy-side vs sell-side** | "Buy-side **owns** the money — asset managers, pension funds, sovereign wealth funds. Sell-side are the banks and brokers who make markets and execute. **Abu Dhabi plus portfolio management means almost certainly buy-side.**" |
+| 2 | **The order lifecycle** | "Order → pre-trade compliance → route → **partial fills** → allocate → settle → reconcile." |
+| 3 | **OMS vs EMS vs PMS** | "**PMS** — what should I own. **OMS** — manage the order and the audit trail. **EMS** — execute it well." |
+| 4 | **What is FIX?** | "Tag-equals-value messages over a sequenced session. `35=D` is a new order, `35=8` is an execution report, `11=ClOrdID` is your order ID." |
+| 5 | **Money** | "`decimal` in C#, `Decimal` in Python, `DECIMAL` in SQL. **Never float.** Explicit rounding, instrument-specific precision." |
+| 6 | **Realised vs unrealised P&L** | "Realised is from closed trades. Unrealised is mark-to-market on what you still hold." |
+| 7 | **The hard engineering problem** | "**Execution reports duplicate and arrive out of order.** You dedupe on `ExecID` and sequence on `MsgSeqNum`. It's at-least-once delivery plus idempotent consumers — exactly what I've built at scale." |
+| 8 | **Why audit matters** | "A regulator doesn't just want to know what the number is. They want to know **why it was that number at 14:32:07**. That's why event sourcing and point-in-time data matter here." |
+| 9 | **Financial optimisation** | "Mean-variance — Markowitz. It's a **constrained quadratic program**: minimise portfolio variance subject to weights summing to one, plus constraints. The output is the efficient frontier." |
+| 10 | **Your honest frame** | "**I'm an engineer, not a quant.** My job is to implement the models correctly, precisely and fast." |
 
 ---
 
-## 3. The order lifecycle — learn this properly, it's the core
+# PART 1 — THE MAP OF THE INDUSTRY
+
+**Say it simply:**
+
+- **Sell-side** = banks and brokers. They make markets, execute orders, publish research.
+- **Buy-side** = asset managers, hedge funds, pension funds, **sovereign wealth funds**. They *own* the
+  money and buy investments.
+  ⚠️ **Abu Dhabi plus portfolio management means almost certainly buy-side.**
+
+**The three offices:**
+- **Front office** — portfolio managers, traders, analysts. *They make the money.*
+- **Middle office** — risk, compliance, performance. *They check the money.*
+- **Back office** — settlement, accounting, reconciliation. *They move and record the money.*
+
+**Your app almost certainly sits front-to-middle office:** a WPF desktop for PMs and traders, a Python
+analytics layer, and services keeping positions, orders and risk correct.
+
+**Two more words:**
+- **Custodian** — the bank that actually holds the assets.
+- **Broker** — who executes your trade.
+
+**The daily rhythm:** pre-trade (idea, compliance check) → trade (order, execution) → post-trade
+(confirm, allocate, settle, reconcile) → valuation and reporting (NAV, P&L, risk).
+
+---
+
+# PART 2 — INSTRUMENTS (one line each)
+
+| Asset class | What it is | What it means for the code |
+|---|---|---|
+| **Equity** | A share of a company | Simple, high volume, corporate actions |
+| **Fixed income / bonds** | A loan that pays coupons and matures | Price-to-yield maths, accrued interest, **day-count conventions** |
+| **FX** | Currency pairs | **Multi-currency everything** — base vs local currency |
+| **Derivatives** (futures, options, swaps) | Value *derived* from something else | Pricing models, Greeks, margin. **Notional ≠ market value** |
+| **Funds / ETFs** | Pooled vehicles | Look-through to the underlying holdings |
+| **Private / real assets** | Illiquid, valued periodically | **No live price** — you need stale and manual valuation handling |
+
+## Terms not to blink at
+
+Ticker · bid / ask / mid · spread · last traded price · volume · notional · coupon · maturity · yield ·
+duration · dividend.
+
+⚠️ **Two of these are genuinely good engineering conversations — raise them:**
+
+**1. Instrument identifiers — ISIN, CUSIP, SEDOL, FIGI.**
+**Say:** *"That's the primary-key problem of finance. The same instrument has different identifiers in
+different systems and different regions, and **instrument reference data mastering is a genuinely hard
+engineering problem** — it's a golden-record and matching problem, not a lookup table."*
+
+**2. Corporate actions.**
+**Say:** *"A two-for-one split doubles the quantity and halves the price **retroactively**. So a
+corporate action rewrites history — which means your data model needs to be point-in-time or
+bitemporal, or every historical report silently changes. That's a beautiful data-engineering
+problem."*
+
+**Both of those make you sound like an engineer who has thought about the domain, rather than someone
+who memorised vocabulary.**
+
+---
+
+# PART 3 — THE ORDER LIFECYCLE (learn this properly — it's the core)
 
 ```
  Idea / model output
-   → ORDER created (PM decides: buy 100,000 AAPL)
-   → Pre-trade COMPLIANCE check (mandate limits, restricted list, concentration)
-   → ORDER released to trader / OMS
-   → ROUTED to a broker or venue  (this is where an EMS lives)
-   → EXECUTION(S) come back — often many partial FILLS
-   → ALLOCATION across funds/accounts (if a block order)
+   → ORDER created            (PM decides: buy 100,000 AAPL)
+   → PRE-TRADE COMPLIANCE     (mandate limits, restricted list, concentration)
+   → released to the trader / OMS
+   → ROUTED to a broker or venue        (this is where an EMS lives)
+   → EXECUTIONS come back — often MANY PARTIAL FILLS
+   → ALLOCATION across funds / accounts (if it was a block order)
    → CONFIRMATION with the broker
-   → SETTLEMENT (T+1 in the US since 2024; T+2 in much of the world)
-   → POSITION and CASH updated; RECONCILED against custodian/broker records
+   → SETTLEMENT               (T+1 in the US since 2024; T+2 in much of the world)
+   → POSITION and CASH updated, then RECONCILED against the custodian
 ```
 
-**Order states (a state machine — see `08` §A3):**
-`New → PendingNew → New(acked) → PartiallyFilled → Filled`
-with side-branches `PendingCancel → Cancelled`, `PendingReplace → Replaced`, `Rejected`, `Expired`,
-`DoneForDay`.
+**Order states — it's a state machine:**
+`New → PendingNew → New (acknowledged) → PartiallyFilled → Filled`
+with branches to `PendingCancel → Cancelled`, `PendingReplace → Replaced`, `Rejected`, `Expired`.
 
-**Order types:** *market* (execute now, price uncertain), *limit* (price certain, execution
-uncertain), *stop / stop-limit*, *market-on-close*, *iceberg*, *VWAP/TWAP/Implementation Shortfall*
-(algorithmic execution). **Time in force:** DAY, GTC (good till cancelled), IOC (immediate or
-cancel), FOK (fill or kill).
+**Order types:** *market* (execute now, price uncertain) · *limit* (price certain, execution
+uncertain) · *stop* · *VWAP / TWAP* (algorithmic execution).
+**Time in force:** DAY · GTC (good till cancelled) · IOC (immediate or cancel) · FOK (fill or kill).
 
-**Side:** Buy, Sell, Sell Short, Buy to Cover.
+## 🔥 The engineering problems in this lifecycle — **this is what you should actually talk about**
 
-### 🔥 The engineering problems in this lifecycle (this is what you should talk about)
-- **Partial fills**: an order of 100,000 may return 40 executions. Your position must be correct after
-  every one, and they can arrive **out of order or duplicated**.
-- **Cancel/replace race**: you send a cancel; a fill is already in flight. Who wins? The venue decides,
-  and your system must handle "cancel rejected because already filled" gracefully.
-- **Idempotency**: execution reports are re-sent on reconnect. **Dedupe on `ExecID`.** This is the
-  purest real-world example of at-least-once delivery + idempotent consumers — *your* `08`/`09`
-  material lands directly here.
-- **Ordering**: sequence numbers per session; a gap means you must request a resend.
-- **Audit**: every state transition must be reconstructable — *why did this order have this status at
-  14:32:07.412?* **This is exactly why you used event sourcing at Calrom. Make that connection out
-  loud; it's your single best domain bridge.**
+**1. Partial fills.**
+*"An order for 100,000 might come back as forty separate executions. The position has to be correct
+after every single one — and they can arrive **out of order or duplicated**."*
+
+**2. The cancel/replace race.**
+*"You send a cancel; a fill is already in flight. Who wins? The venue decides, and your system has to
+handle 'cancel rejected, already filled' gracefully. **That's the classic OMS race condition.**"*
+
+**3. Idempotency.**
+*"Execution reports get re-sent on reconnect. **You dedupe on `ExecID`.** This is the purest
+real-world example of at-least-once delivery plus idempotent consumers that I know of."*
+
+**4. Audit.**
+⚠️ *"Every state transition has to be reconstructable. **Why did this order have this status at
+14:32:07.412?** That's exactly why we used event sourcing at Calrom — we needed a replayable audit
+trail."*
+
+**Make that Calrom connection out loud. It's your single best domain bridge.**
 
 ---
 
-## 4. OMS vs EMS vs PMS — get this distinction right
+# PART 4 — OMS vs EMS vs PMS (get this right)
 
-| System | Who uses it | Does |
+| System | Who uses it | What it does |
 |---|---|---|
-| **PMS** (Portfolio Management System) | Portfolio manager | Holdings, cash, exposures, modelling, rebalancing, performance. *"What do I own and what should I own?"* |
-| **OMS** (Order Management System) | PM + trader + compliance | Order creation, compliance checks, allocation, position keeping, lifecycle & audit. *"Manage the order end to end."* |
-| **EMS** (Execution Management System) | Trader | Market connectivity, live market data, algos, smart order routing, low latency. *"Get it executed well."* |
+| **PMS** — Portfolio Management System | Portfolio manager | Holdings, cash, exposures, modelling, rebalancing. *"What do I own, and what **should** I own?"* |
+| **OMS** — Order Management System | PM, trader, compliance | Order creation, compliance, allocation, positions, **lifecycle and audit**. *"Manage the order end to end."* |
+| **EMS** — Execution Management System | Trader | Market connectivity, live data, algos, smart routing, low latency. *"Get it executed **well**."* |
 
-Increasingly merged as **OEMS**. Vendor names to recognise: **Aladdin (BlackRock)**, Charles River,
-SimCorp Dimension, Bloomberg AIM/EMSX/TOMS, Eze, Murex and Calypso (Luxoft has deep partnerships with
-**Murex and Calypso** — worth knowing since Luxoft sells that expertise), FactSet, Enfusion.
+Increasingly merged as **OEMS**.
 
-> **If asked "what do you know about OMS?"**: *"An OMS is the system of record for the order lifecycle
-> — creation, pre-trade compliance, routing, fills, allocation, and the audit trail — sitting between
-> the portfolio manager's intent and the execution venue. The PMS answers 'what should the portfolio
-> look like', the EMS is about getting the execution done well, and the OMS is the correctness and
-> control layer in between. Engineering-wise it's a state machine over orders with strict
-> idempotency, ordering and auditability requirements — which is the kind of system I've built, just
-> in a different domain."*
+**Vendor names to recognise:** **Aladdin (BlackRock)**, Charles River, SimCorp, Bloomberg AIM/EMSX,
+Eze, Enfusion — and ⚠️ **Murex and Calypso**, because *Luxoft has deep partnerships in both and sells
+that expertise*. Knowing those two names specifically is worth something in a Luxoft interview.
+
+## The full answer if they ask "what do you know about an OMS?"
+
+> *"An OMS is the **system of record for the order lifecycle** — creation, pre-trade compliance,
+> routing, fills, allocation, and the audit trail. It sits between the portfolio manager's intent and
+> the execution venue.*
+>
+> *The PMS answers 'what should the portfolio look like'. The EMS is about getting the execution done
+> well. The OMS is the **correctness and control layer** in between.*
+>
+> *Engineering-wise it's a **state machine over orders** with strict idempotency, ordering and
+> auditability requirements — which is the kind of system I've built, just in a different domain."*
+
+**That's a complete, honest, senior answer. Learn its shape.**
 
 ---
 
-## 5. FIX protocol — the lingua franca
+# PART 5 — FIX PROTOCOL
 
-**FIX (Financial Information eXchange)** is how orders and executions move between buy-side, brokers
-and venues. Tag=value pairs separated by SOH (`\x01`), or FIXML/FAST/SBE binary variants.
+**Say what it is, simply:** *"FIX is how orders and executions move between the buy-side, brokers and
+venues. It's tag-equals-value pairs separated by a control character, over a **sequenced session**."*
 
 ```
-8=FIX.4.4|9=176|35=D|49=BUYSIDE|56=BROKER|34=215|52=20260803-13:00:01.123|
-11=ORD-000123|55=AAPL|54=1|38=100000|40=2|44=182.35|59=0|60=20260803-13:00:01.100|10=093|
+8=FIX.4.4|35=D|49=BUYSIDE|56=BROKER|34=215|52=20260803-13:00:01.123|
+11=ORD-000123|55=AAPL|54=1|38=100000|40=2|44=182.35|59=0|10=093|
 ```
 
 | Tag | Meaning |
 |---|---|
-| 8 | BeginString (version) |
-| 35 | **MsgType** — `D`=NewOrderSingle, `F`=OrderCancelRequest, `G`=CancelReplace, `8`=**ExecutionReport**, `9`=OrderCancelReject, `V`/`W`/`X`=market data request/snapshot/incremental |
-| 34 | MsgSeqNum (gap detection → ResendRequest `2`) |
-| 11 | ClOrdID (**your** order ID — the idempotency key) |
-| 37 | OrderID (the broker's ID) |
-| 17 / 150 / 39 | ExecID / ExecType / **OrdStatus** |
-| 55 / 54 / 38 / 44 / 40 / 59 | Symbol / Side / OrderQty / Price / OrdType / TimeInForce |
+| **35** | **MsgType** — `D` = new order, `F` = cancel, `G` = cancel/replace, **`8` = execution report** |
+| **11** | **ClOrdID** — *your* order ID. **This is the idempotency key** |
+| **37** | OrderID — the broker's ID |
+| **17 / 150 / 39** | ExecID / ExecType / **OrdStatus** |
+| **34** | MsgSeqNum — a gap means you send a resend request |
+| 55 / 54 / 38 / 44 | Symbol / Side / Quantity / Price |
 | 14 / 151 / 6 | CumQty / LeavesQty / AvgPx |
-| 10 | Checksum |
 
-**Session vs application layer**: logon/logout, heartbeats (`0`), TestRequest (`1`), sequence numbers
-and resend — that's the session layer, and it's where the reliability engineering lives. QuickFIX/n
-is the common .NET library.
+**Session layer vs application layer:** *"Logon, heartbeats, sequence numbers and resend are the
+**session** layer — and that's where the reliability engineering lives. QuickFIX/n is the common .NET
+library."*
 
-> **Great thing to say:** *"FIX sessions are essentially a reliable ordered messaging protocol with
-> sequence numbers, gap fill and replay — conceptually the same problems as Kafka offsets and
-> consumer-group replay, which I've worked with at scale. The domain-specific part is the message
-> semantics and the venue quirks, and that's an anti-corruption layer job."*
+## ⚠️ The best thing you can say about FIX
 
-**Other protocols/standards to recognise:** SWIFT (settlement/payments messaging, MT/MX ISO 20022),
-ISO 20022 generally, SBE/ITCH/OUCH (low-latency exchange protocols), Bloomberg **BLPAPI** and
-Refinitiv/LSEG **Eikon/RFA** for market data.
+> *"A FIX session is essentially a **reliable, ordered messaging protocol with sequence numbers, gap
+> fill and replay** — conceptually the same problems as Kafka offsets and consumer-group replay, which
+> I've worked with at scale. The domain-specific part is the message semantics and the venue quirks,
+> and **that's an anti-corruption layer job**."*
+
+**That single paragraph converts your distributed-systems experience into domain credibility.**
+
+**Others to recognise:** SWIFT and **ISO 20022** (settlement and payments), ITCH/OUCH (low-latency
+exchange protocols), **Bloomberg BLPAPI** and **Refinitiv/LSEG** for market data.
 
 ---
 
-## 6. Positions, P&L and valuation — the numbers that must be right
+# PART 6 — POSITIONS, P&L AND VALUATION
 
-- **Position** = quantity held of an instrument in an account. Long (+) / short (−).
-- **Trade date vs settlement date** positions — both matter and they differ.
+**The numbers that have to be right. This is what the whole system exists for.**
+
+- **Position** = how much of an instrument you hold in an account. Long (+) or short (−).
 - **Market value** = quantity × price × FX rate (× contract multiplier for derivatives).
-- **Average cost** vs **FIFO/LIFO** cost basis — affects realised P&L; the accounting method is a
-  business rule, not a detail.
-- **Realised P&L** (from closed trades) vs **unrealised P&L** (mark-to-market on open positions).
+- **Realised P&L** — from **closed** trades. **Unrealised P&L** — mark-to-market on what you still
+  hold.
   ```
-  Unrealised P&L = (current price − average cost) × quantity
-  Realised P&L   = (sale price − cost of the sold lots) × quantity sold − fees
+  Unrealised = (current price − average cost) × quantity
+  Realised   = (sale price − cost of the lots sold) × quantity sold − fees
   ```
-- **Mark-to-market**: revaluing at current market prices. Needs a *price source hierarchy* and a
-  policy for stale/missing prices.
-- **NAV (Net Asset Value)** = (assets − liabilities) / units. The number the whole back office exists
-  to produce correctly, usually daily.
-- **Accrued interest** on bonds; **day-count conventions** (ACT/360, ACT/365, 30/360) — a classic
-  source of off-by-a-day bugs.
-- **Multi-currency**: base currency vs local currency, FX translation, and FX P&L separated from
-  security P&L.
-- **Corporate actions** rewrite history (a 2-for-1 split doubles quantity and halves price
-  retroactively) — hence **point-in-time / bitemporal data** (`07` §6).
-- **T+1/T+2 settlement**, failed trades, and **reconciliation breaks** — the daily operational reality.
+- **Cost basis** — average cost vs FIFO vs LIFO. ⚠️ *"That's a business rule, not a detail — it changes
+  the realised P&L number."*
+- **Mark-to-market** — revaluing at current prices. Needs a **price source hierarchy** and an explicit
+  policy for stale or missing prices.
+- **NAV** = (assets − liabilities) ÷ units. *"The number the entire back office exists to produce
+  correctly, usually daily."*
+- **Accrued interest** and **day-count conventions** (ACT/360, ACT/365, 30/360) — *"a classic source of
+  off-by-one-day bugs."*
+- **Multi-currency** — base vs local currency, and **FX P&L separated from security P&L**.
+- **T+1 / T+2 settlement**, failed trades, and **reconciliation breaks** — the daily operational
+  reality.
 
-⚠️ **Money arithmetic:** `decimal` in C#, `Decimal` or integer minor units in Python, `DECIMAL/NUMERIC`
-in SQL — **never `float`/`double` for money**. Rounding rules (half-even/banker's rounding) must be
-explicit and consistent, and quantities/prices have instrument-specific precision (tick size, lot
-size). If you say only one domain-technical thing all interview, say this one — it's the fastest way
-to signal "I understand that in this domain, numbers are the product."
+## ⚠️ THE ONE THING TO SAY IF YOU SAY NOTHING ELSE
+
+> *"Money is `decimal` in C#, `Decimal` or integer minor units in Python, and `DECIMAL` in SQL —
+> **never float or double**. Rounding has to be explicit and consistent — usually banker's rounding —
+> and quantities and prices have instrument-specific precision: tick size and lot size.*
+>
+> *In this domain the numbers **are** the product."*
+
+**This is the fastest possible way to signal that you understand what matters here. Say it early.**
 
 ---
 
-## 7. Risk & performance (middle office)
+# PART 7 — RISK AND PERFORMANCE (middle office)
 
-- **Exposure** — how much you'd lose if something goes to zero; gross vs net exposure.
-- **VaR (Value at Risk)** — "95% confident we won't lose more than X over 1 day". Methods: historical
-  simulation, variance-covariance, Monte Carlo. **Expected Shortfall / CVaR** = the average loss
-  beyond VaR (regulators moved toward it because VaR ignores tail shape).
-- **Volatility** — standard deviation of returns; annualised by ×√252. **Beta** — sensitivity to the
-  market. **Sharpe ratio** = (return − risk-free) / volatility. **Tracking error** = std dev of
-  active return vs benchmark. **Information ratio** = active return / tracking error.
-- **Drawdown / max drawdown**; **attribution** (which decisions produced the return — allocation vs
-  selection).
-- **Greeks** (options): **delta** (Δ price sensitivity), **gamma** (Δ of delta), **vega** (volatility),
-  **theta** (time decay), **rho** (rates). Know what they *are*, not how to derive them.
-- **Stress testing / scenario analysis**; **limits and breaches** (pre-trade and post-trade).
-- **Liquidity risk**, counterparty risk, concentration limits.
+**One line each. Know what they *are*, not how to derive them.**
+
+- **Exposure** — how much you'd lose if something went to zero. Gross vs net.
+- **VaR (Value at Risk)** — *"95% confident we won't lose more than X over one day."* Methods:
+  historical simulation, variance-covariance, Monte Carlo.
+- **Expected Shortfall / CVaR** — the average loss *beyond* VaR. *"Regulators moved toward it because
+  VaR tells you nothing about the shape of the tail."*
+- **Volatility** — standard deviation of returns, **annualised by × √252**.
+- **Beta** — sensitivity to the market.
+- **Sharpe ratio** = (return − risk-free) ÷ volatility.
+- **Tracking error** — how far you drift from the benchmark. **Information ratio** = active return ÷
+  tracking error.
+- **Drawdown** — peak-to-trough loss.
+- **Attribution** — which decisions produced the return: allocation versus selection.
+- **The Greeks** (options): **delta** (price sensitivity) · **gamma** (change in delta) · **vega**
+  (volatility) · **theta** (time decay) · **rho** (rates).
 
 ---
 
-## 8. "Financial mathematics" and "financial optimization" — the honest depth you need
+# PART 8 — FINANCIAL MATHS AND OPTIMISATION (the honest depth you need)
 
-You are **not** being hired as a quant. You need to (a) not be lost, (b) be able to *implement* what a
-quant specifies. Cover this much:
+**You are not being hired as a quant.** You need to (a) not be lost, and (b) be able to **implement**
+what a quant specifies. That's it.
 
-- **Time value of money**: present value / future value, discounting, `PV = CF / (1+r)^t`.
-- **Compounding**, simple vs continuous (`e^{rt}`).
-- **Returns**: simple vs log returns (log returns are additive over time — why quants prefer them),
-  arithmetic vs geometric mean, **TWR (time-weighted)** vs **MWR/IRR (money-weighted)** returns —
-  TWR judges the manager, MWR judges the investor's actual experience.
-- **Bond maths**: price/yield inverse relationship, **duration** (price sensitivity to rates),
-  convexity, YTM.
-- **Options**: Black–Scholes exists and gives a fair value from spot, strike, time, rate and
-  **implied volatility**; Monte Carlo and binomial trees for path-dependent products. You need the
-  *vocabulary*, not the derivation.
-- **Portfolio optimisation** ("financial optimization" in the JD): **Markowitz mean-variance** —
-  maximise expected return for a given risk, producing the **efficient frontier**. In practice it's a
-  **quadratic program**: minimise `wᵀΣw` subject to `Σw = 1` and constraints (long-only, sector caps,
-  turnover limits, tracking-error budget). Solvers: `cvxpy`, `scipy.optimize`, OSQP, Gurobi/MOSEK.
-  Practical issues: covariance matrix estimation error, instability of the weights, transaction costs,
-  Black–Litterman as the standard fix. **Also: rebalancing** — moving the portfolio from current to
-  target weights while minimising cost and respecting constraints.
-- **Monte Carlo simulation** — for pricing, VaR and scenario generation. Embarrassingly parallel,
-  which makes it a lovely *engineering* answer: *"that's CPU-bound and parallelisable — process pool
-  or vectorised NumPy, and it's the kind of workload I'd push off the desktop onto a compute service
-  and stream results back."*
+**Cover this much:**
 
-> **Honest framing to use:** *"I'm an engineer, not a quant. I'd expect the models to come from the
-> quant team, and my job is to implement them correctly and fast — get the numerics right, get the
-> precision and rounding right, make it performant and testable, and make the results reproducible.
-> The maths I'm comfortable with is present value, returns and volatility, and I understand
+- **Time value of money** — present value, discounting: `PV = CF / (1+r)^t`.
+- **Returns** — simple vs **log returns** (*"log returns are additive over time, which is why quants
+  prefer them"*). And **TWR vs MWR**: *"time-weighted judges the manager, money-weighted judges the
+  investor's actual experience."*
+- **Bond maths** — price and yield move inversely; **duration** is price sensitivity to rates;
+  convexity is the second-order effect.
+- **Options** — *"Black-Scholes gives a fair value from spot, strike, time, rate and **implied
+  volatility**. Monte Carlo or binomial trees for path-dependent products."* You need the vocabulary,
+  not the derivation.
+- **Portfolio optimisation** — *this is the "financial optimization" in the job spec:*
+  > *"Markowitz **mean-variance**: maximise expected return for a given level of risk, which produces
+  > the **efficient frontier**. In practice it's a **constrained quadratic program** — minimise wᵀΣw
+  > subject to the weights summing to one, plus real-world constraints like long-only, sector caps and
+  > turnover limits. Solvers are cvxpy, scipy, OSQP or a commercial one like Gurobi.*
+  >
+  > *The practical problems are covariance estimation error and the instability of the weights —
+  > Black-Litterman is the standard fix."*
+- **Monte Carlo** — ⚠️ **and here's the engineering answer that makes you sound useful:**
+  *"Monte Carlo is embarrassingly parallel. That's CPU-bound work, so in Python it's a process pool or
+  vectorised NumPy — and it's exactly the kind of workload I'd push **off the desktop** onto a compute
+  service and stream the results back."*
+
+## ⚠️ THE HONEST FRAMING — use it, it's genuinely strong
+
+> *"I'm an engineer, not a quant. I'd expect the models to come from the quant team, and my job is to
+> implement them correctly and fast — get the numerics right, get the precision and rounding right,
+> make it performant and testable, and make the results **reproducible**.*
+>
+> *The maths I'm comfortable with is present value, returns and volatility, and I understand
 > mean-variance optimisation as a constrained quadratic program. I'd learn the specifics of your
-> models."* — **This is a very strong answer.** Interviewers are wary of engineers who *think* they're
-> quants; they love engineers who know exactly where the boundary is.
+> models."*
+
+**Why this works:** interviewers are wary of engineers who *think* they're quants. They love engineers
+who know exactly where the boundary is.
 
 ---
 
-## 9. Regulation & compliance (say one or two of these, don't lecture)
-MiFID II (Europe: best execution, transaction reporting, **RTS 25 clock synchronisation**), Dodd-Frank,
-EMIR, Basel III/IV, SEC/FINRA rules, **UAE: SCA (Securities & Commodities Authority), ADGM's FSRA,
-DFSA in Dubai**, plus AML/KYC and sanctions screening. What it means for engineering: **immutable
-audit trails, data retention (often 7 years, WORM storage), timestamp accuracy, segregation of duties,
-access control by entitlement, and change-control on anything touching trading.** That sentence is
-what a technical interviewer wants; the acronyms are decoration.
+# PART 9 — REGULATION (say one or two, don't lecture)
+
+**Names:** MiFID II (Europe — best execution, transaction reporting, **RTS 25 clock
+synchronisation**), Basel III, SEC/FINRA. **In the UAE: the SCA, ADGM's FSRA, and the DFSA in Dubai.**
+Plus AML and KYC.
+
+⚠️ **But the acronyms are decoration. This sentence is what a technical interviewer actually wants:**
+
+> *"What regulation means for engineering is: **immutable audit trails, data retention — often seven
+> years on WORM storage — timestamp accuracy, segregation of duties, access control by entitlement,
+> and change control on anything that touches trading.**"*
 
 ---
 
-## 10. The 15 things to be able to say without hesitation
+# PART 10 — THE 15 THINGS TO SAY WITHOUT HESITATION
 
-1. Buy-side vs sell-side.
-2. Front / middle / back office.
-3. Order lifecycle: order → compliance → route → fills → allocate → settle → reconcile.
-4. Partial fills, cancel/replace race, duplicate execution reports, dedupe on ExecID.
-5. OMS vs EMS vs PMS.
-6. FIX is tag=value over a sequenced session; 35=D new order, 35=8 execution report.
-7. Long/short, market vs limit order, TIF (DAY/GTC/IOC/FOK).
-8. Position = qty held; market value = qty × price × FX.
+1. Buy-side owns the money; sell-side executes.
+2. Front office makes it, middle office checks it, back office records it.
+3. Order → compliance → route → fills → allocate → settle → reconcile.
+4. Partial fills, the cancel/replace race, duplicate execution reports, **dedupe on ExecID**.
+5. PMS = what should I own. OMS = manage it and audit it. EMS = execute it well.
+6. FIX is tag=value over a sequenced session. `35=D` new order, `35=8` execution report.
+7. Market vs limit order; DAY / GTC / IOC / FOK.
+8. Market value = quantity × price × FX.
 9. Realised vs unrealised P&L; mark-to-market.
 10. NAV, T+1/T+2 settlement, reconciliation breaks.
-11. **`decimal` for money, never float; explicit rounding; instrument-specific precision.**
-12. VaR, volatility, Sharpe, beta, tracking error, drawdown.
+11. **`decimal` for money, never float. Explicit rounding. Instrument-specific precision.**
+12. VaR, volatility × √252, Sharpe, beta, tracking error, drawdown.
 13. Greeks: delta, gamma, vega, theta.
-14. Mean-variance optimisation = constrained quadratic program; efficient frontier.
-15. Audit trail and point-in-time correctness are non-negotiable — which is why event sourcing and
+14. Mean-variance optimisation is a constrained quadratic program; the output is the efficient
+    frontier.
+15. **Audit trail and point-in-time correctness are non-negotiable** — which is why event sourcing and
     bitemporal data matter here.
 
 ---
 
-## 11. Two hours of extra credit (if you have the time before stage 3)
-- Investopedia: "order types", "OMS", "NAV", "VaR", "duration".
-- Skim the **FIX 4.4 message summary** (just MsgTypes and the tags in §5).
-- Skim **QuickFIX/n** on GitHub — five minutes tells you what a FIX engine looks like in .NET.
-- Read one page on **BlackRock Aladdin** to see how a buy-side platform is positioned.
-- If you want one genuinely useful book chapter: the order-lifecycle chapter of any "trading systems"
-  primer. Don't over-invest — **depth in engineering + honest curiosity beats shallow finance
-  vocabulary**, and interviewers can tell the difference instantly.
+# PART 11 — HOW TO USE THIS IN THE INTERVIEW
+
+⚠️ **Don't perform domain expertise.** Do this instead — **ask one good question and connect one piece
+of your experience:**
+
+> *"I've read that the role touches portfolio and order management. My background is logistics and
+> airline reservations rather than capital markets — but the **shape** looks familiar: a state machine
+> over an order, external counterparties you don't control, messages that can duplicate or arrive out
+> of order, and an audit trail someone will interrogate later.*
+>
+> *At Calrom we used event sourcing on the reservation system precisely because we needed a replayable
+> audit trail.*
+>
+> *Is that roughly the problem space here — or is it more the analytics and valuation side?"*
+
+**That single paragraph does four things:**
+1. Admits the gap honestly.
+2. Proves you did the reading.
+3. Demonstrates transferable depth.
+4. Ends with a question that makes the interviewer talk about their system — which is the best
+   possible outcome.
 
 ---
 
-## 12. How to use this on Monday (Luxoft technical round)
+# PART 12 — EXTRA CREDIT, IF YOU HAVE AN HOUR
 
-Don't perform domain expertise. Do this instead — **ask one good domain question and connect one
-piece of your experience**:
+- Investopedia: *order types*, *OMS*, *NAV*, *VaR*, *duration*.
+- Skim the **FIX 4.4 message summary** — just the MsgTypes and the tags in Part 5.
+- Skim **QuickFIX/n** on GitHub. Five minutes tells you what a FIX engine looks like in .NET.
+- Read one page on **BlackRock Aladdin** to see how a buy-side platform is positioned.
 
-> *"I've read that the role touches portfolio and order management. My background is logistics and
-> airline reservations rather than capital markets, but the shape looks familiar — a state machine
-> over an order, external counterparties you don't control, messages that can duplicate or arrive out
-> of order, and an audit trail someone will interrogate later. At Calrom we used event sourcing on
-> the reservation system precisely because we needed a replayable audit trail. Is that roughly the
-> problem space here, or is it more the analytics and valuation side?"*
-
-That single paragraph does four things: admits the gap, proves you did the reading, demonstrates
-transferable depth, and asks a question that makes the interviewer talk about their system.
+⚠️ **Don't over-invest here.** Depth in engineering plus honest curiosity beats shallow finance
+vocabulary — and an interviewer who works in the domain can tell the difference in one question.

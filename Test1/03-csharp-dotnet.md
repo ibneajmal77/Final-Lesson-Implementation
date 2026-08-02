@@ -1,29 +1,61 @@
-# 03 — C# & .NET Internals (Deep)
+# 03 — C# & .NET, IN PLAIN ENGLISH
 
-> Format: **Q** → tight answer → `code` → ⚠️ the gotcha they follow up with.
-> If you can answer everything here you are above the bar for a senior .NET interview.
+> This is their **core specialization**. It must be flawless.
+>
+> **Format:** **Q:** what they ask → **Say:** the words you speak → **Remember:** the hook →
+> ⚠️ the follow-up they'll try.
+>
+> Say the answer, then **stop talking**. Silence invites the follow-up you're ready for.
 
 ---
 
-## 1. Memory model: stack, heap, value vs reference
+# PART 0 — THE 12 C# ANSWERS THAT WIN
 
-**Q: Difference between value types and reference types?**
+| # | The question | The answer, in one breath |
+|---|---|---|
+| 1 | **Money** | "`decimal`. It's base-10 and exact for decimal fractions. `double` is binary — `0.1 + 0.2` isn't `0.3`. In finance, `decimal`, always, and I wrap the arithmetic in `checked`." |
+| 2 | **Do value types live on the stack?** | "No — that's the trap. **Where** a value lives depends on where it's declared. A struct field inside a class lives on the heap, inline with the object. Stack vs heap is about storage, not about value vs reference." |
+| 3 | **Boxing** | "Wrapping a value type in a heap object so it can be treated as `object`. It costs an allocation and a copy. In a tick handler that's a real performance bug." |
+| 4 | **The GC** | "Generational, mark-sweep-compact. Gen 0 is cheap and most objects die there. Gen 2 is the expensive one. Large objects — 85 KB and up — go on the Large Object Heap, which historically isn't compacted, so you get fragmentation." |
+| 5 | **Low latency in .NET** | "**Don't tune the GC — reduce allocation.** Structs, `Span<T>`, `ArrayPool`, object pooling, no LINQ or closures in the hot path." |
+| 6 | **`IEnumerable` vs `IQueryable`** | "In-memory versus an expression tree the provider turns into SQL. Call `ToList()` too early and you pull the whole table and filter in memory." |
+| 7 | **`Equals` and `GetHashCode`** | "Override one, you must override the other. Hash-based collections find the bucket first — mismatch and the dictionary loses your item. And never hash a field you'll mutate." |
+| 8 | **`throw;` vs `throw ex;`** | "`throw;` keeps the original stack trace. `throw ex;` resets it and you lose where it came from." |
+| 9 | **DI lifetimes** | "Singleton, Scoped, Transient. The trap is the **captive dependency** — inject a Scoped into a Singleton and it lives forever, which breaks scoping and usually `DbContext`." |
+| 10 | **N+1 in EF** | "One query for the parents, then one per child. Fix with `Include`, or better, project to a DTO with `Select` so you only fetch the columns you need." |
+| 11 | **`HttpClient`** | "`new HttpClient()` per call exhausts sockets. A static one never picks up DNS changes. Use `IHttpClientFactory` — it solves both." |
+| 12 | **Value objects** | "A `record`. It generates value-based `Equals`, `GetHashCode` and `ToString`, and `with` gives non-destructive copies." |
 
-- **Value types** (`struct`, `int`, `bool`, `enum`, `decimal`, `DateTime`, tuples): hold data
-  directly, copied on assignment, live wherever they're declared — stack if a local, **inline inside
-  the containing object on the heap** if a field.
-- **Reference types** (`class`, `interface`, `delegate`, `string`, arrays): the variable holds a
-  *reference*; the object lives on the heap. Assignment copies the reference, not the object.
+---
 
-⚠️ **The classic trap:** *"value types live on the stack"* is **wrong** and interviewers use it to
-separate seniors from juniors. Say instead: *"where a value type lives depends on where it's declared
-— a struct field inside a class lives on the heap, inline with the object. Stack vs heap is about
-storage location, not about value vs reference."*
+# PART 1 — MEMORY: STACK, HEAP, VALUE, REFERENCE
 
-**Q: What is boxing? Why does it matter?**
+## 1.1 Value types vs reference types
 
-Boxing = wrapping a value type in a heap object to treat it as `object`/an interface. Unboxing =
-extracting it back with a type check.
+**Value types** (`struct`, `int`, `bool`, `enum`, `decimal`, `DateTime`, tuples)
+→ hold the data **directly**. Assignment **copies the data**.
+
+**Reference types** (`class`, `interface`, `delegate`, `string`, arrays)
+→ hold a **reference**. Assignment copies the **reference**, not the object.
+
+**Q: Where do they live?**
+
+⚠️ **The trap:** *"value types live on the stack"* is **wrong**, and interviewers use it to separate
+seniors from juniors.
+
+**Say:** *"Where a value type lives depends on where it's declared. A local goes on the stack. A struct
+field inside a class lives on the heap, inline with the object. Stack versus heap is about storage
+location, not about value versus reference."*
+
+**Remember:** **Declaration decides location, not the type kind.**
+
+---
+
+## 1.2 Boxing
+
+**Say:** *"Boxing wraps a value type in a heap object so you can treat it as `object` or an interface.
+Unboxing pulls it back out with a type check. The cost is a heap allocation, a copy, GC pressure and
+an extra indirection. In a hot loop processing market ticks, that's a genuine performance bug."*
 
 ```csharp
 int x = 42;
@@ -31,267 +63,258 @@ object o = x;        // box: heap allocation + copy
 int y = (int)o;      // unbox: type check + copy
 ```
 
-Cost: heap allocation + GC pressure + indirection + cache misses. In a hot loop processing market
-ticks, boxing is a real performance bug.
-
-Where it sneaks in: non-generic collections (`ArrayList`, `Hashtable`), `string.Format`/interpolation
-into `object` params, `struct` implementing an interface accessed *through* the interface,
-`Enum.HasFlag` (pre-.NET Core 3), `object.Equals(object)` on a struct without overriding.
+**Where it sneaks in** (name two or three):
+- Non-generic collections — `ArrayList`, `Hashtable`
+- Passing a struct into anything taking `object`
+- A struct implementing an interface, accessed *through* that interface
+- `object.Equals(object)` on a struct you didn't give an override to
 
 ```csharp
-// Avoiding boxing on struct comparison:
-struct Price : IEquatable<Price>          // IEquatable<T> avoids boxing
+struct Price : IEquatable<Price>              // IEquatable<T> avoids the boxing
 {
     public decimal Value;
-    public bool Equals(Price other) => Value == other.Value;   // no boxing
-    public override bool Equals(object? o) => o is Price p && Equals(p); // boxes
+    public bool Equals(Price other) => Value == other.Value;              // no boxing
+    public override bool Equals(object? o) => o is Price p && Equals(p);  // boxes
     public override int GetHashCode() => Value.GetHashCode();
 }
 ```
 
-**Q: When would you use a `struct` instead of a `class`?**
+---
 
-Microsoft's guidance + the real reason: when it's small (≤16 bytes rule of thumb), immutable,
-logically a single value, and short-lived/allocated in bulk. Real win: avoiding millions of heap
-allocations. E.g. a `Tick { long InstrumentId; decimal Price; long TimestampTicks; }` in a market
-data feed — as a struct in a pre-allocated array you get zero GC pressure and cache locality.
+## 1.3 When would you use a `struct`?
 
-⚠️ Follow-up: *"downsides?"* → copy cost on every pass (use `in`/`ref readonly`), mutable structs are
-a bug factory (a copy gets mutated, not the original), boxing when used via interfaces, and defensive
-copies when a non-`readonly` struct is held in a `readonly` field.
+**Say:** *"When it's small — around 16 bytes or less — immutable, logically a single value, and
+created in bulk. The real win is avoiding millions of heap allocations. A `Tick` with an instrument
+ID, a price and a timestamp, held in a pre-allocated array, gives me zero GC pressure and good cache
+locality."*
+
+⚠️ **They will ask about downsides. Have them ready:**
+- Copy cost on every pass — use `in` or `ref readonly`
+- **Mutable structs are a bug factory** — you mutate a copy, not the original
+- Boxing when used through an interface
+- Defensive copies when a non-`readonly` struct sits in a `readonly` field
 
 ```csharp
-public readonly struct Tick          // readonly struct → compiler prevents mutation,
-{                                    // no defensive copies
+public readonly struct Tick            // readonly struct = no mutation, no defensive copies
+{
     public readonly long InstrumentId;
     public readonly decimal Price;
     public Tick(long id, decimal price) => (InstrumentId, Price) = (id, price);
 }
 
-void Process(in Tick t) { }          // 'in' = pass by readonly reference, no copy
+void Process(in Tick t) { }            // 'in' = pass by readonly reference, no copy
 ```
-
-**Q: `ref struct` / `Span<T>`?**
-
-`ref struct` (e.g. `Span<T>`, `ReadOnlySpan<T>`) is **stack-only** — cannot be boxed, cannot be a
-field of a class, cannot be captured in a lambda or used across `await`. That restriction is what
-makes it safe to point at stack memory or into the middle of an array.
-
-```csharp
-Span<byte> buffer = stackalloc byte[256];     // no heap allocation at all
-ReadOnlySpan<char> symbol = fullText.AsSpan(4, 6);   // slice with zero allocation
-```
-
-Use case worth naming: parsing a fixed-width market data or FIX message without allocating substrings.
-`ReadOnlySpan<char>` + `int.TryParse(span, out ...)` gives you allocation-free parsing.
 
 ---
 
-## 2. Garbage collection
+## 1.4 `Span<T>` and `ref struct`
 
-**Q: Explain .NET GC.**
-
-Generational, mark-and-sweep-and-compact, tracing collector.
-
-- **Gen 0** — new small objects. Collected very often, very cheap. Most objects die here
-  ("generational hypothesis").
-- **Gen 1** — survivors of gen 0; a buffer between short- and long-lived.
-- **Gen 2** — long-lived. Collected rarely; a full gen-2 collection is the expensive one.
-- **LOH (Large Object Heap)** — objects **≥ 85,000 bytes**. Collected with gen 2, and historically
-  **not compacted** (you can opt in via `GCSettings.LargeObjectHeapCompactionMode`). Causes
-  fragmentation → OOM even with free memory available.
-- **POH (Pinned Object Heap)** — .NET 5+, for pinned buffers, keeps pinning out of the normal heap.
-
-Phases: **mark** (trace from roots — statics, stack locals, CPU registers, GC handles, f-reachable
-queue) → **sweep/compact** (reclaim, move survivors, update references) → promote survivors.
-
-**Q: Workstation vs Server GC?**
-
-- **Workstation**: one heap, lower latency, tuned for client apps. Default for desktop.
-- **Server**: one heap + one dedicated GC thread **per logical core**, much higher throughput,
-  longer individual pauses. Default for ASP.NET Core. `<ServerGarbageCollection>true</...>`.
-- **Background/concurrent GC**: gen 2 collection runs largely concurrently with the app to shorten
-  pauses.
-
-⚠️ **Great answer for this role:** *"For a real-time trading desktop I'd care about pause time more
-than throughput — workstation + background GC, and more importantly reduce allocation in the hot path
-so gen 2 rarely runs at all: object pooling, `ArrayPool<T>`, structs for ticks, avoiding LINQ and
-closures in the tick handler. In .NET 9 the new adaptive DATAS mode for server GC also matters for
-memory footprint."*
-
-**Q: `IDisposable` vs finalizer?**
-
-- `IDisposable.Dispose()` — **deterministic** cleanup of *unmanaged* or expensive resources, called
-  by you or `using`.
-- **Finalizer** (`~Type()`) — safety net run by the GC's finalizer thread, **non-deterministic**.
-  Objects with finalizers survive an extra GC cycle (they go on the finalization queue, get
-  resurrected to f-reachable, then collected next time). Never write one unless you directly hold an
-  unmanaged handle — and prefer `SafeHandle`.
-
-The canonical pattern:
+**Say:** *"`Span<T>` is a `ref struct` — stack-only. It can't be boxed, can't be a field of a class,
+can't be captured in a lambda or held across an `await`. Those restrictions are exactly what make it
+safe to point at stack memory or into the middle of an array. The use case worth naming here: parsing
+a fixed-width market data or FIX message without allocating a single substring."*
 
 ```csharp
-public class Connection : IDisposable
+Span<byte> buffer = stackalloc byte[256];              // zero heap allocation
+ReadOnlySpan<char> symbol = fullText.AsSpan(4, 6);     // slice with no allocation
+int.TryParse(symbol, out var value);                   // allocation-free parsing
+```
+
+**`Span<T>` vs `Memory<T>`:** stack-only and synchronous vs heap-storable and usable across `await`.
+
+---
+
+# PART 2 — GARBAGE COLLECTION
+
+## 2.1 How it works
+
+**Say:** *"It's a generational, tracing, mark-sweep-and-compact collector.*
+- ***Gen 0*** *is new small objects. Collected very often, very cheaply — most objects die here.*
+- ***Gen 1*** *is survivors of gen 0, a buffer between short- and long-lived.*
+- ***Gen 2*** *is long-lived. Collected rarely, and a full gen 2 is the expensive pause.*
+- ***The Large Object Heap*** *takes anything 85,000 bytes or bigger. It's collected with gen 2 and
+  historically isn't compacted, so you get fragmentation — out-of-memory even with free memory
+  available."*
+
+**The phases:** **mark** (trace from the roots — statics, stack locals, registers, GC handles) →
+**sweep and compact** (reclaim, move survivors, fix up references) → **promote** the survivors.
+
+**Remember:** **Gen 0 cheap, gen 2 expensive, LOH at 85 KB and not compacted.**
+
+## 2.2 Workstation vs Server GC
+
+| | Workstation | Server |
+|---|---|---|
+| Heaps | One | One per logical core, with a dedicated GC thread each |
+| Optimised for | **Low latency** | **Throughput** |
+| Default for | Desktop apps | ASP.NET Core |
+
+**⚠️ The answer that's perfect for this role:**
+> *"For a real-time trading desktop I care about pause time far more than throughput — so workstation
+> plus background GC. But more importantly I'd reduce allocation in the hot path so gen 2 barely runs
+> at all: object pooling, `ArrayPool<T>`, structs for ticks, no LINQ or closures inside the tick
+> handler. **You don't tune your way out of a GC problem, you allocate your way out of it.**"*
+
+## 2.3 `IDisposable` vs finalizer
+
+**Say:** *"`Dispose` is **deterministic** — I call it, or `using` calls it, and cleanup happens now.
+A finalizer is a **non-deterministic** safety net run by the GC's finalizer thread. Objects with a
+finalizer survive an extra collection cycle, so they're not free. I'd never write one unless I
+directly held an unmanaged handle — and even then I'd use `SafeHandle` instead."*
+
+```csharp
+public void Dispose()
 {
-    private bool _disposed;
-    private SafeHandle? _handle;
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);   // we cleaned up; skip the finalizer
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed) return;
-        if (disposing) { _handle?.Dispose(); }   // managed resources
-        // unmanaged cleanup here
-        _disposed = true;
-    }
+    Dispose(true);
+    GC.SuppressFinalize(this);    // we cleaned up — skip the finalizer, save a GC cycle
 }
 ```
 
-`IAsyncDisposable` + `await using` when cleanup itself is async (e.g. flushing a network stream).
+`IAsyncDisposable` + `await using` when the cleanup itself is async.
 
-**Q: How do you find and fix a memory leak in .NET?**
+## 2.4 Finding a memory leak in .NET
 
-Managed "leaks" are really **unintentional retention**. Top causes, in the order I'd check:
-1. **Event handler subscriptions** — subscriber can't be collected because the publisher holds a
-   reference. The #1 leak in WPF/desktop apps. Fix: unsubscribe, or weak event pattern.
-2. **Static collections / caches** that grow forever. Fix: bounded cache, `MemoryCache` with eviction.
-3. **Long-lived timers / background tasks** capturing objects.
-4. **Captured closures** keeping a big graph alive.
-5. Undisposed `IDisposable`s holding native memory.
-6. **LOH fragmentation** presenting as OOM.
+**Say:** *"Managed leaks are really **unintentional retention** — something is still holding a
+reference. In order of likelihood I'd check:*
+1. ***Event handler subscriptions*** *— the publisher holds a strong reference to the subscriber. This
+   is the number one leak in desktop apps.*
+2. ***Static collections and caches*** *that grow forever.*
+3. ***Long-lived timers or background tasks*** *capturing objects.*
+4. ***Captured closures*** *keeping a big object graph alive.*
+5. ***Undisposed `IDisposable`s*** *holding native memory.*
+6. ***LOH fragmentation***, *which shows up as out-of-memory."*
 
-Tooling to name: `dotnet-counters` (live GC/alloc rates) → `dotnet-gcdump` / `dotnet-dump` → analyse
-in Visual Studio diagnostic tools, PerfView, or dotMemory. Technique: take two snapshots under steady
-load, diff, look at **retention paths / GC roots** for the type that grew.
+**Tooling:** `dotnet-counters` for live allocation rates → `dotnet-gcdump` / `dotnet-dump` →
+analyse in Visual Studio, PerfView or dotMemory.
 
----
-
-## 3. Strings
-
-- `string` is **immutable** and a reference type. Every "modification" allocates.
-- **Interning**: literals share one instance in the intern pool; `string.Intern` for runtime strings.
-- `StringBuilder` for loops/concatenation; not for 2–3 concatenations (`+` compiles to
-  `string.Concat`, which is fine and often faster for small fixed counts).
-- `==` on `string` is **value equality** (operator overload), unlike other reference types.
-- `ReferenceEquals(a,b)` may be true for identical literals due to interning — a favourite trick Q.
-- Comparison: use `StringComparison` explicitly. `Ordinal` for identifiers/symbols (fast, culture-free),
-  `OrdinalIgnoreCase` for case-insensitive lookups, culture-aware only for user-facing sorting.
-  ⚠️ In finance, always `Ordinal` for instrument symbols/tickers — culture rules can reorder or
-  equate things you don't expect (the classic Turkish `I`/`ı` bug).
+**The technique to state:** *"Two snapshots under steady load, diff them, and look at the **retention
+path** — the chain of GC roots keeping the type that grew alive."*
 
 ---
 
-## 4. LINQ & collections
+# PART 3 — STRINGS
 
-**Q: `IEnumerable<T>` vs `IQueryable<T>`?**
+**Say:** *"`string` is immutable and a reference type. Every modification allocates a new one."*
 
-- `IEnumerable<T>` — **in-memory**, delegate-based, executes LINQ-to-Objects. Once you're on
-  `IEnumerable`, everything after it runs on the client.
-- `IQueryable<T>` — builds an **expression tree**, translated by a provider (EF Core) into SQL.
+- **Interning:** literals share one instance in the intern pool. So `ReferenceEquals` can be `true`
+  for two identical literals — a favourite trick question.
+- `==` on `string` is **value equality**, unlike other reference types. It's an operator overload.
+- **`StringBuilder`** for loops. Not for two or three concatenations — `+` compiles to
+  `string.Concat`, which is fine and often faster for a small fixed count.
+- **Always pass a `StringComparison`.** `Ordinal` for identifiers and symbols — fast and culture-free.
+  Culture-aware only for user-facing sorting.
 
-⚠️ The interview trap:
+⚠️ **The finance detail worth saying:** *"For instrument symbols and tickers, always `Ordinal`.
+Culture rules can equate or reorder things you don't expect — the classic case is the Turkish
+dotless i, where `"IBM".ToLower()` in a Turkish locale doesn't give you `"ibm"`."*
+
+---
+
+# PART 4 — LINQ AND COLLECTIONS
+
+## 4.1 `IEnumerable<T>` vs `IQueryable<T>`
+
+**Say:** *"`IEnumerable` is in-memory and delegate-based. `IQueryable` builds an **expression tree**
+that a provider like EF Core translates into SQL. The moment you're on `IEnumerable`, everything after
+it runs on the client."*
 
 ```csharp
-// BAD: ToList() materialises the whole table, then filters in memory
-var bad = db.Orders.ToList().Where(o => o.Status == "Filled");
-
-// GOOD: filter translated into SQL WHERE
-var good = await db.Orders.Where(o => o.Status == "Filled").ToListAsync();
+var bad  = db.Orders.ToList().Where(o => o.Status == "Filled");   // pulls the whole table!
+var good = await db.Orders.Where(o => o.Status == "Filled").ToListAsync();  // WHERE in SQL
 ```
 
-**Q: Deferred vs immediate execution?**
+**Remember:** **`ToList()` is the border. Everything after it runs on your machine.**
 
-LINQ operators are lazy — the query runs when enumerated. `ToList/ToArray/Count/First/Any/Sum` force
-execution. Consequence: enumerate twice → query runs twice; and a captured variable changed between
-definition and enumeration changes the result.
+## 4.2 Deferred execution
 
-**Q: Complexity of the main collections?**
+**Say:** *"LINQ operators are lazy — nothing runs until you enumerate. `ToList`, `Count`, `First`,
+`Any` and `Sum` force it. Two consequences: enumerate twice and the query runs twice; and a captured
+variable changed between defining and enumerating changes the result."*
 
-| Collection | Lookup | Insert | Notes |
+## 4.3 Collection complexity
+
+| Collection | Lookup | Insert | Note |
 |---|---|---|---|
-| `List<T>` | O(n) search, O(1) index | O(1) amortised append | Contiguous → cache friendly |
-| `Dictionary<K,V>` | O(1) avg | O(1) avg | Hash + buckets; O(n) worst on collisions |
-| `HashSet<T>` | O(1) avg | O(1) avg | Set ops |
+| `List<T>` | O(n) search, O(1) by index | O(1) amortised append | Contiguous — cache friendly |
+| `Dictionary<K,V>` | O(1) average | O(1) average | O(n) worst case on collisions |
+| `HashSet<T>` | O(1) average | O(1) average | Set operations |
 | `SortedDictionary<K,V>` | O(log n) | O(log n) | Red-black tree |
-| `SortedList<K,V>` | O(log n) | O(n) insert | Array-backed, less memory, fast index |
-| `Queue`/`Stack<T>` | — | O(1) | |
-| `LinkedList<T>` | O(n) | O(1) at node | Rarely worth it — poor cache locality |
-| `ConcurrentDictionary` | O(1) avg | O(1) avg | Striped locks; lock-free reads |
+| `SortedList<K,V>` | O(log n) | O(n) | Array-backed; less memory, fast by index |
+| `Queue<T>` / `Stack<T>` | — | O(1) | |
+| `LinkedList<T>` | O(n) | O(1) at a node | Rarely worth it — poor cache locality |
+| `ConcurrentDictionary` | O(1) average | O(1) average | Striped locks, lock-free reads |
 | `ImmutableList<T>` | O(log n) | O(log n) | Tree-backed, structural sharing |
 
-**Q: Why must you override `GetHashCode` when you override `Equals`?**
+## 4.4 Why `GetHashCode` must match `Equals`
 
-Because hash-based collections locate an item by bucket first. Two "equal" objects with different
-hash codes land in different buckets → `Dictionary`/`HashSet` will fail to find your item. Rules:
-equal objects **must** have equal hash codes; the hash must be stable for the object's lifetime as a
-key (**never hash on a mutable field** — mutate it and the object is lost inside the dictionary).
+**Say:** *"Hash-based collections find the **bucket** first, then compare. If two equal objects produce
+different hash codes they land in different buckets, so `Dictionary` and `HashSet` will never find
+your item. Two rules: equal objects must hash equal, and **never hash on a field you'll mutate** —
+mutate it and the object is lost inside the dictionary forever."*
 
 ```csharp
 public override int GetHashCode() => HashCode.Combine(Symbol, Venue);
 ```
 
-`record` types generate value-based `Equals`/`GetHashCode`/`ToString` for you — a good answer to
-*"how would you make a value object?"*.
+**Q: How would you make a value object?**
+**Say:** *"A `record`. It generates value-based equality, hash code and `ToString` for me, and `with`
+gives non-destructive copies."*
 
 ---
 
-## 5. Delegates, events, closures
+# PART 5 — DELEGATES, EVENTS, CLOSURES
 
-- **Delegate** = type-safe function pointer; multicast by nature (`+=`).
-- **Event** = a delegate with restricted access — outside the declaring type you can only `+=`/`-=`,
-  not invoke or assign. That encapsulation is *the* reason events exist.
-- `Func<>`/`Action<>`/`Predicate<>` are the built-in generic delegates.
+**Say:** *"A **delegate** is a type-safe function pointer, and it's multicast — you can chain handlers
+with `+=`. An **event** is a delegate with restricted access: outside the declaring type you can only
+subscribe and unsubscribe, not invoke or replace it. That encapsulation is the entire reason events
+exist."*
 
-⚠️ **Closure capture in a loop** — perennial interview question:
-
+⚠️ **The closure-in-a-loop question:**
 ```csharp
-// C# 5+ : foreach variable is per-iteration → prints 0,1,2 (any order)
+// foreach: the variable is per-iteration in C# 5+ → prints 0,1,2
 foreach (var i in Enumerable.Range(0,3)) tasks.Add(Task.Run(() => Console.WriteLine(i)));
 
-// for-loop variable is ONE variable, shared → often prints 3,3,3
+// for: ONE shared variable → often prints 3,3,3
 for (int i = 0; i < 3; i++) tasks.Add(Task.Run(() => Console.WriteLine(i)));
 
-// Fix: copy into a per-iteration local
+// fix: copy into a per-iteration local
 for (int i = 0; i < 3; i++) { int local = i; tasks.Add(Task.Run(() => Console.WriteLine(local))); }
 ```
 
-Closures allocate a compiler-generated class holding the captured variables — relevant in hot paths.
-
 **Q: Why do events cause memory leaks?**
-The publisher holds a strong reference to the subscriber's target object. If the publisher outlives
-the subscriber (a long-lived service, or a WPF static/singleton view-model) the subscriber never gets
-collected. Fixes: unsubscribe in `Dispose`/`Unloaded`, use `WeakEventManager` (WPF), or expose
-`IObservable`/`IDisposable` subscriptions.
+**Say:** *"The publisher holds a **strong** reference to the subscriber. If the publisher outlives the
+subscriber — a long-lived service, or a static view-model in WPF — the subscriber can never be
+collected. Fixes: unsubscribe in `Dispose` or `Unloaded`, use `WeakEventManager` in WPF, or hand back
+an `IDisposable` subscription."*
+
+**Remember:** **The publisher holds the subscriber. Unsubscribe or leak.**
 
 ---
 
-## 6. Generics, inheritance, modern C#
+# PART 6 — GENERICS AND MODERN C#
 
-**Q: Covariance and contravariance?**
-- `out T` (**covariant**) — you can use a more-derived type: `IEnumerable<Derived>` → `IEnumerable<Base>`.
-  Only valid for output positions.
-- `in T` (**contravariant**) — more-generic type accepted: `IComparer<Base>` → `IComparer<Derived>`.
-  Only valid for input positions.
-- Mnemonic: **out = producer, in = consumer.**
-- ⚠️ Arrays are *covariant but unsafely so* — `object[] a = new string[1]; a[0] = 42;` compiles and
-  throws `ArrayTypeMismatchException` at runtime. Generics fixed this.
+## 6.1 Covariance and contravariance
 
-**Q: Abstract class vs interface (modern C#)?**
-Abstract class: shared *state* + shared implementation, single inheritance, can have constructors and
-protected members. Interface: contract, multiple inheritance, now supports **default implementations**
-(C# 8) and **static abstract members** (C# 11, enables generic math). Rule of thumb: "is-a with shared
-state" → abstract class; "can-do capability" → interface. In DI-heavy code, interfaces win because
-they're mockable and don't couple you to a hierarchy.
+- **`out T` — covariant.** Producer. `IEnumerable<Derived>` can be used as `IEnumerable<Base>`.
+- **`in T` — contravariant.** Consumer. `IComparer<Base>` can be used as `IComparer<Derived>`.
 
-**Q: Modern C# features you actually use?** (Be ready — it signals currency.)
+**Remember:** **out = producer, in = consumer.**
+
+⚠️ *"Arrays are covariant but unsafely so — `object[] a = new string[1]; a[0] = 42;` compiles and
+throws at runtime. Generics fixed that."*
+
+## 6.2 Abstract class vs interface
+
+**Say:** *"Abstract class when there's shared **state** and shared implementation — single inheritance,
+constructors, protected members. Interface for a capability — multiple inheritance, and since C# 8 it
+can have default implementations, and C# 11 added static abstract members which enable generic maths.
+Rule of thumb: 'is-a with shared state' is a base class, 'can-do' is an interface. In DI-heavy code
+interfaces win, because they're mockable and don't couple you to a hierarchy."*
+
+## 6.3 Modern C# — be ready, it signals currency
 
 ```csharp
-// records: immutable value objects with value equality
+// records — immutable value objects with value equality
 public record Order(string Symbol, decimal Qty, decimal Price)
 {
     public decimal Notional => Qty * Price;
@@ -301,152 +324,194 @@ var amended = order with { Qty = 500 };            // non-destructive mutation
 // pattern matching
 var fee = order switch
 {
-    { Notional: > 1_000_000 } => 0.0005m,
-    { Symbol: "AAPL" or "MSFT" } => 0.001m,
-    _ => 0.002m
+    { Notional: > 1_000_000 }      => 0.0005m,
+    { Symbol: "AAPL" or "MSFT" }   => 0.001m,
+    _                              => 0.002m
 };
 
-// nullable reference types: compile-time null-safety (<Nullable>enable</Nullable>)
+// nullable reference types — compile-time null safety
 string? maybe = null;
 int len = maybe?.Length ?? 0;
 
-// required + init: immutable-after-construction with object initialiser syntax
+// required + init — immutable after construction, object-initialiser syntax
 public class Config { public required string Endpoint { get; init; } }
 
-// primary constructors (C# 12), collection expressions (C# 12)
+// primary constructors and collection expressions (C# 12)
 public class Service(IRepo repo) { public Task Get() => repo.LoadAsync(); }
 int[] xs = [1, 2, 3, ..other];
 ```
 
-**Q: What's the difference between .NET Framework, .NET Core, and .NET 5+?**
-.NET Framework 4.8 — Windows-only, in-place OS-serviced, end of the line (still supported, no new
-features). .NET Core → cross-platform, side-by-side, open source, faster. .NET 5+ unified the naming
-and the BCL. **.NET 8 and 10 are LTS (3 yrs); 9 is STS (18 months).** For a WPF shop: WPF and
-WinForms *are* supported on modern .NET (Windows-only), so a legacy WPF app can be migrated off
-Framework — a very likely conversation in this interview.
+## 6.4 .NET Framework vs .NET Core vs .NET 5+
+
+**Say:** *".NET Framework 4.8 is Windows-only, serviced in place with the OS, and it's the end of the
+line — supported, but no new features. .NET Core made it cross-platform, side-by-side and open source.
+.NET 5 unified the naming and the base library. **.NET 8 and 10 are LTS at three years; 9 is
+short-term at 18 months.** And importantly for this role: **WPF and WinForms are supported on modern
+.NET** — Windows-only, but a legacy WPF app absolutely can be migrated off Framework."*
+
+**That last sentence is a very likely conversation in this interview. Have it ready.**
 
 ---
 
-## 7. Exceptions
+# PART 7 — EXCEPTIONS
 
-- `throw;` preserves the original stack trace; `throw ex;` **resets** it. Classic gotcha.
-- Catch only what you can handle. Don't catch `Exception` to log-and-swallow.
-- **Exception filters** run *before* the stack unwinds — better diagnostics:
+- **`throw;` preserves the original stack trace. `throw ex;` resets it.** Classic gotcha.
+- Catch only what you can handle. Don't catch `Exception` to log and swallow.
+- **Exception filters run *before* the stack unwinds** — better diagnostics:
   ```csharp
   catch (SqlException ex) when (ex.Number == 1205)   // deadlock victim → retry
   ```
-- Exceptions are **expensive** (stack capture, unwinding). Never use them for control flow in a hot
-  loop — use `TryParse`/`TryGetValue` patterns.
-- `AggregateException` from `Task.WaitAll`/`.Result`; `await` unwraps to the first inner exception.
-- Custom exceptions: derive from `Exception`, add the three constructors, keep them meaningful.
+- **Exceptions are expensive in .NET** — stack capture plus unwinding. Never use them for control flow
+  in a hot loop. Use `TryParse` and `TryGetValue`. *(Note the contrast with Python, where they're
+  cheap and the idiom is the opposite — pointing that out is a nice moment.)*
+- `Task.WaitAll` and `.Result` give you an `AggregateException`; `await` unwraps to the first inner one.
 
 ---
 
-## 8. Dependency injection & lifetimes
+# PART 8 — DEPENDENCY INJECTION
 
-| Lifetime | Meaning | Trap |
+| Lifetime | Meaning | The trap |
 |---|---|---|
-| **Singleton** | One for app lifetime | Must be thread-safe. **Captive dependency**: injecting a Scoped/Transient into a Singleton keeps it alive forever and breaks scoping. |
-| **Scoped** | One per request/scope | In a desktop app there's no ambient request — create scopes explicitly (`IServiceScopeFactory`). Critical for `DbContext`. |
-| **Transient** | New every resolve | Cheap objects only; transient `IDisposable`s resolved from the root container are held until the container dies. |
+| **Singleton** | One for the app's lifetime | Must be thread-safe. **Captive dependency:** inject a Scoped or Transient into a Singleton and it's kept alive forever, breaking scoping. |
+| **Scoped** | One per request or scope | A desktop app has no ambient request — create scopes explicitly with `IServiceScopeFactory`. Critical for `DbContext`. |
+| **Transient** | New every time | Cheap objects only. A transient `IDisposable` resolved from the **root** container is held until the container dies. |
 
-`IHttpClientFactory` exists because raw `new HttpClient()` per call exhausts sockets (TIME_WAIT) and
-a static `HttpClient` never picks up DNS changes. Say that — it's a common senior question.
+**Q: Why `IHttpClientFactory`?**
+**Say:** *"Two problems. A new `HttpClient` per call exhausts sockets — they sit in TIME_WAIT. But a
+single static one never picks up DNS changes, so a failover moves and you keep calling the dead
+address. The factory pools handlers and rotates them, which solves both."*
 
 ---
 
-## 9. Entity Framework Core
+# PART 9 — ENTITY FRAMEWORK CORE
 
 **Q: How does change tracking work?**
-`DbContext` keeps an identity map of tracked entities with original values; `SaveChanges` diffs them
-and generates SQL. `AsNoTracking()` skips it → significantly faster and less memory for read-only
-queries. `DbContext` is **not thread-safe** and should be short-lived.
+**Say:** *"`DbContext` keeps an identity map of tracked entities with their original values.
+`SaveChanges` diffs them and generates the SQL. `AsNoTracking()` skips all of that — significantly
+faster and lighter for read-only queries. And `DbContext` is **not thread-safe** and should be
+short-lived."*
 
 **Q: The N+1 problem?**
-One query for the parent list, then one query per child access (lazy loading). Fix with `Include`/
-`ThenInclude` (eager), projection to a DTO with `Select` (best — fetches only needed columns), or
-`AsSplitQuery()` when a single join causes cartesian explosion.
+**Say:** *"One query for the parent list, then one more query per child access because of lazy
+loading. Fix with `Include` for eager loading, or better, **project to a DTO with `Select`** — one
+query, only the columns you need, no tracking overhead. `AsSplitQuery()` when a single join causes a
+cartesian explosion."*
 
 ```csharp
-// Best: projection — one query, minimal columns, no tracking overhead
 var rows = await db.Orders
     .Where(o => o.Date == today)
-    .Select(o => new OrderRow(o.Id, o.Symbol, o.Qty, o.Trader.Name))
+    .Select(o => new OrderRow(o.Id, o.Symbol, o.Qty, o.Trader.Name))   // projection
     .AsNoTracking()
     .ToListAsync(ct);
 ```
 
-**Q: Optimistic vs pessimistic concurrency in EF Core?**
-Optimistic: a `[Timestamp]`/`rowversion` concurrency token included in the `WHERE` of the `UPDATE`;
-0 rows affected → `DbUpdateConcurrencyException` → you resolve (client wins / store wins / merge).
-Pessimistic: DB locks (`UPDLOCK`, `SELECT ... FOR UPDATE`) via raw SQL — EF has no first-class API.
-For an order-management system, optimistic concurrency on the order aggregate is the standard answer.
+**Q: Optimistic vs pessimistic concurrency?**
+**Say:** *"Optimistic uses a `rowversion` concurrency token in the `WHERE` clause of the `UPDATE`.
+Zero rows affected means someone else got there first, and EF throws
+`DbUpdateConcurrencyException` — then I decide: client wins, store wins, or merge. Pessimistic takes
+database locks, which EF has no first-class API for. **For an order management system, optimistic
+concurrency on the order aggregate is the standard answer.**"*
 
 **Q: When would you use Dapper instead?**
-Hot read paths, complex hand-tuned SQL, reporting queries, or where the object graph mapping is a
-liability. Your CV already says "EF Core for writes, Dapper for reporting reads" — that is exactly
-the answer they want, so say it with the reason: *"write side benefits from the unit of work and
-change tracking; the read side benefits from full control of the SQL and no tracking overhead."*
+**Say:** *"Hot read paths, hand-tuned SQL, and reporting queries. My rule is EF Core for writes,
+Dapper for reporting reads — the write side benefits from the unit of work and change tracking, the
+read side benefits from full control of the SQL and no tracking overhead."*
 
-**Other EF points:** migrations & zero-downtime (expand/contract pattern — add nullable column,
-backfill, switch code, drop old), compiled queries (`EF.CompileAsyncQuery`) for hot repeated queries,
-`DbContextPool` for high throughput, `ExecuteUpdateAsync`/`ExecuteDeleteAsync` (EF7+) for set-based
-operations without loading entities.
+**Also worth naming:** migrations with the **expand/contract** pattern for zero downtime (add a
+nullable column, backfill, switch the code, then drop the old one), compiled queries for hot repeated
+queries, `DbContextPool`, and `ExecuteUpdateAsync`/`ExecuteDeleteAsync` for set-based work without
+loading entities.
 
 ---
 
-## 10. SOLID — with one-line real examples (be ready to give *examples*, not definitions)
+# PART 10 — SOLID, WITH EXAMPLES NOT DEFINITIONS
 
-| | Principle | Your example |
+**They want examples. Definitions sound rehearsed.**
+
+| | Principle | Your one-line example |
 |---|---|---|
-| **S** | Single responsibility | Split an order service that both validated *and* persisted *and* published — validation moved to a rules component, publishing to an outbox dispatcher |
-| **O** | Open/closed | New partner integrations added as new `IPartnerAdapter` implementations, no changes to the routing engine |
+| **S** | Single responsibility | Split an order service that validated *and* persisted *and* published — validation moved to a rules component, publishing to an outbox dispatcher |
+| **O** | Open/closed | New partner integrations are new `IPartnerAdapter` implementations; the routing engine never changes |
 | **L** | Liskov substitution | A `ReadOnlyRepository` that throws on `Add` violates it — split the interface instead |
-| **I** | Interface segregation | Don't force a market-data consumer to implement an `ISubscribe`+`IPublish`+`IAdmin` mega-interface |
-| **D** | Dependency inversion | Domain layer defines `IPriceSource`; the infrastructure project implements it against the vendor SDK — Clean Architecture's dependency rule |
+| **I** | Interface segregation | Don't force a market-data consumer to implement `ISubscribe` + `IPublish` + `IAdmin` |
+| **D** | Dependency inversion | The domain defines `IPriceSource`; infrastructure implements it against the vendor SDK. Clean Architecture's dependency rule |
 
 ---
 
-## 11. Rapid-fire — answer each in one sentence
+# PART 11 — RAPID-FIRE: 60 QUESTIONS
 
-1. `const` vs `readonly` → `const` is compile-time, baked into callers (versioning hazard across
-   assemblies); `readonly` is set at runtime in the constructor.
-2. `ref` vs `out` vs `in` → must be initialised before / must be assigned inside / read-only by
-   reference (no copy).
-3. `virtual`/`override` vs `new` → polymorphic dispatch vs hiding (dispatch depends on the *static*
-   type — a classic trick question).
-4. `IEnumerable` vs `IEnumerator` → the sequence vs the cursor over it.
-5. `yield return` → compiler-generated state machine producing a lazy sequence.
-6. `sealed` → prevents inheritance; enables devirtualisation, a small perf win.
-7. `static` constructor → runs once, lazily, thread-safely before first use.
-8. `params`, optional args → optional-arg defaults are baked into the **caller** — another versioning
-   hazard.
-9. `is` vs `as` → boolean test (with pattern matching) vs cast-or-null.
-10. `checked`/`unchecked` → overflow throws vs wraps. **In finance code, wrap money arithmetic in
-    `checked`.**
-11. `decimal` vs `double` → **`decimal` for money** (base-10, 28–29 sig digits, exact for decimal
-    fractions); `double` for scientific/statistical maths (binary floating point, `0.1 + 0.2 != 0.3`).
-    ⚠️ *Expect this question in a capital-markets interview and get it right instantly.*
-12. `Span<T>` vs `Memory<T>` → stack-only, sync-only vs heap-storable, usable across `await`.
-13. `ValueTask` vs `Task` → avoid an allocation when the result is usually already available (cache
-    hits); don't await it twice.
-14. `ArrayPool<T>.Shared` → rent/return buffers to avoid LOH allocations. Always return in a `finally`.
-15. `IOptions` vs `IOptionsSnapshot` vs `IOptionsMonitor` → singleton / per-scope reload /
-    push-notified reload.
-16. Reflection cost → slow; cache `MethodInfo`, or use source generators / compiled expressions.
-17. `unsafe`/`fixed` → pointer arithmetic and pinning; used for interop and extreme perf.
-18. `partial` → split a type across files; how designers and source generators contribute code.
-19. Extension method → static method on a static class with `this` on the first parameter; resolved
-    at compile time, so no polymorphism.
-20. `async` return types → `Task`, `Task<T>`, `ValueTask<T>`, `IAsyncEnumerable<T>`, and `void`
-    (**only** for event handlers — see `04`).
+| # | Q | A |
+|---|---|---|
+| 1 | `const` vs `readonly` | Compile-time, baked into callers (a versioning hazard) vs set at runtime in the constructor |
+| 2 | `ref` vs `out` vs `in` | Must be initialised before / must be assigned inside / read-only by reference, no copy |
+| 3 | `virtual`/`override` vs `new` | Polymorphic dispatch vs hiding — hiding dispatches on the **static** type |
+| 4 | `IEnumerable` vs `IEnumerator` | The sequence vs the cursor over it |
+| 5 | `yield return` | A compiler-generated state machine producing a lazy sequence |
+| 6 | `sealed` | Prevents inheritance; enables devirtualisation, a small perf win |
+| 7 | Static constructor | Runs once, lazily, thread-safely, before first use |
+| 8 | Optional argument defaults | Baked into the **caller** — another versioning hazard |
+| 9 | `is` vs `as` | Boolean test with pattern matching vs cast-or-null |
+| 10 | `checked` / `unchecked` | Overflow throws vs wraps. **Wrap money arithmetic in `checked`** |
+| 11 | `decimal` vs `double` | Base-10 exact for money vs binary float for science. **Money is always `decimal`** |
+| 12 | `Span<T>` vs `Memory<T>` | Stack-only, sync-only vs heap-storable, works across `await` |
+| 13 | `ValueTask` vs `Task` | Avoids an allocation when the result is usually already there. Never await it twice |
+| 14 | `ArrayPool<T>.Shared` | Rent and return buffers to avoid LOH allocations. Return in a `finally` |
+| 15 | `IOptions` / `Snapshot` / `Monitor` | Singleton / per-scope reload / push-notified reload |
+| 16 | Reflection cost | Slow — cache `MethodInfo`, or use source generators |
+| 17 | `unsafe` / `fixed` | Pointer arithmetic and pinning. Interop and extreme perf |
+| 18 | `partial` | Split a type across files — how designers and source generators contribute |
+| 19 | Extension method | Static method with `this` on the first parameter; resolved at compile time, so no polymorphism |
+| 20 | `async` return types | `Task`, `Task<T>`, `ValueTask<T>`, `IAsyncEnumerable<T>`, and `void` **only** for event handlers |
+| 21 | Value vs reference type | Holds the data vs holds a reference |
+| 22 | Do value types live on the stack? | **No** — depends where they're declared |
+| 23 | Boxing cost | Heap allocation + copy + indirection + GC pressure |
+| 24 | Avoid boxing on a struct | Implement `IEquatable<T>` |
+| 25 | When to use a struct | Small, immutable, single value, created in bulk |
+| 26 | `readonly struct` | Compiler prevents mutation; no defensive copies |
+| 27 | GC generations | 0 cheap and frequent, 1 buffer, 2 expensive and rare |
+| 28 | LOH threshold | 85,000 bytes; collected with gen 2, historically not compacted |
+| 29 | POH | Pinned Object Heap — keeps pinned buffers out of the normal heap |
+| 30 | Workstation vs server GC | Low latency, one heap vs throughput, a heap per core |
+| 31 | `Dispose` vs finalizer | Deterministic, you call it vs GC-run safety net, costs an extra cycle |
+| 32 | `GC.SuppressFinalize` | "I've cleaned up" — skips the finalizer |
+| 33 | Top .NET leak cause | Event handler subscriptions |
+| 34 | Diagnose a leak | Two heap snapshots under load, diff, follow the retention path |
+| 35 | Is `string` a value type? | No — reference type, but immutable with value equality |
+| 36 | String interning | Literals share one instance; `ReferenceEquals` can surprise you |
+| 37 | `StringComparison` | Always pass it. `Ordinal` for symbols and identifiers |
+| 38 | `IEnumerable` vs `IQueryable` | In memory vs an expression tree translated to SQL |
+| 39 | Deferred execution | Nothing runs until enumerated; enumerate twice, run twice |
+| 40 | Dictionary lookup complexity | O(1) average, O(n) worst on collisions |
+| 41 | `Equals` without `GetHashCode` | The dictionary loses your item |
+| 42 | Never hash on | A mutable field |
+| 43 | `record` | Value equality, `with` expressions, generated `ToString` |
+| 44 | Delegate vs event | Function pointer vs a delegate with restricted access |
+| 45 | Closure allocation | A compiler-generated class holding the captured variables |
+| 46 | Covariance / contravariance | `out` producer / `in` consumer |
+| 47 | Array covariance | Unsafe — compiles, throws at runtime. Generics fixed it |
+| 48 | Abstract class vs interface | Shared state vs a capability contract |
+| 49 | Default interface methods | C# 8 — add to an interface without breaking implementers |
+| 50 | `throw;` vs `throw ex;` | Preserves the stack trace vs resets it |
+| 51 | Exception filter | `when (...)` — runs before the stack unwinds |
+| 52 | Are exceptions cheap? | **No** in .NET. Never for control flow in a hot loop |
+| 53 | `AggregateException` | From `WaitAll`/`.Result`; `await` unwraps the first inner one |
+| 54 | DI lifetimes | Singleton / Scoped / Transient |
+| 55 | Captive dependency | A shorter lifetime injected into a longer one — lives forever |
+| 56 | Why `IHttpClientFactory` | Socket exhaustion and stale DNS, both solved |
+| 57 | EF change tracking | Identity map + original values; `AsNoTracking` skips it |
+| 58 | Fix N+1 | `Include`, or better, project with `Select` |
+| 59 | EF concurrency | `rowversion` token; 0 rows affected → `DbUpdateConcurrencyException` |
+| 60 | LTS versions | .NET 8 and .NET 10 |
 
 ---
 
-## 12. Three things to say that make you sound senior
+# PART 12 — THREE THINGS THAT MAKE YOU SOUND SENIOR
 
-1. *"I'd measure before optimising — BenchmarkDotNet for micro, a profiler for the real workload."*
-2. *"The choice depends on the access pattern"* — then name the pattern. Works for collections,
-   storage, caching, everything.
-3. *"That's a correctness-versus-throughput trade-off"* — and state which side the business is on.
-   In capital markets it's **always correctness**, and saying so shows domain instinct.
+1. **"I'd measure before optimising."** BenchmarkDotNet for micro, a profiler for the real workload.
+
+2. **"It depends on the access pattern"** — then *name the pattern*. That works for collections,
+   storage, caching, indexing, everything. It's the difference between an opinion and judgement.
+
+3. **"That's a correctness-versus-throughput trade-off"** — and then say which side the business is
+   on. In capital markets it is **always correctness**, and saying so shows domain instinct before
+   they've told you anything about the domain.

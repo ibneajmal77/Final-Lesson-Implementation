@@ -1,105 +1,169 @@
-# 13 — Behavioural Stories & Your Questions
+# 13 — BEHAVIOURAL & YOUR QUESTIONS, IN PLAIN ENGLISH
 
-> Compact by design — your priority is technical. This matters most for **stage 2 (hiring manager)**
-> and **stage 3 (client)**, but a few of these come up on Monday too.
-
----
-
-## 1. STAR, in one line
-**S**ituation (10s) → **T**ask (10s) → **A**ction (**60s — the bulk, and all "I", not "we"**) →
-**R**esult (**15s, with a number**). Then stop.
+> Short by design. Your priority is technical. This matters most for **stage 2 (hiring manager)** and
+> **stage 3 (client)** — but a few come up in the first round too.
 
 ---
 
-## 2. Eight stories from your actual CV — one line of scaffolding each, fill in from memory
+# PART 0 — THE 6 RULES
 
-| # | Story | Use it for |
+| # | Rule | Why |
 |---|---|---|
-| 1 | **Calrom: reservation modules off .NET Framework/WCF → ASP.NET Core, CQRS + event sourcing** because the monolith couldn't produce a replay-capable audit trail | Legacy modernisation · architecture ownership · **the best finance-adjacent story you have** |
-| 2 | **7X billing consistency**: four services, no distributed transactions → SAGA + compensations + outbox + idempotency keys; hit partial-compensation failures in testing and made compensations idempotent and replayable | Hardest technical problem · distributed systems · rigour |
-| 3 | **7X real-time pipeline**: Kafka on Event Hubs, 200K events/day, <100 ms, consumer-group partitioning, 99.99% delivery | Real-time · scale · quantified |
-| 4 | **GAC: unreliable customs/partner endpoints** stalling the booking pipeline → Polly circuit breakers + retries, SAGA across booking/cargo/compliance | Resilience · integrating with systems you don't control |
-| 5 | **GAC: Pact consumer-driven contract tests** so a breaking schema change failed the build instead of becoming a partner incident | Quality engineering · preventing production incidents |
-| 6 | **Merik: on-prem → Azure migrations** across client engagements; monoliths → .NET 5/6 on AKS; release cadence monthly → weekly | Cloud · delivery improvement · client-facing |
-| 7 | **Mentoring**: two engineers onto the DDD/CQRS codebase at GAC; set the code-review standard and authored the ADRs at 7X | Leadership · seniority |
-| 8 | **Merik/7X client-facing**: scoping, estimating, presenting architecture options to client stakeholders, on-site delivery | **Luxoft cares about this a lot** — you're being hired to sit with a client |
-
-**Have ready:** a **failure** story (what went wrong, what you owned, what changed afterwards — never
-blame anyone), a **disagreement** story (technical conflict resolved with data or a spike, not
-seniority), and a **tight deadline** story (what you cut and how you communicated the trade-off).
+| 1 | **Answer, then stop talking.** | Over-talking is the most common way seniors lose points. Silence is the interviewer's turn. |
+| 2 | **Say "I", not "we".** | They're assessing *you*. "We" hides what you actually did. |
+| 3 | **End with a number.** | "Release cadence went from monthly to weekly." Numbers are memorable and most candidates have none. |
+| 4 | **Never criticise a past employer or client.** | Not once. It's the fastest way to become a risk. |
+| 5 | **Own failures fully, then describe the systemic fix.** | "I caused it, here's what I changed so it can't recur" is a senior answer. Blame is a junior one. |
+| 6 | **Write the interviewer's name down in the first 60 seconds.** | You will not remember it afterwards, and you need it for the follow-up email. |
 
 ---
 
-## 3. Questions they'll ask, with the shape of your answer
+# PART 1 — STAR, IN ONE LINE
 
-| Question | Shape |
+**S**ituation *(10 seconds)* → **T**ask *(10 seconds)* → **A**ction *(**60 seconds — the bulk, all
+"I"**)* → **R**esult *(**15 seconds, with a number**)*. **Then stop.**
+
+⚠️ **The mistake to avoid:** spending 90 seconds on the situation. The interviewer doesn't need the
+backstory. They need to know **what you personally did**.
+
+---
+
+# PART 2 — YOUR EIGHT STORIES
+
+One line of scaffolding each — fill in the detail from memory.
+
+| # | The story | Use it for |
+|---|---|---|
+| **1** | **Calrom** — moved reservation modules off .NET Framework/WCF onto ASP.NET Core with CQRS and **event sourcing**, because the monolith couldn't produce a replay-capable audit trail | Legacy modernisation · architecture ownership · ⚠️ **your best finance-adjacent story** |
+| **2** | **7X billing consistency** — four services, no distributed transactions → SAGA with compensations, outbox, idempotency keys. Hit partial-compensation failures in testing and made the compensations idempotent and replayable | Hardest technical problem · distributed systems · **rigour** |
+| **3** | **7X real-time pipeline** — Kafka on Event Hubs, **200,000 events a day, under 100 ms, 99.99% delivery**, consumer-group partitioning | Real-time · scale · **quantified** |
+| **4** | **GAC** — unreliable customs and partner endpoints stalling the booking pipeline → Polly circuit breakers and retries, SAGA across booking, cargo and compliance | Resilience · integrating with systems you don't control |
+| **5** | **GAC** — Pact consumer-driven contract tests, so a breaking schema change failed the build instead of becoming a partner incident | Quality engineering · preventing incidents |
+| **6** | **Merik** — on-prem to Azure migrations, monoliths to .NET 5/6 on AKS, release cadence **monthly → weekly** | Cloud · delivery improvement · client-facing |
+| **7** | **Mentoring** — brought two engineers onto the DDD/CQRS codebase, set the code-review standard, authored the ADRs | Leadership · seniority |
+| **8** | **Client-facing** — scoping, estimating, presenting architecture options to client stakeholders, on-site delivery | ⚠️ **Luxoft cares about this a lot** — you're being hired to sit with a client |
+
+## The three you must also have ready
+
+- **A failure.** What went wrong, what you owned, what changed afterwards. **Never blame anyone.**
+- **A disagreement.** Resolved with data or a timeboxed spike — not by seniority.
+- **A tight deadline.** What you cut, and **how you communicated the trade-off**.
+
+---
+
+# PART 3 — THEIR QUESTIONS, AND THE SHAPE OF YOUR ANSWER
+
+| They ask | The shape |
 |---|---|
-| Biggest technical challenge | Story 2 or 1. Lead with the constraint, not the tech. |
-| Disagreement with a colleague | Listened → reframed as a trade-off → agreed a test/spike → went with the data. |
-| A production incident you caused | Own it fully, describe the fix, then the **systemic** change (test, alert, guardrail). |
-| How do you mentor? | Code review as teaching, pairing on risky work, ADRs so decisions are learnable. |
-| How do you handle unclear requirements? | Ask who the user is and what decision the output supports; prototype; short feedback loop. |
-| Why Luxoft / why leaving? | Permanence + depth in one serious platform; already good at the embedded-consultant model; Luxoft's financial-services depth means a domain, not a one-off engagement. |
-| Salary | *"Yevheniia shared the 25–35k range and it works. I'd focus on fit today."* Later: aim at the top of band given 9 yrs + AZ-305; clarify whether housing/flights/medical/schooling are inside or outside the number, plus visa, relocation from Dubai, and gratuity. |
-| Notice period / start date | Know your exact notice. Be precise, not vague. |
-| Weakness | Breadth vs depth — deliberate, aware of the risk, now picking one area a quarter to go deep. Part of why this role appeals. |
-
-⚠️ Never criticise a current or past employer or client. Not once.
+| **Biggest technical challenge** | Story 2 or 1. **Lead with the constraint, not the technology.** |
+| **A disagreement with a colleague** | Listened → reframed it as a trade-off → agreed a spike → went with the data. |
+| **A production incident you caused** | Own it fully → the immediate fix → then **the systemic change** (a test, an alert, a guardrail). |
+| **How do you mentor?** | Code review as teaching · pairing on risky work · ADRs so decisions are learnable. |
+| **Unclear requirements?** | Ask who the user is and **what decision the output supports**. Prototype. Short feedback loop. |
+| **Why Luxoft / why leaving?** | Permanence and depth in one serious platform. Already good at the embedded-consultant model. Luxoft's financial-services depth means a **domain**, not a one-off engagement. |
+| **Salary** | *"Yevheniia shared the range and it works for me — I'd rather focus on the technical fit today."* **Do not discuss money in round one.** |
+| **Notice period** | Know your **exact** notice. Be precise, not vague. |
+| **Weakness** | Breadth versus depth — deliberate, aware of the risk, and now picking one area a quarter to go deep on. **Part of why this role appeals.** |
 
 ---
 
-## 4. Questions **you** ask (pick 3 for Monday, save the rest)
+# PART 4 — THE TWO HONEST ANSWERS (know the shape, not a script)
 
-**Technical (best for Monday):**
-1. Is this greenfield or extending an existing platform? What's the split between the desktop client,
-   the services behind it, and the Python/analytics side? *(This one tells you how to aim everything
-   else — ask it early if you get the chance.)*
-2. Where does WPF sit — one flagship app or several tools? Is any of the estate still .NET Framework?
-3. What's the hardest technical problem the team has right now?
-4. How real-time is real-time here — is this streaming prices to a desk, or more analytics and
-   batch cycles?
-5. What does the testing and release process look like for the desktop client specifically?
+## WPF
 
-**Role & team (better for stages 2–3):**
-6. Who's the end client, and what does the team composition look like?
-7. How much domain knowledge is expected on day one versus picked up on the job? How close are
-   engineers to the portfolio managers or traders?
-8. What does success look like for this person at six months?
-9. How does Luxoft support engineers embedded at a client — career path, training, domain onboarding?
-10. What's the on-site expectation in Abu Dhabi, and how does the team work day to day?
+> *"I haven't been in WPF recently — I've been in web UI for years. But the model is the same one I use
+> daily: MVVM, binding and change notification are exactly what Angular and React do with a different
+> vocabulary.*
+>
+> *And I've been rebuilding hands-on recently — a real-time positions blotter, 5,000 rows, 20 ticks a
+> second, `ObservableCollection`, dispatcher marshalling, virtualisation. What I learned is that you
+> **have to** batch onto a channel and flush on a timer, or you flood the dispatcher and the UI dies.*
+>
+> *I'd be productive quickly. And honestly, WPF isn't where the difficulty in a system like this
+> lives."*
 
-**Never ask on Monday:** salary, holidays, remote policy, promotion timelines.
+## Finance
+
+> *"No capital markets background — I want to be straight about that.*
+>
+> *But airline reservations at Calrom is closer than it looks: mission-critical inventory under
+> concurrency, GDS and IATA partner integration, and a compliance requirement that's exactly why we
+> chose event sourcing.*
+>
+> *I've started on the domain — order lifecycle, OMS versus EMS versus PMS, FIX, NAV. And I've learned
+> two hard domains from scratch before.*
+>
+> ***How much domain knowledge do you expect on day one, versus picking it up?***"
+
+⚠️ **Both answers end well:** the WPF one ends with a reframe, the finance one ends with a question.
+**Never let an honest answer end on the gap.**
 
 ---
 
-## 5. Closing the call
+# PART 5 — QUESTIONS **YOU** ASK
+
+**Pick three for the first round. Save the rest.**
+
+## Technical — best for round one
+
+1. ⚠️ **"Is this greenfield, or extending an existing platform? And what's the split between the
+   desktop client, the services behind it, and the Python/analytics side?"**
+   *Ask this early. The answer tells you where to aim every subsequent answer. It's the single most
+   valuable question you can ask.*
+2. *"Where does WPF sit — one flagship app, or several tools? And is any of the estate still .NET
+   Framework?"*
+3. *"What's the hardest technical problem the team has right now?"*
+4. *"How real-time is real-time here — streaming prices to a desk, or more analytics and batch
+   cycles?"*
+5. *"What does testing and release look like for the desktop client specifically?"*
+
+## Role and team — better for stages 2 and 3
+
+6. *"Who's the end client, and what does the team look like day to day?"*
+7. *"How much domain knowledge is expected on day one? How close do engineers sit to the portfolio
+   managers and traders?"*
+8. *"What does success look like for this person at six months?"*
+9. *"How does Luxoft support engineers embedded at a client — career path, training, domain
+   onboarding?"*
+
+⚠️ **Never ask in round one:** salary, holidays, remote policy, promotion timelines.
+
+---
+
+# PART 6 — CLOSING THE CALL
 
 > *"Thanks — this was a good conversation. Honestly, this is the kind of engineering I want to be
 > doing: real-time, correctness-critical, with a proper desktop client and a domain where the numbers
-> matter. I'm aware WPF and capital markets are where I'd be building up, and I'd rather be straight
-> about that than oversell — but the .NET, distributed systems and data side is exactly my ground.
-> What are the next steps?"*
+> actually matter.*
+>
+> *I'm aware WPF and capital markets are where I'd be building up, and I'd rather be straight about
+> that than oversell — but the .NET, distributed systems and data side is exactly my ground.*
+>
+> ***What are the next steps?***"
 
 ---
 
-## 6. Follow-up email (send within 4 hours, to Yevheniia; keep it 6 lines)
+# PART 7 — THE FOLLOW-UP EMAIL
 
-> Subject: Thank you — Senior Full Stack Developer technical discussion
+**Send within four hours. Keep it six lines.**
+
+> **Subject:** Thank you — Senior Full Stack Developer technical discussion
 >
 > Hi Yevheniia,
 >
-> Thank you for arranging today's technical discussion — please pass my thanks to [interviewer name]
-> as well. I enjoyed it, particularly the discussion around [one specific technical topic they raised].
+> Thank you for arranging today's technical discussion — please pass my thanks to **[interviewer
+> name]** as well. I enjoyed it, particularly the discussion around **[one specific technical topic
+> they raised]**.
 >
 > It reinforced my interest in the role: the combination of real-time data, a .NET desktop client and
 > a domain where correctness genuinely matters is exactly the kind of engineering I want to be doing.
-> [Optional, one line: *"On the WPF point that came up — I've been rebuilding hands-on with a
-> real-time positions grid, and I'm happy to share it if useful."*]
 >
 > I'd be glad to move to the next stage whenever suits.
 >
 > Kind regards,
 > Muhammad Awais
 
-**Write down the interviewer's name in the first 60 seconds of the call** — you'll want it for this
-email and you will not remember it afterwards.
+⚠️ **The two blanks are the whole point.** A generic thank-you email is worthless. Naming the
+interviewer and one specific topic proves you were present and engaged.
+
+**So: write the interviewer's name and one topic down during the call.**

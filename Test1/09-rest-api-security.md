@@ -1,177 +1,265 @@
-# 09 — REST APIs, Integration & Authentication Protocols
+# 09 — REST APIs & SECURITY, IN PLAIN ENGLISH
 
-> JD must-have: **"REST APIs with authentication protocol experience"**. Plus "Windows development"
-> → expect **Kerberos/Windows auth** alongside OAuth. This is one of your strongest areas — the goal
-> is speed and precision, not learning.
+> Must-have: **"REST APIs with authentication protocol experience"**. And because "Windows
+> development" is listed, expect **Kerberos/Windows auth** alongside OAuth.
+>
+> **This is one of your strongest areas.** The goal here is **speed and precision**, not learning.
+> Answer in 30 seconds and stop.
 
 ---
 
-## 1. REST fundamentals
+# PART 0 — THE 10 API ANSWERS THAT WIN
 
-**Constraints:** client-server · **stateless** (no server-side session; every request carries context)
-· cacheable · uniform interface · layered system · code-on-demand (optional).
+| # | The question | The answer, in one breath |
+|---|---|---|
+| 1 | **401 vs 403** | "**401 = I don't know who you are.** **403 = I know who you are, and you're not allowed.**" |
+| 2 | **Which verbs are idempotent?** | "GET, PUT and DELETE are. **POST isn't** — so I make it idempotent with an `Idempotency-Key` header." |
+| 3 | **OAuth for a desktop app** | "**Authorization Code with PKCE.** A desktop app is a **public client** — there's no safe place for a secret in a binary. Tokens go in the OS secure store." |
+| 4 | **OAuth vs OIDC** | "OAuth gives an app permission to call an API. **OIDC tells the app who the user is.** Access token → the API. ID token → the client. **Never use an ID token to call an API.**" |
+| 5 | **Validating a JWT** | "Verify the signature against the issuer's **JWKS**, check `iss`, `aud` and `exp`, and **pin the algorithm** — never let the token choose, and never accept `alg: none`." |
+| 6 | **Can you revoke a JWT?** | "**No, not before it expires.** That's the trade-off for it being self-contained. So: short expiry plus refresh rotation, or opaque tokens with introspection for high-value operations." |
+| 7 | **The #1 API vulnerability** | "**BOLA / IDOR** — broken object-level authorisation. Every request must re-check that *this* user may access *this* object ID. Never trust an ID from the client." |
+| 8 | **Optimistic concurrency over HTTP** | "`ETag` on the read, `If-Match` on the write, **412** if someone got there first." |
+| 9 | **Pagination at scale** | "Cursor or keyset paging. Offset degrades the deeper you go, and it's unstable when rows are being inserted." |
+| 10 | **Error format** | "**RFC 7807 Problem Details** — `type`, `title`, `status`, `detail`, plus a correlation ID. ASP.NET Core has it built in." |
 
-**Richardson Maturity Model:** L0 single endpoint (RPC-over-HTTP) → L1 resources → L2 HTTP verbs +
-status codes → L3 HATEOAS. Most real APIs are L2, and that's a defensible choice — say so.
+---
 
-**Verbs & semantics** (the table they check):
+# PART 1 — REST FUNDAMENTALS
+
+## 1.1 What REST actually requires
+
+**Say:** *"Client-server, **stateless** — no server-side session, every request carries its own
+context — cacheable, a uniform interface, and layered. Stateless is the one that matters
+practically, because it's what lets any node serve any request."*
+
+**Richardson Maturity Model:** Level 0 is RPC over HTTP → Level 1 is resources → Level 2 is proper
+verbs and status codes → Level 3 is HATEOAS.
+**Say:** *"Most real APIs are Level 2, and that's a defensible choice — HATEOAS rarely pays for
+itself."*
+
+## 1.2 The verb table they check
 
 | Verb | Safe | Idempotent | Use |
 |---|---|---|---|
-| GET | ✅ | ✅ | Read. **Never** mutate in a GET. |
-| HEAD | ✅ | ✅ | Metadata only |
-| PUT | ❌ | ✅ | Full replace at a known URI |
-| DELETE | ❌ | ✅ | Remove (repeat → 404 or 204, still idempotent) |
-| POST | ❌ | ❌ | Create / process. Make it idempotent with an **Idempotency-Key** header. |
-| PATCH | ❌ | ❌ (usually) | Partial update (JSON Patch / JSON Merge Patch) |
+| `GET` | ✅ | ✅ | Read. **Never mutate in a GET** |
+| `PUT` | ❌ | ✅ | Full replace at a known URI |
+| `DELETE` | ❌ | ✅ | Remove. Repeating gives 404 or 204 — still idempotent |
+| `POST` | ❌ | ❌ | Create or process. Make it idempotent with an **`Idempotency-Key`** header |
+| `PATCH` | ❌ | usually ❌ | Partial update |
 
-**Status codes** — know these cold: 200/201 (+`Location`)/202/204 · 301/304 · **400** malformed ·
-**401** unauthenticated · **403** authenticated but not allowed · **404** · **409** conflict ·
-**412** precondition failed · **422** semantic validation · **429** rate limited (+`Retry-After`) ·
-500 · **502/503/504** upstream/unavailable/timeout.
+**Say what idempotent means, simply:** *"Doing it twice has the same effect as doing it once. That
+matters because networks retry, and the client often can't tell whether the first attempt landed."*
 
-⚠️ Two distinctions interviewers use as a filter: **401 vs 403**, and **PUT vs PATCH vs POST
-idempotency**.
+## 1.3 Status codes — know these cold
 
-**Design details worth naming:**
-- Resource-noun URIs, plural, hierarchical: `/portfolios/{id}/positions`. Verbs live in the method.
-- **Pagination**: offset (simple, degrades deep) vs **cursor/keyset** (stable, constant cost —
-  the right answer for large or live-updating datasets).
-- Filtering, sorting, sparse fieldsets: `?status=open&sort=-createdAt&fields=id,symbol`.
-- **Versioning**: URI (`/v1/`), header, or media type. Say: *"URI versioning for external partners
-  because it's obvious and cache-friendly; plus additive-only changes and a documented deprecation/
-  sunset policy so we rarely need v2."*
-- **Errors**: **RFC 7807 / 9457 Problem Details** — `type`, `title`, `status`, `detail`, `instance`,
-  plus a correlation ID. ASP.NET Core has this built in.
-- **Caching**: `Cache-Control`, `ETag` + `If-None-Match` (304), `Last-Modified`/`If-Modified-Since`.
-  **`If-Match` for optimistic concurrency on writes → 412** — a great senior detail.
-- **Contract-first**: OpenAPI 3.1, linting (Spectral), generated clients, **Pact consumer-driven
-  contract tests** (you already do this — say it).
-- **Bulk endpoints, long-running operations** (202 + status URL), **webhooks** (HMAC signature,
-  timestamp, replay protection, retries with backoff, DLQ).
+| Code | Means |
+|---|---|
+| **200 / 201 / 202 / 204** | OK / Created (with `Location`) / Accepted (async) / No content |
+| **304** | Not modified — the cache is still valid |
+| **400** | Malformed request |
+| **401** | **Not authenticated** — I don't know who you are |
+| **403** | **Not authorised** — I know you, you can't do this |
+| **404** | Not found |
+| **409** | Conflict |
+| **412** | Precondition failed — used with `If-Match` |
+| **422** | Well-formed but semantically invalid |
+| **429** | Rate limited — send `Retry-After` |
+| **502 / 503 / 504** | Bad upstream / unavailable / upstream timeout |
 
-**REST vs gRPC vs GraphQL vs messaging — the decision answer:**
-> *"REST for external/partner and CRUD-ish contracts; gRPC for high-frequency internal service calls
-> where latency and payload size matter — binary protobuf, HTTP/2 multiplexing, streaming; GraphQL
-> when many different clients need different shapes of the same graph and you want to avoid
-> over-fetching; and asynchronous messaging whenever the caller doesn't need the answer now or the
-> two sides must be decoupled in time. I've used all four on the same platform for different jobs."*
-(That's literally true of your GAC and 7X work — say it with those examples.)
+## 1.4 Design details worth naming
+
+- **Resource nouns, plural, hierarchical:** `/portfolios/{id}/positions`. The verb lives in the method.
+- **Pagination:** *"Offset is simple but degrades at depth and is unstable while rows are being
+  inserted. **Cursor or keyset** paging is stable and constant cost — the right answer for large or
+  live-updating datasets."*
+- **Versioning:** *"URI versioning for external partners, because it's obvious and cache-friendly.
+  Plus additive-only changes and a documented deprecation and sunset policy, so we rarely need a v2
+  at all."*
+- **Errors:** **RFC 7807 / 9457 Problem Details**, with a correlation ID.
+- **Caching:** `Cache-Control`, `ETag` + `If-None-Match` → 304.
+  ⚠️ **The senior detail:** *"`If-Match` on a write gives you optimistic concurrency over HTTP — 412 if
+  someone changed it first. It's the same idea as a `rowversion` in the database."*
+- **Contract-first:** OpenAPI 3.1, linting, generated clients, and **Pact consumer-driven contract
+  tests** — *you already do this, so say it.*
+- **Long-running operations:** 202 plus a status URL.
+- **Webhooks:** HMAC signature over body plus timestamp, replay protection, retries with backoff, DLQ.
+
+## 1.5 REST vs gRPC vs GraphQL vs messaging — the decision answer
+
+**Say:**
+> *"REST for external and partner contracts and anything CRUD-ish. **gRPC** for high-frequency internal
+> calls where latency and payload size matter — binary protobuf, HTTP/2 multiplexing, and streaming.
+> **GraphQL** when many different clients need different shapes of the same graph and you want to stop
+> over-fetching. And **asynchronous messaging** whenever the caller doesn't need the answer now, or
+> the two sides need to be decoupled in time.*
+>
+> *I've used all four on the same platform, for different jobs."*
+
+That last line is literally true of your work — say it with the examples.
 
 ---
 
-## 2. Authentication & authorisation
+# PART 2 — AUTHENTICATION AND AUTHORISATION
 
-**Authentication** = who you are. **Authorisation** = what you may do. Say it in that order.
+**Say them in this order:** *"**Authentication** is who you are. **Authorisation** is what you're
+allowed to do."*
 
-### OAuth 2.0 — the roles and the flows
-Roles: resource owner (user), client (app), authorisation server, resource server (API).
+## 2.1 OAuth 2.0 — the flows
 
-| Flow | Use | Notes |
+**The four roles:** the **resource owner** (the user), the **client** (the app), the **authorisation
+server**, and the **resource server** (the API).
+
+| Flow | Use it for | Note |
 |---|---|---|
-| **Authorization Code + PKCE** | Web apps, SPAs, **desktop/WPF apps** | The default today. PKCE (code verifier/challenge) stops interception on public clients. |
-| **Client Credentials** | Service-to-service, daemons | No user; app identity only |
-| Device Code | TVs, CLI, input-constrained | |
-| Refresh Token | Renew without re-login | Rotate + revoke; detect reuse |
-| ~~Implicit~~ / ~~ROPC~~ | **Deprecated** | Say this — it dates you correctly |
+| **Authorization Code + PKCE** | Web apps, SPAs, **and desktop apps** | **The default today.** PKCE stops interception on public clients |
+| **Client Credentials** | Service to service, daemons | No user — app identity only |
+| Device Code | TVs, CLIs, anything hard to type on | |
+| Refresh Token | Renew without re-login | Rotate and revoke; detect reuse |
+| ~~Implicit~~ / ~~Password~~ | **Deprecated** | **Saying this dates you correctly** |
 
-⚠️ **For a WPF desktop app**, the right answer is *Authorization Code with PKCE via the system browser
-or WAM/MSAL, tokens stored in the OS secure store (DPAPI/credential manager), never a client secret in
-the binary* — a desktop app is a **public client**. This is a very likely question given the JD.
+⚠️ **The very likely question, given the job description:**
 
-### OIDC
-An **identity** layer on top of OAuth 2.0 (which is only about *authorisation/delegated access*).
-Adds the **ID token** (a JWT about the user), `/userinfo`, standard scopes (`openid`, `profile`,
-`email`), and discovery (`/.well-known/openid-configuration`).
-> **One-liner:** *"OAuth 2.0 gives an app permission to call an API; OIDC tells the app who the user
-> is. Access token → API. ID token → client."* ⚠️ **Never use the ID token to call an API.**
+**Q: How would you authenticate a WPF desktop app?**
+**Say:** *"**Authorization Code with PKCE**, through the system browser or WAM via MSAL. A desktop app
+is a **public client** — there is no safe place to put a secret in a binary that ships to users. PKCE
+is what protects the code exchange. Tokens go in the OS secure store — DPAPI or the Windows Credential
+Manager, which MSAL's token cache handles — never a plain file, never the registry."*
 
-### JWT
-`header.payload.signature`, base64url. Claims: `iss`, `aud`, `sub`, `exp`, `nbf`, `iat`, `jti`, plus
-roles/scopes.
-**Validation checklist (say all of it):** verify signature against the **JWKS** from the issuer's
-discovery endpoint (with key rotation/`kid`), check `iss`, `aud`, `exp`/`nbf` with small clock skew,
-and **pin the expected algorithm** — reject `alg: none` and don't let the token choose (the classic
-JWT vulnerabilities). Keep access tokens short-lived.
-**JWT vs opaque reference tokens:** JWT = self-contained, no lookup, but **cannot be revoked before
-expiry**. Opaque + introspection = revocable, but a network call per request. Trade-off answer:
-short expiry + refresh rotation, or introspection for high-value operations.
+## 2.2 OIDC
 
-### Other protocols to have one line on
-- **SAML 2.0** — XML, enterprise SSO, still everywhere in banks (IdP-initiated flows, assertions).
-- **Kerberos / Integrated Windows Auth** — the on-prem enterprise default: tickets from a KDC,
-  SPNs, delegation/constrained delegation, the "double-hop" problem. **Very likely relevant here.**
-- **mTLS** — both sides present certificates; standard for service-to-service in regulated
-  environments and for broker/exchange connectivity. Certificate rotation is the operational pain.
-- **API keys + HMAC signing** — partner/webhook auth; sign body+timestamp, reject stale timestamps to
-  prevent replay.
-- **Microsoft Entra ID** (your CV): managed identities and **workload identity federation** so there
-  are no secrets at all — a great modern answer.
+**Say:** *"OIDC is an **identity** layer on top of OAuth 2.0, because OAuth on its own is only about
+delegated access. It adds the **ID token**, which is a JWT about the user, plus a `/userinfo`
+endpoint, standard scopes, and discovery."*
 
-### Authorisation models
-- **RBAC** (roles) vs **ABAC** (attributes/policies — user, resource, context) vs ReBAC.
-- In ASP.NET Core: policy-based authorisation, `IAuthorizationRequirement` + handlers, claims
-  transformation, resource-based authorisation (`IAuthorizationService.AuthorizeAsync(user, resource,
-  policy)`) — **the right answer for "can this trader see this portfolio?"**, because the decision
-  depends on the *instance*, not just the role.
-- **Entitlements** in finance: users see only their desk's/fund's positions; this is usually
-  **row-level** and enforced server-side, never by hiding UI. Say that.
+**The one-liner:** *"OAuth gives an app permission to call an API. OIDC tells the app who the user is.
+**Access token goes to the API. ID token stays with the client.**"*
+⚠️ **Never use the ID token to call an API.**
+
+## 2.3 JWT
+
+Structure: `header.payload.signature`, base64url encoded.
+Claims: `iss` (issuer), `aud` (audience), `sub` (subject), `exp`, `nbf`, `iat`, `jti`, plus roles and
+scopes.
+
+**Say the whole validation checklist — it's a filter question:**
+> *"Verify the signature against the **JWKS** from the issuer's discovery endpoint, handling key
+> rotation via `kid`. Check `iss` and `aud`. Check `exp` and `nbf` with a small clock skew allowance.
+> And **pin the expected algorithm** — reject `alg: none` and never let the token tell you how to
+> verify it. Those last two are the classic JWT vulnerabilities."*
+
+**Q: JWT or opaque tokens?**
+**Say:** *"A JWT is self-contained, so there's no lookup per request — but **you can't revoke it before
+it expires**. An opaque token plus introspection is revocable, but costs a network call every request.
+The usual answer is short-lived access tokens with refresh rotation, and introspection only for
+high-value operations."*
+
+## 2.4 The other protocols — one line each
+
+- **Kerberos / Integrated Windows Auth** — *"The on-prem enterprise default. Tickets from a KDC, SPNs,
+  constrained delegation, and the double-hop problem."* ⚠️ **Very likely relevant in a bank.**
+- **mTLS** — *"Both sides present certificates. Standard for service-to-service in regulated
+  environments and for broker or exchange connectivity. Certificate rotation is the operational
+  pain."*
+- **SAML 2.0** — *"XML-based enterprise SSO. Still everywhere in banks."*
+- **API keys plus HMAC signing** — *"For partner and webhook auth. Sign the body plus a timestamp, and
+  reject stale timestamps to prevent replay."*
+- **Entra ID with workload identity federation** — *"So there are no secrets at all."* A great modern
+  answer.
+
+## 2.5 Authorisation models
+
+**RBAC** (roles) vs **ABAC** (attributes and policies — user, resource, context).
+
+⚠️ **The answer that matters for this domain:**
+**Q: "Can this trader see this portfolio?"**
+**Say:** *"That's **resource-based** authorisation, not role-based — the decision depends on the
+specific instance, not just the role. In ASP.NET Core that's
+`IAuthorizationService.AuthorizeAsync(user, resource, policy)` with a requirement and a handler.*
+
+*And in finance, entitlements are usually **row-level**: a user sees only their desk's or their fund's
+positions. **That has to be enforced server-side — never by hiding it in the UI.**"*
+
+**That last sentence is the one they're listening for.**
 
 ---
 
-## 3. API security checklist (OWASP API Top 10 — the ones that matter)
+# PART 3 — API SECURITY (the OWASP items that matter)
 
-1. **BOLA / IDOR** (broken object-level authorisation) — the #1 API vulnerability. *"Every request must
-   re-check that this user may access this specific object ID — never trust an ID from the client."*
-2. Broken authentication — weak tokens, no expiry, no rotation.
-3. Excessive data exposure — return DTOs, never entities; don't rely on the client to hide fields.
-4. Lack of rate limiting → ASP.NET Core rate-limiting middleware, gateway quotas.
-5. Broken function-level authorisation — admin endpoints reachable by non-admins.
-6. Mass assignment — bind to explicit DTOs, not domain entities.
-7. Injection — parameterised queries; validate and encode.
-8. SSRF — validate outbound URLs.
-9. Security misconfiguration — CORS wide open, verbose errors, debug endpoints in prod.
-10. Insufficient logging/monitoring — **and in finance, immutable audit logs of who accessed what**.
+1. ⚠️ **BOLA / IDOR — broken object-level authorisation. The number one API vulnerability.**
+   **Say:** *"Every request must re-check that this user may access this specific object ID. Never
+   trust an ID that came from the client."*
+2. **Broken authentication** — weak tokens, no expiry, no rotation.
+3. **Excessive data exposure** — *"Return DTOs, never entities. Don't rely on the client to hide
+   fields — the data is still on the wire."*
+4. **No rate limiting** — ASP.NET Core rate-limiting middleware, or gateway quotas.
+5. **Broken function-level authorisation** — admin endpoints reachable by non-admins.
+6. **Mass assignment** — bind to explicit DTOs, not domain entities.
+7. **Injection** — parameterised queries always.
+8. **Security misconfiguration** — CORS wide open, verbose errors, debug endpoints in production.
+9. **Insufficient logging** — ⚠️ *"and in finance, **immutable audit logs of who accessed what**."*
 
-Plus: TLS everywhere (TLS 1.2+), HSTS, secure headers/CSP, secrets in Key Vault (never config files),
-input validation at the boundary (FluentValidation), output encoding, and **PII/data-residency** rules.
+**Plus:** TLS 1.2 or higher everywhere, HSTS, secrets in Key Vault and never in config files,
+validation at the boundary, and data-residency rules.
 
 ---
 
-## 4. Integration patterns (your CV's strong suit — compress into soundbites)
+# PART 4 — INTEGRATION PATTERNS (your strong suit — compress into soundbites)
 
-- **API-led vs event-driven**: synchronous when the caller needs the answer and the coupling is
-  acceptable; events when you need decoupling in time, fan-out, or replay.
-- **Message reliability**: at-least-once + idempotent consumers; outbox for atomic publish; DLQ +
-  replay; poison-message handling; **event versioning** (additive changes, tolerant reader).
-- **Ordering**: partition by aggregate key (account/instrument) to keep per-entity order.
-- **Anti-corruption layer** for every external/legacy system — you did exactly this against GDS/IATA
-  NDC at Calrom and SAP/EDI at GAC. **In this role that becomes the broker/custodian/market-data
-  vendor boundary. Say that explicitly — it maps your experience straight onto their problem.**
-- **File/batch integration** — SFTP, fixed-width, CSV, EDI, and end-of-day cycles. ⚠️ Still enormous
-  in finance (SWIFT messages, custodian files, NAV files). Don't sneer at batch; show you can do it
-  reliably (checksums, control totals, idempotent reprocessing, late-file handling).
+- **Synchronous or events?** *"Synchronous when the caller needs the answer now and the coupling is
+  acceptable. Events when you need decoupling in time, fan-out, or replay."*
+- **Message reliability** — *"At-least-once delivery plus idempotent consumers. Outbox for atomic
+  publish. Dead-letter queue with replay. And tolerant-reader event versioning — additive changes
+  only."*
+- **Ordering** — *"Partition by aggregate key — account or instrument — to keep per-entity order."*
+- ⚠️ **Anti-corruption layer** — *"I did exactly this against GDS at Calrom and SAP/EDI at GAC. **In
+  this role that becomes the broker, custodian and market-data vendor boundary.**"*
+  **Say that mapping explicitly — it puts your experience straight onto their problem.**
+- ⚠️ **File and batch integration** — *"SFTP, fixed-width files, CSV, EDI, end-of-day cycles. This is
+  still enormous in finance — SWIFT messages, custodian files, NAV files. I wouldn't sneer at batch;
+  I'd do it reliably: checksums, control totals, idempotent reprocessing, and explicit late-file
+  handling."*
+  **Saying this shows you know what a bank actually runs on.**
 - **Reconciliation jobs** — compare systems, report breaks. Universal in finance.
 
 ---
 
-## 5. Rapid-fire
+# PART 5 — RAPID-FIRE: 35 QUESTIONS
 
-1. Stateless vs stateful API → scale-out, any node serves any request.
-2. CORS → browser-enforced; preflight `OPTIONS`; irrelevant to a desktop client.
-3. CSRF → applies to cookie-based auth; mitigate with SameSite + anti-forgery tokens. Bearer-token
-   APIs aren't vulnerable in the same way.
-4. Access vs refresh token → short-lived API credential vs long-lived renewal credential.
-5. Where do you store tokens in a desktop app? → OS secure storage (DPAPI / Windows Credential
-   Manager) via MSAL's token cache — not plain files, not the registry.
-6. Rate limiting algorithms → fixed window, sliding window, **token bucket** (allows bursts), leaky
-   bucket.
-7. Timeouts and retries → always set a timeout; retry only idempotent operations; exponential backoff
-   **with jitter**; cap attempts; circuit-break.
-8. Correlation ID → propagate through every hop and log it; W3C `traceparent` + OpenTelemetry.
-9. Content negotiation → `Accept`/`Content-Type`.
-10. gRPC streaming modes → unary, server-stream, client-stream, bidirectional — server-streaming is a
-    natural fit for price updates to a service (though for browsers you'd need gRPC-Web).
-11. Health checks → liveness vs readiness; don't fail liveness for a downstream dependency.
-12. API gateway responsibilities → routing, authn, rate limits, quotas, transformation, observability
-    (Azure APIM, YARP).
+| # | Q | A |
+|---|---|---|
+| 1 | REST's key constraint | **Stateless** — any node can serve any request |
+| 2 | Richardson level of most APIs | Level 2 — proper verbs and status codes |
+| 3 | Which verbs are idempotent? | GET, PUT, DELETE. **Not POST** |
+| 4 | Make POST idempotent | An `Idempotency-Key` header plus a dedupe store |
+| 5 | PUT vs PATCH | Full replace vs partial update |
+| 6 | 401 vs 403 | Don't know you vs know you and you can't |
+| 7 | 409 vs 412 | General conflict vs a failed `If-Match` precondition |
+| 8 | 429 | Rate limited — include `Retry-After` |
+| 9 | 202 | Accepted — long-running, here's a status URL |
+| 10 | ETag | A version tag for a resource; `If-None-Match` → 304 |
+| 11 | Optimistic concurrency over HTTP | `If-Match` on write, 412 on conflict |
+| 12 | Problem Details | **RFC 7807** — the standard error body |
+| 13 | Pagination at scale | Cursor / keyset, not offset |
+| 14 | Versioning strategy | URI for partners, plus additive-only changes |
+| 15 | REST vs gRPC | External and CRUD vs internal, low latency, streaming |
+| 16 | When GraphQL? | Many clients, many shapes of one graph, over-fetching problem |
+| 17 | OAuth roles | Resource owner, client, authorisation server, resource server |
+| 18 | Flow for a desktop app | **Authorization Code + PKCE**, public client |
+| 19 | Why PKCE? | Stops interception of the code on a public client |
+| 20 | Flow for service to service | Client Credentials |
+| 21 | Deprecated flows | Implicit and Resource Owner Password |
+| 22 | OAuth vs OIDC | Delegated access vs identity |
+| 23 | ID token vs access token | To the client vs to the API. Never mix them |
+| 24 | JWT parts | Header, payload, signature |
+| 25 | JWT validation | JWKS signature, `iss`, `aud`, `exp`, and **pin the algorithm** |
+| 26 | Can you revoke a JWT? | Not before expiry. Keep them short-lived |
+| 27 | Where do desktop tokens go? | OS secure store — DPAPI / Credential Manager, via MSAL |
+| 28 | Access vs refresh token | Short-lived API credential vs long-lived renewal credential |
+| 29 | Kerberos | On-prem Windows auth: KDC tickets, SPNs, the double-hop problem |
+| 30 | mTLS | Both sides present certificates. Rotation is the pain |
+| 31 | RBAC vs ABAC | Roles vs attributes and context |
+| 32 | "Can this trader see this portfolio?" | **Resource-based** authorisation, enforced server-side |
+| 33 | #1 API vulnerability | **BOLA / IDOR** — re-check object-level access every request |
+| 34 | Rate limiting algorithms | Fixed window, sliding window, **token bucket** (allows bursts), leaky bucket |
+| 35 | Retries | Only for idempotent operations. Exponential backoff **with jitter**, capped, plus a circuit breaker |
