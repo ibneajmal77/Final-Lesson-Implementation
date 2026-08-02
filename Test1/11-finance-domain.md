@@ -11,40 +11,40 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand honestly as an
-engineer, not as a quant.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Buy-side owns money** | Asset managers invest capital; sell-side executes and makes markets. | Sovereign wealth funds, PMs, traders, brokers, custodians. |
-| **PMS decides, OMS controls, EMS executes** | Three systems, three jobs. | Portfolio target, order workflow/audit, execution quality and venue routing. |
-| **Order is a state machine** | Orders move through valid statuses. | New, PendingNew, PartiallyFilled, Filled, Cancelled, Rejected, cancel/replace race. |
-| **Partial fills are normal** | One order becomes many executions. | Position updates after each fill, allocation, settlement, reconciliation. |
-| **Dedupe on ExecID** | Execution reports can repeat. | At-least-once delivery, `MsgSeqNum`, reconnect replay, idempotent consumer. |
-| **FIX is tag=value** | Trading messages are sequenced fields. | `35=D`, `35=8`, `11=ClOrdID`, sessions, sequence reset. |
-| **Numbers are the product** | Money must be exact. | `decimal`/`Decimal`/`DECIMAL`, instrument precision, explicit rounding. |
-| **Audit asks why** | Regulators need the reason, not only the value. | Event sourcing, point-in-time data, bitemporal history, replay. |
-| **P&L has two states** | Realised is closed; unrealised is open. | Mark-to-market, average/FIFO cost, valuation source. |
-| **Engineer, not quant** | Implement models correctly, precisely, and fast. | Markowitz mean-variance as constrained quadratic optimisation; ask domain expectations. |
+| **Buy-side owns money** | Buy-side invests money. Sell-side helps execute trades. | Abu Dhabi plus portfolio systems often means buy-side. |
+| **PMS, OMS, EMS** | PMS decides what to own. OMS manages orders. EMS executes orders. | Use this exact split. |
+| **Order has states** | An order moves through allowed statuses. | New, partial fill, filled, cancelled, rejected. |
+| **Partial fills happen** | One order can fill in many pieces. | Update position after every fill. |
+| **Dedupe executions** | Execution reports can arrive twice. | Use `ExecID` to ignore duplicates. |
+| **FIX is tag=value** | FIX messages are fields like `35=D`. | `35=D` is new order; `35=8` is execution report. |
+| **Exact money** | Finance numbers must be exact. | Use decimal types and clear rounding rules. |
+| **Audit asks why** | They need to know why a number was what it was. | Keep history so the system can replay or explain. |
+| **P&L: closed/open** | Realised P&L is closed trades; unrealised is open positions. | Unrealised uses current market price. |
+| **Engineer, not quant** | I implement the models correctly; I do not pretend to be a quant. | Say this honestly if maths depth is probed. |
 
 ---
 
 # PART 0 — THE 10 DOMAIN LINES THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **Buy-side vs sell-side** | "Buy-side **owns** the money — asset managers, pension funds, sovereign wealth funds. Sell-side are the banks and brokers who make markets and execute. **Abu Dhabi plus portfolio management means almost certainly buy-side.**" |
-| 2 | **The order lifecycle** | "Order → pre-trade compliance → route → **partial fills** → allocate → settle → reconcile." |
-| 3 | **OMS vs EMS vs PMS** | "**PMS** — what should I own. **OMS** — manage the order and the audit trail. **EMS** — execute it well." |
-| 4 | **What is FIX?** | "Tag-equals-value messages over a sequenced session. `35=D` is a new order, `35=8` is an execution report, `11=ClOrdID` is your order ID." |
-| 5 | **Money** | "`decimal` in C#, `Decimal` in Python, `DECIMAL` in SQL. **Never float.** Explicit rounding, instrument-specific precision." |
-| 6 | **Realised vs unrealised P&L** | "Realised is from closed trades. Unrealised is mark-to-market on what you still hold." |
-| 7 | **The hard engineering problem** | "**Execution reports duplicate and arrive out of order.** You dedupe on `ExecID` and sequence on `MsgSeqNum`. It's at-least-once delivery plus idempotent consumers — exactly what I've built at scale." |
-| 8 | **Why audit matters** | "A regulator doesn't just want to know what the number is. They want to know **why it was that number at 14:32:07**. That's why event sourcing and point-in-time data matter here." |
-| 9 | **Financial optimisation** | "Mean-variance — Markowitz. It's a **constrained quadratic program**: minimise portfolio variance subject to weights summing to one, plus constraints. The output is the efficient frontier." |
-| 10 | **Your honest frame** | "**I'm an engineer, not a quant.** My job is to implement the models correctly, precisely and fast." |
+| 1 | **Buy-side vs sell-side** | "Buy-side invests money. Sell-side helps trade and execute." |
+| 2 | **The order lifecycle** | "Create order, check rules, route it, receive fills, allocate, settle, reconcile." |
+| 3 | **OMS vs EMS vs PMS** | "PMS decides what to own. OMS manages orders. EMS executes orders." |
+| 4 | **What is FIX?** | "FIX is trading messages made of tag=value fields." |
+| 5 | **Money** | "Use decimal types for money. Never float." |
+| 6 | **Realised vs unrealised P&L** | "Realised is closed trades. Unrealised is open positions valued now." |
+| 7 | **The hard engineering problem** | "Execution reports can duplicate or arrive out of order, so I dedupe and handle repeats safely." |
+| 8 | **Why audit matters** | "Finance systems must explain why a number had a value at a specific time." |
+| 9 | **Financial optimisation** | "I know the basic idea: choose portfolio weights under rules. I would implement the model carefully." |
+| 10 | **Your honest frame** | "I am an engineer, not a quant. My job is correct, precise, fast implementation." |
 
 ---
 
@@ -296,10 +296,10 @@ what a quant specifies. That's it.
   volatility**. Monte Carlo or binomial trees for path-dependent products."* You need the vocabulary,
   not the derivation.
 - **Portfolio optimisation** — *this is the "financial optimization" in the job spec:*
-  > *"Markowitz **mean-variance**: maximise expected return for a given level of risk, which produces
-  > the **efficient frontier**. In practice it's a **constrained quadratic program** — minimise wᵀΣw
-  > subject to the weights summing to one, plus real-world constraints like long-only, sector caps and
-  > turnover limits. Solvers are cvxpy, scipy, OSQP or a commercial one like Gurobi.*
+  > *"Markowitz **mean-variance** means choosing portfolio weights to balance return and risk. The
+  > maths is an optimisation problem: minimise risk while weights add up correctly and follow
+  > real-world rules like long-only, sector caps and turnover limits. Solvers are cvxpy, scipy,
+  > OSQP or a commercial one like Gurobi.*
   >
   > *The practical problems are covariance estimation error and the instability of the weights —
   > Black-Litterman is the standard fix."*
@@ -315,8 +315,8 @@ what a quant specifies. That's it.
 > make it performant and testable, and make the results **reproducible**.*
 >
 > *The maths I'm comfortable with is present value, returns and volatility, and I understand
-> mean-variance optimisation as a constrained quadratic program. I'd learn the specifics of your
-> models."*
+> mean-variance optimisation at a high level: choose weights to balance return and risk under rules.
+> I'd learn the specifics of your models."*
 
 **Why this works:** interviewers are wary of engineers who *think* they're quants. They love engineers
 who know exactly where the boundary is.
@@ -332,7 +332,7 @@ Plus AML and KYC.
 ⚠️ **But the acronyms are decoration. This sentence is what a technical interviewer actually wants:**
 
 > *"What regulation means for engineering is: **immutable audit trails, data retention — often seven
-> years on WORM storage — timestamp accuracy, segregation of duties, access control by entitlement,
+> years on WORM storage — timestamp accuracy, separation of duties, access control by entitlement,
 > and change control on anything that touches trading.**"*
 
 ---
@@ -352,8 +352,7 @@ Plus AML and KYC.
 11. **`decimal` for money, never float. Explicit rounding. Instrument-specific precision.**
 12. VaR, volatility × √252, Sharpe, beta, tracking error, drawdown.
 13. Greeks: delta, gamma, vega, theta.
-14. Mean-variance optimisation is a constrained quadratic program; the output is the efficient
-    frontier.
+14. Mean-variance optimisation chooses portfolio weights to balance return and risk under rules.
 15. **Audit trail and point-in-time correctness are non-negotiable** — which is why event sourcing and
     bitemporal data matter here.
 

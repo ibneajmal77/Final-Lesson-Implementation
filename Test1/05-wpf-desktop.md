@@ -8,39 +8,39 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Retained tree** | You describe objects; WPF renders them. | Visual tree, logical tree, templates, GPU composition, high-DPI vector UI. |
-| **XAML builds objects** | Markup is object construction. | XAML maps to CLR objects, properties, resources, bindings, templates. |
-| **DPs are shared storage** | Controls do not store every property in fields. | Sparse property store, inheritance, notification, animation, styling, value precedence. |
-| **Local beats style** | Code-set values override triggers. | DP precedence: animation, local value, template/style triggers, setters, inherited, default; fix with `ClearValue()`. |
-| **VMs notify, controls depend** | View-models use `INotifyPropertyChanged`; controls use DPs. | MVVM boundary, testability, no `System.Windows.Controls` in view-models. |
-| **Collection is not item** | `ObservableCollection` reports add/remove, not row field changes. | Item types need `INotifyPropertyChanged`; computed properties need manual raises. |
-| **Dispatcher owns UI** | Only the UI thread touches WPF objects. | Thread affinity, `Dispatcher.InvokeAsync`, `DispatcherTimer`, background work, cancellation. |
-| **Conflate, batch, flush** | Never update the grid per tick. | Latest per instrument, bounded channel, timer flush, equality guard, virtualization with recycling. |
-| **Virtualize or freeze** | Big grids need fewer visual objects. | Recycling, shallow visual tree, frozen brushes/geometries, binding error tracing. |
+| **WPF keeps a tree** | I describe the UI; WPF draws it. | The visual tree is what actually gets rendered. |
+| **XAML makes objects** | XAML is a clean way to create UI objects. | A `<Button>` in XAML becomes a `Button` object. |
+| **DP = WPF property** | Dependency properties are special WPF control properties. | They support binding, styles, animation, and inheritance. |
+| **Local value wins** | A value set in code can beat a style trigger. | Use `ClearValue()` or bind/style it instead. |
+| **VM is plain class** | The view-model should not know about controls. | It raises `PropertyChanged`; the View handles UI. |
+| **Collection is not row** | `ObservableCollection` tells the UI when rows are added or removed. | Each row object must also notify when its fields change. |
+| **UI thread owns UI** | Only the WPF UI thread should touch WPF controls. | Background work sends UI updates through the Dispatcher. |
+| **Batch grid updates** | Do not push every tick into the grid. | Keep latest values and flush them together on a timer. |
+| **Virtualize big lists** | Big grids need fewer visible controls. | Use recycling virtualization and keep the visual tree small. |
 
 ---
 
 # PART 0 — THE 10 WPF ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **What is WPF?** | "A retained-mode, vector-based, GPU-composed UI framework. I describe a tree of objects and WPF renders it — I never paint pixels. XAML is just object construction." |
-| 2 | **The killer feature** | "Data binding plus dependency properties. That's what makes MVVM natural." |
-| 3 | **Dependency property — why?** | "Values aren't stored in a field per instance. They're in a shared store with a precedence chain — so you get low memory, value inheritance, built-in change notification, and multiple value providers." |
-| 4 | **The famous DP gotcha** | "**A local value set in code beats a style trigger, forever.** That's why 'my trigger stopped working'. Fix with `ClearValue()`, or drive it through the style instead." |
-| 5 | **DP vs `INotifyPropertyChanged`** | "Dependency properties are for **controls**. `INotifyPropertyChanged` is for **view-models**. Getting that split right is the signal." |
-| 6 | **The `ObservableCollection` trap** | "It notifies about **add and remove**, not about a property changing **inside** an item. The item must implement `INotifyPropertyChanged` itself. The number one WPF beginner bug." |
-| 7 | **Why MVVM?** | "**Testability.** The view-model is a plain class I can unit-test with no UI thread. That's the whole point, and it's the answer to 'why not code-behind?'" |
-| 8 | **UI thread rule** | "WPF objects have **thread affinity** — only the creating thread may touch them. Background work marshals through the `Dispatcher`." |
-| 9 | **10,000 ticks/sec into a 5,000-row grid** | "Don't touch the UI per tick. **Conflate → batch → flush on a timer → equality guard → virtualise with recycling → bounded channel, drop oldest.**" |
-| 10 | **Dialog from a view-model?** | "Inject an `IDialogService`. Instantly — it's a classic question." |
+| 1 | **What is WPF?** | "WPF is a Windows UI framework. I describe a tree of UI objects, and WPF draws it." |
+| 2 | **The killer feature** | "Binding connects the screen to the view-model. That is why MVVM works well." |
+| 3 | **Dependency property — why?** | "It is a special WPF property that supports binding, styling, animation, and inheritance." |
+| 4 | **The famous DP gotcha** | "A value set in code can beat a style trigger. If that happens, clear the value or use binding." |
+| 5 | **DP vs `INotifyPropertyChanged`** | "Controls use dependency properties. View-models use `INotifyPropertyChanged`." |
+| 6 | **The `ObservableCollection` trap** | "`ObservableCollection` reports rows added or removed. Each row must report its own field changes." |
+| 7 | **Why MVVM?** | "MVVM keeps logic in a plain class, so I can test it without the UI." |
+| 8 | **UI thread rule** | "Only the UI thread touches WPF controls. Background code must use the Dispatcher." |
+| 9 | **10,000 ticks/sec into a grid** | "Do not update per tick. Keep latest values, batch, flush on a timer, and virtualize the grid." |
+| 10 | **Dialog from a view-model?** | "Use an `IDialogService` so the view-model does not directly open windows." |
 
 ---
 
@@ -48,8 +48,9 @@ interviewer pushes.
 
 **Say (the 60-second version):**
 
-> *"WPF is a **retained-mode, vector-based, GPU-accelerated** UI framework, still supported on
-> .NET 8, 9 and 10 — Windows-only.*
+> *"WPF is a Windows UI framework where I describe a tree of controls and WPF draws it. The formal
+> simple meaning is: WPF remembers the UI tree, scales cleanly, and uses the graphics system to draw.
+> It is still supported on .NET 8, 9 and 10 — Windows-only.*
 >
 > - ***Retained mode*** *means I describe a tree of objects — the visual tree — and WPF renders it.
 >   I never paint pixels in a paint handler the way you do in WinForms or Win32.*

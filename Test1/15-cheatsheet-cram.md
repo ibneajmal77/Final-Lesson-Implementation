@@ -5,24 +5,24 @@
 
 ---
 
-# 1. THE 12 ANSWERS THAT WIN THIS INTERVIEW
+# 1. THE 12 SIMPLE ANSWERS TO REMEMBER
 
-**Learn these twelve. Each is a complete answer on its own.**
+Learn these first. They are short on purpose.
 
 | # | If they ask about… | Say |
 |---|---|---|
-| **1** | **Money** | "`decimal` in C#, `Decimal` in Python, `DECIMAL` in SQL. **Never float.** Explicit rounding, instrument-specific precision. **In this domain the numbers are the product.**" |
-| **2** | **10k ticks/sec into a WPF grid** | "Don't touch the UI per tick. **Conflate to the latest per instrument → batch → flush on a `DispatcherTimer` every ~150 ms → equality guard in the setter → virtualise with recycling → bounded channel, drop oldest.**" |
-| **3** | **Producer/consumer in .NET** | "`System.Threading.Channels`, bounded. **A bounded channel *is* backpressure.** Prices: drop oldest. Orders: never drop." |
-| **4** | **The async deadlock** | "`.Result` on the UI thread, plus a continuation that needs the UI thread. Fix: async all the way, or `ConfigureAwait(false)` in libraries." |
-| **5** | **`volatile`** | "Ordering and visibility — **not atomicity**. `x++` still races. Use `Interlocked`." |
-| **6** | **Deadlock prevention** | "**Consistent lock ordering.**" |
-| **7** | **Exactly-once** | "**Doesn't exist.** At-least-once delivery plus **idempotent processing** gives exactly-once *effects*." |
-| **8** | **A slow query** | "Actual execution plan → scans, key lookups, estimate-versus-actual row errors → covering index, SARGable predicate, or stale stats. **Fix one thing, re-measure.**" |
-| **9** | **Latest row per group** | "`ROW_NUMBER() OVER (PARTITION BY x ORDER BY ts DESC) = 1`" |
-| **10** | **Desktop OAuth** | "**Authorization Code + PKCE.** Public client — no secret in the binary. Tokens in the OS secure store." |
-| **11** | **Order lifecycle** | "Order → pre-trade compliance → route → **partial fills** → allocate → settle → reconcile. **Dedupe execution reports on `ExecID`.**" |
-| **12** | **Architecture default** | "**Modular monolith** with clean bounded contexts. Split out a service only for independent scale, independent release, or team ownership. **Every hop is latency and a new failure mode.**" |
+| **1** | **Money** | "Use decimal types for money. Never float." |
+| **2** | **10k ticks/sec into a WPF grid** | "Do not update the UI per tick. Keep latest values, batch them, and flush on a timer." |
+| **3** | **Producer/consumer in .NET** | "Use a bounded `Channel`. Prices can drop old values; orders must not be dropped." |
+| **4** | **The async deadlock** | "Do not block the UI thread with `.Result`. Use async all the way." |
+| **5** | **`volatile`** | "`volatile` is visibility, not safety for `x++`. Use `Interlocked`." |
+| **6** | **Deadlock prevention** | "Take locks in the same order every time." |
+| **7** | **Exactly-once** | "Messages may repeat. Make processing safe to repeat." |
+| **8** | **A slow query** | "Check the actual plan, fix one clear problem, then measure again." |
+| **9** | **Latest row per group** | "Use `ROW_NUMBER()` per group and keep row 1." |
+| **10** | **Desktop OAuth** | "Use Authorization Code with PKCE. A desktop app cannot keep a secret." |
+| **11** | **Order lifecycle** | "Create, check, route, fill, allocate, settle, reconcile. Dedupe executions." |
+| **12** | **Architecture default** | "Start with a modular monolith. Split services only for a real reason." |
 
 ---
 
@@ -95,7 +95,7 @@ one?"**
 - `throw;` preserves the stack; `throw ex;` resets it. Exception filters with `when`.
 - **DI:** Singleton / Scoped / Transient. **Captive dependency.** `IHttpClientFactory` for sockets
   **and** DNS.
-- **EF:** `AsNoTracking`, projection kills N+1, `rowversion` for optimistic concurrency, Dapper on hot
+- **EF:** `AsNoTracking`, projection kills N+1, `rowversion` for version checks, Dapper on hot
   reads.
 - **`decimal` vs `double`.** `checked` for money arithmetic.
 - **LTS: .NET 8 and 10.** WPF **is** supported on modern .NET, Windows-only.
@@ -171,7 +171,7 @@ one?"**
 
 - **401 = who are you. 403 = you're not allowed.**
 - **PUT/DELETE idempotent. POST isn't** → `Idempotency-Key`.
-- **RFC 7807** Problem Details. **`ETag` + `If-Match` → 412** for optimistic concurrency.
+- **Problem Details** for errors. **`ETag` + `If-Match` → 412** for version checks.
 - **OAuth flows:** **Auth Code + PKCE** (including desktop), **Client Credentials** (service to
   service). Implicit and password grant are **deprecated**.
 - **OIDC = identity.** ID token → the client. Access token → the API. **Never mix them.**
@@ -213,7 +213,7 @@ one?"**
 - Market value = qty × price × FX. **Realised vs unrealised P&L.** Mark-to-market. NAV.
 - VaR · volatility **× √252** · Sharpe · beta · tracking error · drawdown.
   Greeks: **delta, gamma, vega, theta**.
-- Mean-variance optimisation = a **constrained quadratic program** → the efficient frontier.
+- Mean-variance optimisation = choose portfolio weights to balance return and risk.
 - ⚠️ **"I'm an engineer, not a quant — my job is to implement the models correctly, precisely and
   fast."**
 

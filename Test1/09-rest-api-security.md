@@ -8,40 +8,40 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **401 who, 403 allowed** | Authentication vs authorisation. | Challenge on 401, deny on 403, object-level checks every request. |
-| **Idempotency survives retries** | Doing it twice should not double-charge or double-order. | GET/PUT/DELETE idempotent; POST with `Idempotency-Key`. |
-| **PKCE for desktop** | Public clients cannot keep secrets. | Authorization Code + PKCE, loopback/custom URI, OS secure token store. |
-| **OAuth grants access** | OIDC tells identity. | Access token for APIs, ID token for client login, never call API with ID token. |
-| **JWT trust is explicit** | Verify every trust boundary. | JWKS signature, `iss`, `aud`, `exp`, algorithm pinning, no `alg:none`. |
-| **JWT revokes poorly** | Self-contained tokens live until expiry. | Short expiry, refresh rotation, opaque tokens/introspection for high-value ops. |
-| **BOLA is the big one** | Never trust an object id from the client. | Authorise `this user` against `this object` on every request. |
-| **ETag guards writes** | Read version, write only if unchanged. | `ETag`, `If-Match`, `412`, HTTP optimistic concurrency. |
-| **Cursor beats offset** | Large/live datasets need stable paging. | Keyset pagination, sort key, next cursor, no deep offset scan. |
-| **Problem Details** | Errors need a standard shape. | RFC 7807/9457, correlation ID, safe messages, OpenAPI contract. |
+| **401 who, 403 allowed** | 401 means not logged in. 403 means logged in but not allowed. | Authentication first, authorisation second. |
+| **Safe retries** | A retry must not create the same thing twice. | Use idempotency keys for POST actions. |
+| **PKCE for desktop** | Desktop apps cannot safely store secrets. | Use Authorization Code with PKCE. |
+| **OAuth vs OIDC** | OAuth lets an app call an API. OIDC tells who the user is. | Access token goes to the API; ID token stays with the client. |
+| **Check JWT properly** | Do not trust a token just because it looks valid. | Check signature, issuer, audience, expiry, and algorithm. |
+| **JWT cannot be pulled back easily** | A JWT normally works until it expires. | Use short expiry and refresh-token rotation. |
+| **Check object access** | Always check if this user can access this object. | This prevents IDOR/BOLA bugs. |
+| **ETag protects edits** | Only update if the version has not changed. | Use `If-Match`; return 412 on conflict. |
+| **Cursor pages** | Use cursor paging for large lists. | Offset gets slower and less stable at deep pages. |
+| **Same error shape** | API errors should look consistent. | Use Problem Details with a correlation ID. |
 
 ---
 
 # PART 0 — THE 10 API ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **401 vs 403** | "**401 = I don't know who you are.** **403 = I know who you are, and you're not allowed.**" |
-| 2 | **Which verbs are idempotent?** | "GET, PUT and DELETE are. **POST isn't** — so I make it idempotent with an `Idempotency-Key` header." |
-| 3 | **OAuth for a desktop app** | "**Authorization Code with PKCE.** A desktop app is a **public client** — there's no safe place for a secret in a binary. Tokens go in the OS secure store." |
-| 4 | **OAuth vs OIDC** | "OAuth gives an app permission to call an API. **OIDC tells the app who the user is.** Access token → the API. ID token → the client. **Never use an ID token to call an API.**" |
-| 5 | **Validating a JWT** | "Verify the signature against the issuer's **JWKS**, check `iss`, `aud` and `exp`, and **pin the algorithm** — never let the token choose, and never accept `alg: none`." |
-| 6 | **Can you revoke a JWT?** | "**No, not before it expires.** That's the trade-off for it being self-contained. So: short expiry plus refresh rotation, or opaque tokens with introspection for high-value operations." |
-| 7 | **The #1 API vulnerability** | "**BOLA / IDOR** — broken object-level authorisation. Every request must re-check that *this* user may access *this* object ID. Never trust an ID from the client." |
-| 8 | **Optimistic concurrency over HTTP** | "`ETag` on the read, `If-Match` on the write, **412** if someone got there first." |
-| 9 | **Pagination at scale** | "Cursor or keyset paging. Offset degrades the deeper you go, and it's unstable when rows are being inserted." |
-| 10 | **Error format** | "**RFC 7807 Problem Details** — `type`, `title`, `status`, `detail`, plus a correlation ID. ASP.NET Core has it built in." |
+| 1 | **401 vs 403** | "401 means not logged in. 403 means logged in but not allowed." |
+| 2 | **Which verbs are idempotent?** | "GET, PUT, and DELETE are safe to retry. For POST, add an idempotency key." |
+| 3 | **OAuth for a desktop app** | "Use Authorization Code with PKCE because a desktop app cannot keep a secret." |
+| 4 | **OAuth vs OIDC** | "OAuth gives API access. OIDC tells the app who the user is." |
+| 5 | **Validating a JWT** | "Check signature, issuer, audience, expiry, and algorithm." |
+| 6 | **Can you revoke a JWT?** | "Not easily before it expires. Use short expiry and refresh-token rotation." |
+| 7 | **The #1 API vulnerability** | "Always check if this user can access this object." |
+| 8 | **Optimistic concurrency over HTTP** | "Use `ETag` and `If-Match`; return 412 if the version changed." |
+| 9 | **Pagination at scale** | "Use cursor or keyset paging for big lists." |
+| 10 | **Error format** | "Use Problem Details and include a correlation ID." |
 
 ---
 
@@ -98,8 +98,8 @@ matters because networks retry, and the client often can't tell whether the firs
   at all."*
 - **Errors:** **RFC 7807 / 9457 Problem Details**, with a correlation ID.
 - **Caching:** `Cache-Control`, `ETag` + `If-None-Match` → 304.
-  ⚠️ **The senior detail:** *"`If-Match` on a write gives you optimistic concurrency over HTTP — 412 if
-  someone changed it first. It's the same idea as a `rowversion` in the database."*
+  ⚠️ **The senior detail:** *"`If-Match` is a version check over HTTP. If someone changed the row
+  first, return 412. It is the same idea as checking a row version in the database."*
 - **Contract-first:** OpenAPI 3.1, linting, generated clients, and **Pact consumer-driven contract
   tests** — *you already do this, so say it.*
 - **Long-running operations:** 202 plus a status URL.

@@ -37,22 +37,22 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **ORM for the 90%** | Use objects for normal transactions; use SQL for hard queries. | Boilerplate removal, parameterisation, hidden SQL risk, reporting/window queries. |
-| **Two ORM families** | Active Record saves itself; Data Mapper uses a session. | Django/Rails vs SQLAlchemy/EF Core/Hibernate. |
-| **N+1 hides in relations** | One list query can become one query per row. | Lazy loading, eager loading, joins, `IN` prefetch, query-count tests. |
-| **Session tracks work** | Changes gather, then commit together. | Unit of work, identity map, flush vs commit, rollback. |
-| **Flush is not commit** | SQL can be sent before the transaction ends. | DB-generated IDs, rollback still possible, transaction boundaries. |
-| **Optimistic first** | Version column for normal contention. | Pessimistic `SELECT FOR UPDATE` for high-value/high-contention money operations. |
-| **Pool with a limit** | Connections are expensive and finite. | Worker count times pool size must fit database limits; timeouts and recycling. |
-| **Expand, migrate, contract** | Zero-downtime schema change is staged. | Nullable add, batched backfill, dual writes, switch reads, drop old column later. |
-| **Repository is not automatic** | EF and SQLAlchemy already give repositories of a sort. | Add only when it hides persistence or clarifies domain intent. |
+| **ORM saves typing** | An ORM maps rows to objects. | It helps normal app work, but hard reports may need SQL. |
+| **Two styles** | Some models save themselves; some use a session. | Django is Active Record. SQLAlchemy and EF Core use a session/context. |
+| **N+1 hides** | A simple loop can secretly run many SQL queries. | Fix by loading related data up front. |
+| **Session remembers changes** | The session tracks changes before saving them. | Commit saves the unit of work in one transaction. |
+| **Flush is not done** | Flush sends SQL, but commit finishes the transaction. | You can still roll back after a flush. |
+| **Version for conflict** | Use a version column when two users may edit the same row. | If the version changed, reject or retry the update. |
+| **Reuse connections** | Opening DB connections is expensive. | Use a pool, but keep the pool size within DB limits. |
+| **Change schema in steps** | Do database changes safely in stages. | Add, backfill, switch code, then remove old fields later. |
+| **Repository only if useful** | Do not wrap the ORM for no reason. | Add a repository only if it makes the domain simpler. |
 
 ---
 
@@ -60,21 +60,21 @@ interviewer pushes.
 
 | # | Question | Say this |
 |---|---|---|
-| 1 | **What is an ORM?** | "It maps database rows to objects, so I write Python instead of SQL. It handles change tracking, relationships and transactions. The cost is a layer of indirection between me and the query plan." |
-| 2 | **Two patterns?** | "**Active Record** — the object knows how to save itself. Django, Rails. **Data Mapper** — a separate session tracks objects. SQLAlchemy, EF Core, Hibernate." |
-| 3 | **N+1 in one line?** | "One query for the list, then one more per row when I touch a relation. Fixed by eager loading — a JOIN, or a second query with an `IN` clause." |
-| 4 | **Lazy vs eager loading?** | "Lazy fetches the relation when you touch it. Eager fetches it upfront. Lazy is the default and it's the default cause of N+1." |
-| 5 | **Unit of work?** | "The session collects changes in memory and flushes them in one transaction on commit. That's `DbContext.SaveChanges`." |
-| 6 | **Identity map?** | "One object per primary key per session. Query the same row twice and you get the same instance." |
-| 7 | **Flush vs commit?** | "Flush sends the SQL. Commit ends the transaction. A flush is still rollback-able." |
-| 8 | **Optimistic vs pessimistic locking?** | "Optimistic: a version column, and the update fails if someone else changed the row. Pessimistic: `SELECT FOR UPDATE`, holding a real lock. Optimistic for low contention, pessimistic for money movements." |
-| 9 | **Isolation levels?** | "Read Uncommitted, Read Committed, Repeatable Read, Serializable — trading concurrency for consistency. Postgres defaults to Read Committed, SQL Server too." |
-| 10 | **Why pool connections?** | "A TCP connection plus authentication costs milliseconds. A pool reuses them. Size it so workers × pool ≤ the database's connection limit." |
-| 11 | **Migrations?** | "Versioned, reviewable schema changes in source control. Alembic for SQLAlchemy, built in for Django, EF Migrations for .NET." |
-| 12 | **Zero-downtime schema change?** | "Expand, migrate, contract. Add the nullable column, backfill in batches, deploy code writing both, then make it required and drop the old one." |
-| 13 | **When not to use an ORM?** | "Bulk loads, complex reporting, window functions, recursive CTEs. I drop to SQL there — the ORM is for the transactional 90%." |
-| 14 | **Biggest ORM risk?** | "It hides how much SQL you're generating. I log queries in development and assert query counts in tests." |
-| 15 | **SQLAlchemy vs EF Core?** | "Same pattern — Data Mapper with a unit of work. SQLAlchemy Core gives you an explicit SQL expression language underneath, which EF doesn't really have. LINQ-to-Entities is closer to the SQLAlchemy ORM layer." |
+| 1 | **What is an ORM?** | "An ORM maps database rows to objects. It saves boilerplate, but I still need to understand the SQL." |
+| 2 | **Two patterns?** | "Active Record: object saves itself. Data Mapper: a session or context saves objects." |
+| 3 | **N+1 in one line?** | "One list query becomes one extra query per row. Fix by loading related data up front." |
+| 4 | **Lazy vs eager loading?** | "Lazy loads when touched. Eager loads early. Lazy often causes N+1." |
+| 5 | **Unit of work?** | "The session tracks changes and saves them together in one transaction." |
+| 6 | **Identity map?** | "Inside one session, the same database row gives the same object instance." |
+| 7 | **Flush vs commit?** | "Flush sends SQL. Commit finishes the transaction." |
+| 8 | **Optimistic vs pessimistic locking?** | "Optimistic uses a version check. Pessimistic takes a real database lock." |
+| 9 | **Isolation levels?** | "Isolation levels choose how much consistency you want versus how much concurrency you allow." |
+| 10 | **Why pool connections?** | "Opening DB connections costs time. A pool reuses them." |
+| 11 | **Migrations?** | "Migrations are versioned database changes stored in source control." |
+| 12 | **Zero-downtime schema change?** | "Change the schema in steps: add, backfill, switch code, then remove old fields." |
+| 13 | **When not to use an ORM?** | "For bulk loads, complex reports, or special SQL, I write SQL directly." |
+| 14 | **Biggest ORM risk?** | "It can hide bad SQL. I log queries and check query counts." |
+| 15 | **SQLAlchemy vs EF Core?** | "Both use a session/context and unit of work. SQLAlchemy also has a strong SQL expression layer." |
 
 ---
 
@@ -208,7 +208,7 @@ class Order(Base):
         CheckConstraint("qty > 0", name="qty_positive"),
         {"mysql_engine": "InnoDB"},
     )
-    __mapper_args__ = {"version_id_col": version}      # ⭐ optimistic concurrency
+    __mapper_args__ = {"version_id_col": version}      # version conflict check
 ```
 
 **Points to make:**

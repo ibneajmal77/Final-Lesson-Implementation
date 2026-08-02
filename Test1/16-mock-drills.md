@@ -49,7 +49,7 @@ hesitation.** Anything you miss, go back to the source file.
 | 33 | Why `IHttpClientFactory`? | Socket exhaustion **and** stale DNS |
 | 34 | EF N+1 fix | Projection with `Select`, or `Include`, or `AsSplitQuery` |
 | 35 | `AsNoTracking` | Skips change tracking — faster read-only queries |
-| 36 | EF optimistic concurrency | `rowversion` in the `WHERE`; 0 rows → conflict exception |
+| 36 | EF version conflict | `rowversion` in the `WHERE`; 0 rows means someone changed it first |
 | 37 | EF vs Dapper | Writes with a unit of work vs hand-tuned reads |
 | 38 | `ValueTask` | Avoids an allocation when usually synchronous. Don't await twice |
 | 39 | `ArrayPool<T>` | Rent and return buffers. Return in `finally` |
@@ -146,7 +146,7 @@ hesitation.** Anything you miss, go back to the source file.
 | 110 | JWT validation | JWKS signature, `iss`, `aud`, `exp`, **pin the algorithm** |
 | 111 | JWT downside | Can't revoke before expiry → short TTL plus refresh rotation |
 | 112 | #1 API vulnerability | **BOLA/IDOR** — re-check object access every request |
-| 113 | Exactly-once delivery | **Doesn't exist** — at-least-once plus idempotent processing |
+| 113 | Exactly-once delivery | **Doesn't exist** — messages can repeat, so processing must be safe to repeat |
 | 114 | The dual-write fix | **Outbox pattern** |
 | 115 | CAP, the senior version | **PACELC** — latency vs consistency even without a partition |
 | 116 | Microservices or monolith? | **Modular monolith by default**; split for scale, release or ownership |

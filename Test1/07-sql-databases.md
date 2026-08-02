@@ -7,40 +7,40 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then give the technical load only
-if they ask for depth.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Actual plan first** | Do not guess why a query is slow. | Actual execution plan, scans, seeks, lookups, estimate vs actual rows, stats. |
-| **WHERE cancels LEFT** | A right-table filter in `WHERE` removes null rows. | Put right-table predicates in `ON` to preserve `LEFT JOIN` semantics. |
-| **NULL kills `NOT IN`** | One null can make the result empty. | Three-valued logic; use `NOT EXISTS`. |
-| **Window keeps rows** | Aggregate without collapsing the result. | `ROW_NUMBER`, `RANK`, `LAG`, running totals, explicit `ROWS` frame. |
-| **Latest row = row number** | Rank each group and keep rank 1. | `PARTITION BY symbol ORDER BY ts DESC`, alternatives: `CROSS APPLY`, `DISTINCT ON`. |
-| **Cover the query** | Answer from the index alone. | Key columns plus `INCLUDE`, no key lookup, write cost trade-off. |
-| **Leftmost prefix** | Composite index order matters. | `(symbol, ts)` helps symbol filters; not ts-only filters. |
-| **Keep it SARGable** | Do not wrap indexed columns in functions. | Range predicates allow seeks; `YEAR(ts)` causes scans. |
-| **Keyset beats offset** | Deep paging should use the last seen key. | Stable, constant-cost paging with timestamp/id cursor. |
-| **Columnar for analytics** | Read few columns across many rows. | Tick history, compression, vectorized scans; not OLTP order writes. |
+| **Plan first** | For a slow query, check the actual execution plan. | Look for scans, lookups, bad row estimates, and missing indexes. |
+| **WHERE can break LEFT** | A `WHERE` filter on the right table can turn `LEFT JOIN` into `INNER JOIN`. | Put that filter in the `ON` clause. |
+| **Avoid `NOT IN` with NULL** | `NOT IN` can return nothing if null appears. | Use `NOT EXISTS`. |
+| **Window keeps rows** | Window functions add calculations without removing rows. | Use them for ranking, latest row, running totals, and previous value. |
+| **Latest row = rank 1** | Use `ROW_NUMBER()` per group and keep row 1. | Partition by the group and order by newest timestamp. |
+| **Index covers query** | A covering index has all columns the query needs. | Then SQL can avoid going back to the table. |
+| **Index order matters** | In a multi-column index, the first column matters most. | `(symbol, time)` helps symbol searches, not time-only searches. |
+| **Do not wrap columns** | Functions around indexed columns can stop index use. | Use date ranges instead of `YEAR(date)`. |
+| **Cursor for deep pages** | For big paging, use the last seen id/time. | It stays fast when the page number is huge. |
+| **Columnar = reporting** | Columnar databases are good for analytics. | They are not the first choice for live order updates. |
 
 ---
 
 # PART 0 — THE 10 SQL ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **This query is slow. What do you do?** | "Get the **actual** execution plan. Look for scans, key lookups, and where the estimated row count is badly wrong. Then decide: missing index, non-SARGable predicate, or stale statistics. **Fix one thing, measure again.**" |
-| 2 | **Latest row per group** | "`ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY ts DESC)` and take where it equals 1." |
-| 3 | **The `LEFT JOIN` trap** | "Put a condition on the right-hand table in the `WHERE` clause and you've silently turned it into an `INNER JOIN`. It belongs in the `ON` clause." |
-| 4 | **The `NOT IN` trap** | "One `NULL` in the subquery and `NOT IN` returns **no rows at all**. Use `NOT EXISTS`." |
-| 5 | **Covering index** | "An index that contains every column the query needs, using `INCLUDE`. The query is answered from the index alone — no lookup back to the table. Usually *the* answer to 'speed this up'." |
-| 6 | **Composite index order** | "**Leftmost prefix.** An index on `(symbol, ts)` serves a query filtering on `symbol`, but does nothing for a query filtering only on `ts`." |
-| 7 | **SARGable** | "Wrap a column in a function and you kill the index. `WHERE YEAR(ts) = 2026` scans. `WHERE ts >= '2026-01-01' AND ts < '2027-01-01'` seeks." |
-| 8 | **Deadlocks** | "Two transactions each holding what the other needs. Prevention is **consistent access order**. SQL Server picks a victim — error **1205** — so I retry with jitter." |
-| 9 | **Money in the database** | "`DECIMAL`, never `FLOAT`. Same rule as `decimal` in C# and `Decimal` in Python." |
-| 10 | **Deep pagination** | "`OFFSET` gets slower the deeper you go, because the server still reads and discards everything before it. **Keyset paging** — 'give me rows after this timestamp and id' — stays constant time." |
+| 1 | **This query is slow. What do you do?** | "I check the actual execution plan first, then fix one clear problem and measure again." |
+| 2 | **Latest row per group** | "Use `ROW_NUMBER()` per group, order newest first, and keep row 1." |
+| 3 | **The `LEFT JOIN` trap** | "A right-table filter in `WHERE` can break a `LEFT JOIN`. Put it in `ON`." |
+| 4 | **The `NOT IN` trap** | "`NOT IN` behaves badly with `NULL`. Use `NOT EXISTS`." |
+| 5 | **Covering index** | "A covering index has all columns the query needs, so SQL can answer from the index." |
+| 6 | **Composite index order** | "In a multi-column index, the first column matters most." |
+| 7 | **SARGable** | "Do not wrap indexed columns in functions. Use ranges so the index can be used." |
+| 8 | **Deadlocks** | "Two transactions each wait for the other. Use the same access order and retry if needed." |
+| 9 | **Money in the database** | "Use `DECIMAL`, never `FLOAT`, for money." |
+| 10 | **Deep pagination** | "Offset gets slower on deep pages. Use keyset or cursor paging." |
 
 ---
 
@@ -215,7 +215,8 @@ WHERE symbol LIKE 'IB%'                                        -- ✓
 > *"I take the **actual** execution plan, not the estimated one. I look for the operator consuming the
 > most cost, and — more importantly — where the **estimated row count is badly different from the
 > actual**, because that's where the optimiser was misled. Then I work out whether it's a missing
-> index, a non-SARGable predicate, stale statistics, or a bad join choice. **Fix one thing,
+> index, an index-unfriendly filter, stale statistics, or a bad join choice.
+> **Fix one thing,
 > re-measure.**"*
 
 **Operators to recognise:**

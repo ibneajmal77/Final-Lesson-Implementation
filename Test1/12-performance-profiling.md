@@ -5,38 +5,38 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Measure first** | Do not optimise by guessing. | Define target, profile real workload, fix one thing, measure again. |
-| **p99 beats average** | The tail is what users feel. | p50/p95/p99/p99.9, coordinated omission, market-open load shape. |
-| **Find the dominant term** | Optimise the part that actually costs time. | Amdahl's law, flame graphs, traces, request breakdown. |
-| **Usually I/O, allocation, N+1** | The bottleneck is rarely the interesting algorithm. | Database calls, over-fetching, remote calls, GC pressure. |
-| **BenchmarkDotNet or it did not happen** | Microbenchmarks need warm-up and stats. | `[MemoryDiagnoser]`, JIT warm-up, outliers, no raw `Stopwatch` loop. |
-| **Sampling in prod** | Low overhead beats perfect local detail. | `dotnet-trace`, PerfView, py-spy; instrumenting profilers distort timings. |
-| **Allocation drives GC** | Low-latency .NET means fewer objects. | Gen 0 rate, gen 2 pauses, LOH fragmentation, pooling, `Span<T>`. |
-| **Queue length tells starvation** | Throughput collapse often means blocked async. | ThreadPool queue length, `.Result`/`.Wait()`, async all the way. |
-| **Cache carefully** | Fast wrong data is still wrong. | Reference data caches, TTL jitter, stampede protection, avoid caching live prices blindly. |
-| **Load shape matters** | Market traffic is not uniform. | Spike, soak, stress, realistic distributions, SLO-based testing. |
+| **Measure first** | Do not guess. Measure the real problem. | Set a target, profile, fix one thing, measure again. |
+| **p99, not average** | Slow tail users matter more than the average. | Track p95, p99, and p99.9. |
+| **Biggest cost first** | Improve the part that takes most time. | Amdahl's law: small parts cannot give big wins. |
+| **Usually I/O or DB** | Most slow apps wait on database, network, or allocation. | Check N+1 queries and over-fetching early. |
+| **Use real benchmarks** | Microbenchmarks need proper tooling. | Use BenchmarkDotNet, not a simple `Stopwatch` loop. |
+| **Sample in production** | Use low-overhead profiling on live systems. | Use deeper profilers locally when needed. |
+| **Less allocation** | Less allocation means less GC pressure. | Pool buffers and avoid allocations in hot paths. |
+| **Queue means blocked** | A growing thread-pool queue often means blocking async code. | Look for `.Result` and `.Wait()`. |
+| **Cache carefully** | Do not make wrong data faster. | Cache reference data more freely than live prices. |
+| **Real load shape** | Test with traffic that looks like real traffic. | Market open can spike much harder than normal time. |
 
 ---
 
 # PART 0 — THE 8 ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **How do you approach performance?** | "**Measure first.** Define the target, profile the real workload, find the dominant cost, **fix one thing, measure again.** The bottleneck is almost never where anyone guessed." |
-| 2 | **Where is it usually?** | "**I/O, allocation, or an N+1 — not the algorithm.**" |
-| 3 | **How do you measure latency?** | "**Percentiles, never averages.** p50, p99, p99.9. An average hides exactly the tail that hurts users." |
-| 4 | **Do you optimise early?** | "I design for the known non-functional requirements from the start, because those are architectural. I don't micro-optimise before measuring. **Choosing the right data structure is design; shaving nanoseconds is optimisation.**" |
-| 5 | **Low-latency .NET** | "**Reduce allocation, don't tune the GC.**" |
-| 6 | **Throughput collapsed under load** | "Thread-pool starvation — something is blocking on async. Check ThreadPool queue length." |
-| 7 | **Amdahl's law** | "Optimising 20% of the runtime caps your gain at 20%. **Attack the dominant term.**" |
-| 8 | **Benchmarking** | "**BenchmarkDotNet**, with `[MemoryDiagnoser]`. Never a `Stopwatch` in a loop — that number is meaningless without warm-up and statistics." |
+| 1 | **How do you approach performance?** | "Measure first, fix one thing, then measure again." |
+| 2 | **Where is it usually?** | "Usually I/O, database calls, allocation, or N+1 queries." |
+| 3 | **How do you measure latency?** | "Use percentiles like p99, not only average." |
+| 4 | **Do you optimise early?** | "I design for known performance needs, but I do not guess at micro-optimisations." |
+| 5 | **Low-latency .NET** | "Reduce allocations before tuning the GC." |
+| 6 | **Throughput collapsed under load** | "Look for blocked thread-pool work or blocking async code." |
+| 7 | **Amdahl's law** | "Improve the part that takes most of the time." |
+| 8 | **Benchmarking** | "Use BenchmarkDotNet for small benchmarks, not a simple `Stopwatch` loop." |
 
 ---
 
@@ -56,9 +56,9 @@ interviewer pushes.
    render — those are five completely different investigations.
 3. **Are we fetching more than we need?** ⚠️ *The single biggest win in enterprise apps.*
 4. **N+1 queries or chatty calls.**
-5. **A missing or wrong index; a non-SARGable predicate.**
+5. **A missing or wrong index; an index-unfriendly filter.**
 6. **Allocation rate and GC pressure.**
-7. **Lock contention and thread-pool starvation.**
+7. **Lock contention and blocked thread-pool work.**
 8. **Only then** — algorithmic complexity and micro-optimisation.
 
 **Amdahl's law:** *"If I make 20% of the runtime infinitely fast, I've saved 20%. So attack the
@@ -196,7 +196,7 @@ data rather than silently lying — in a trading app that's a correctness requir
 >
 > *Assuming it's the query: capture the **actual** execution plan, look for scans on large tables, key
 > lookups, and estimate-versus-actual row errors. Usually it's a missing covering index or a
-> non-SARGable predicate — a function wrapped around a date column.*
+> index-unfriendly filter — for example, a function wrapped around a date column.*
 >
 > *If the query is genuinely heavy, I'd ask whether it belongs on the OLTP store at all — a
 > pre-aggregated read model, an indexed view, or a columnar store for the analytics side. And I'd ask

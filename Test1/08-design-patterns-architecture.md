@@ -9,39 +9,40 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand with a project example.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Problem before pattern** | Never recite definitions first. | Explain the constraint, the trade-off, and the project example. |
-| **DI singleton, not static singleton** | One instance is a lifetime choice. | Testability, explicit dependencies, container-managed lifetime. |
-| **Order is state** | Status transitions belong inside the aggregate. | State pattern, valid transitions, no external status mutation. |
-| **Decorator wraps behavior** | Add retry/log/cache without changing the core type. | ASP.NET middleware, MediatR pipeline, Python decorators. |
-| **CQRS is not event sourcing** | Separate reads/writes does not require event storage. | One DB or many, read models, write model, projection cost. |
-| **Outbox fixes dual write** | Write state and message record in one DB transaction. | Relay publishes later, idempotent publish, at-least-once delivery. |
-| **Exactly-once effects** | Delivery is at-least-once; processing must be idempotent. | Idempotency keys, dedupe tables, upserts, natural idempotence. |
-| **PACELC is senior CAP** | Even without a partition, latency and consistency trade off. | Partition choice: consistency vs availability; normal case: latency vs consistency. |
-| **Modular monolith first** | Split services only for a real reason. | Independent scale, release, ownership; network latency and failure cost. |
-| **Strangler plus shadow** | Replace legacy gradually and compare outputs. | Routing slices, old/new side by side, reconciliation before cutover. |
+| **Problem first** | Start with the problem, not the pattern name. | Then say why that pattern helped. |
+| **Singleton as lifetime** | I prefer DI singleton lifetime, not static singleton code. | It is easier to test and replace. |
+| **Order has states** | An order should only move through valid states. | The order object should control its own status changes. |
+| **Decorator wraps** | A decorator adds behavior around existing code. | Good for retry, logging, caching, and middleware. |
+| **CQRS is split models** | CQRS separates reads from writes. | It does not automatically mean event sourcing. |
+| **Outbox saves messages** | Save the data change and message record together. | Then a background worker publishes the message later. |
+| **Exactly-once effect** | Messages can arrive more than once, so handle repeats safely. | Use idempotency keys or dedupe tables. |
+| **CAP = choose in failure** | During network failure, choose consistency or availability. | PACELC adds that latency and consistency also trade off normally. |
+| **Monolith first** | Start modular; split services only when needed. | Split for scale, release, or team ownership. |
+| **Replace slowly** | Modernise legacy systems piece by piece. | Run old and new together and compare results before switching. |
 
 ---
 
 # PART 0 — THE 10 ARCHITECTURE ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **Singleton** | "I use a **DI singleton lifetime**, not the static Singleton pattern. It's testable and explicit." |
-| 2 | **Order lifecycle** | "**State pattern.** New → PendingNew → PartiallyFilled → Filled or Cancelled. The aggregate owns the transitions; nothing external sets the status directly." |
-| 3 | **Retry, caching, logging** | "**Decorator.** Same interface, wrapped. It's how MediatR pipeline behaviours and ASP.NET middleware work — and it's what a Python decorator does too." |
-| 4 | **CQRS** | "Separate read and write models. **CQRS is not event sourcing, and it doesn't require two databases.**" |
-| 5 | **Event sourcing** | "Store the events, derive the state. You get a perfect audit trail and replay. You pay in projections, event versioning and snapshots." |
-| 6 | **Exactly-once delivery** | "**Doesn't exist.** You get at-least-once delivery plus **idempotent processing**, which gives exactly-once *effects*." |
-| 7 | **Dual writes** | "**Outbox pattern.** Write the state and the event in one database transaction; a relay publishes it afterwards." |
-| 8 | **CAP** | "Under a **partition** you choose consistency or availability. The senior version is **PACELC** — even with no partition you're trading latency against consistency." |
-| 9 | **Microservices?** | "**Modular monolith by default.** I split out a service for independent scale, independent release, or team ownership. Every network hop is latency plus a new failure mode — and in trading that matters." |
-| 10 | **Legacy modernisation** | "**Strangler Fig**, never big bang. And **shadow mode** to de-risk — run old and new side by side, compare the outputs, ship when they agree." |
+| 1 | **Singleton** | "I prefer a DI singleton lifetime, not static singleton code." |
+| 2 | **Order lifecycle** | "An order is a state machine. The order should control valid status changes." |
+| 3 | **Retry, caching, logging** | "Use a decorator or middleware to wrap behavior around the core code." |
+| 4 | **CQRS** | "CQRS means separate read and write models. It does not automatically mean event sourcing." |
+| 5 | **Event sourcing** | "Store events, then rebuild state from those events. Good for audit, but more complex." |
+| 6 | **Exactly-once delivery** | "Delivery can repeat. Make the processing safe to repeat." |
+| 7 | **Dual writes** | "Use an outbox: save the data change and message record in the same database transaction." |
+| 8 | **CAP** | "When the network breaks, you choose consistency or availability." |
+| 9 | **Microservices?** | "Start with a modular monolith. Split services only for a real reason." |
+| 10 | **Legacy modernisation** | "Replace legacy systems slowly. Run old and new side by side before switching." |
 
 ---
 
@@ -229,8 +230,8 @@ It costs you two seconds and it's what a senior sounds like.
   ⚠️ **The senior version:** *"CAP is only about partitions. The real everyday trade-off is
   **PACELC** — even with no partition, you're trading latency against consistency."*
   **Few candidates say this.**
-- **Exactly-once** — *"Exactly-once **delivery** doesn't exist. You get at-least-once delivery plus
-  idempotent processing, which gives exactly-once **effects**."* **Excellent line. Use it.**
+- **Exactly-once** — *"Exactly-once **delivery** doesn't exist. Messages can repeat, so the handler
+  must be safe to run twice. That gives exactly-once **effects**."* **Excellent line. Use it.**
 - **Ordering** — per-key or per-partition ordering is achievable; global ordering is expensive.
   Kafka orders within a partition only.
 - **2PC vs SAGA** — two-phase commit blocks and couples everything; SAGA trades atomicity for

@@ -8,37 +8,37 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Ask where it runs** | On-prem, Azure, or hybrid changes the answer. | Data residency, regulated workloads, sovereign regions, ExpressRoute. |
-| **Three event services** | Service Bus commands, Event Hubs streams, Event Grid notifications. | Sessions, DLQ, partitions, offsets, routing, fan-out. |
-| **Build once** | The same artefact moves through environments. | Config from environment, promotion, signing, provenance, repeatability. |
-| **Migrations are hard** | Database change controls rollback. | Expand/contract, backfill, dual writes, approvals, compatibility windows. |
-| **Deploy is not release** | Feature flags separate shipping from exposing. | Blue/green, canary, rollback, progressive rollout. |
-| **No secrets** | Prefer identity over stored passwords. | Managed identity, workload identity federation, Key Vault, rotation. |
-| **Desktop distribution** | WPF deploy is not `kubectl apply`. | MSI/MSIX, code signing, SCCM/Intune, staged trader rollout, rollback. |
-| **Observe before blame** | Logs alone are not enough. | Metrics, traces, logs, correlation IDs, OpenTelemetry, KQL, SLOs. |
-| **Market hours matter** | Release windows are a business constraint. | Change approval, segregation of duties, no deployment during trading hours. |
+| **Ask where it runs** | First ask: on-prem, Azure, or hybrid? | Finance often has data-residency rules. |
+| **Three event tools** | Service Bus for important messages, Event Hubs for streams, Event Grid for notifications. | Service Bus has queues, topics, and dead-letter queues. |
+| **Build once** | Build once, then move the same package through environments. | Config changes by environment; the build does not. |
+| **DB changes are risky** | Database migrations are the hardest part of release. | Add, backfill, switch, then remove old schema later. |
+| **Deploy is not release** | You can deploy code without turning it on. | Feature flags, blue/green, and canary help rollback. |
+| **No secrets** | Use identity instead of storing passwords. | Managed identity and Key Vault reduce secret risk. |
+| **Desktop rollout** | Desktop apps need installation and updates. | MSI/MSIX, signing, Intune/SCCM, staged rollout. |
+| **Watch the system** | Use metrics, logs, and traces together. | Correlation IDs connect one request across services. |
+| **No market-hours deploy** | In finance, release timing matters. | Change approval and separation of duties also matter. |
 
 ---
 
 # PART 0 — THE 8 ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **Any "where would you host it?" question** | **Ask first:** "Where does this run today — on-prem, Azure, or hybrid?" Then answer for *their* world, not your default. |
-| 2 | **Service Bus vs Event Hubs vs Event Grid** | "Service Bus is enterprise messaging for things I can't lose. Event Hubs is high-throughput streaming. Event Grid is a lightweight 'something happened' router." |
-| 3 | **The CI/CD principle that matters** | "**Build once, promote the same artefact.** Never rebuild per environment — configuration comes from the environment, not the build." |
-| 4 | **The hard part of CI/CD** | "**Database migrations.** Expand/contract: add a nullable column, backfill, write to both, switch reads, then drop the old one. Never a breaking migration in the same release as the code that needs it." |
-| 5 | **Deployment strategies** | "Blue/green for instant rollback, canary for a percentage rollout, and **feature flags to decouple deploy from release**." |
-| 6 | **The finance twist** | "Release windows — **never during market hours** — change approval, and **segregation of duties**: the person who wrote it can't be the only one approving prod." |
-| 7 | **The desktop twist (raise it yourself)** | "Deploying to 200 traders is a **distribution** problem, not a `kubectl apply`. MSI or MSIX, code signing, versioning, an update channel, and staged rollout by user group." |
-| 8 | **Data residency** | Mention it unprompted for an Abu Dhabi financial client. It signals you understand their constraints. |
+| 1 | **Any hosting question** | "First I ask: on-prem, Azure, or hybrid? Then I answer for that reality." |
+| 2 | **Service Bus vs Event Hubs vs Event Grid** | "Service Bus is for important messages. Event Hubs is for big streams. Event Grid is for notifications." |
+| 3 | **The CI/CD principle** | "Build once, then move the same package through every environment." |
+| 4 | **The hard part of CI/CD** | "Database migrations are the risky part. Change schema in safe steps." |
+| 5 | **Deployment strategies** | "Blue/green helps rollback. Canary rolls out slowly. Feature flags turn features on later." |
+| 6 | **The finance twist** | "Do not deploy during market hours. Use approval and clear separation of duties." |
+| 7 | **The desktop twist** | "Desktop apps need installers, code signing, update channels, and staged rollout." |
+| 8 | **Data residency** | "For finance clients, ask where data is allowed to live." |
 
 ---
 
@@ -128,7 +128,7 @@ that needs it** — because then you can't roll either one back."*
 
 ⚠️ **Then add the finance layer — this is what distinguishes you:**
 *"In a regulated shop you also have **release windows — never during market hours** — change approval,
-and **segregation of duties**: the person who wrote the code can't be the only one approving
+and **separation of duties**: the person who wrote the code should not be the only person approving
 production."*
 **That sentence shows regulatory awareness without being asked.**
 

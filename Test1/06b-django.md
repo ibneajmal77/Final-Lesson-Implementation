@@ -40,22 +40,22 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Whole product** | Django gives the full web stack. | ORM, migrations, admin, auth, forms, templates, security, management commands. |
-| **MVT names are odd** | Django View is the controller. | Model, View, Template, URL router, framework as controller. |
-| **Model saves itself** | Django ORM is Active Record. | Model class maps to table, manager queries, contrast with EF Core Data Mapper. |
-| **QuerySets are lazy** | Chain now, query later. | Evaluation triggers, `filter`, slicing, `count`, `exists`, one SQL statement when possible. |
-| **N+1 is the trap** | Touching a relation inside a loop fires many queries. | `select_related` for joins, `prefetch_related` for many/reverse relations. |
-| **Migrations are code** | Schema changes are versioned files. | `makemigrations`, `migrate`, reviewable migrations, expand/contract for production. |
-| **Admin buys weeks** | CRUD back office comes from models. | Permissions, model admin, search, filters, inline editing. |
-| **Middleware onion** | Request goes down, response comes back up. | Ordering matters; session before auth; security middleware. |
-| **Async is partial** | Django can do async, but the ecosystem is mostly sync. | ASGI, async views, async ORM calls, sync middleware limitations. |
+| **Full web box** | Django gives most web features out of the box. | ORM, admin, login, forms, templates, security. |
+| **MVT = MVC names** | Django View is like a controller. | Template is the HTML view. |
+| **Model saves itself** | A Django model knows how to save and query itself. | That is Active Record, unlike EF Core's `DbContext`. |
+| **Query later** | A QuerySet does not hit the database until used. | You can chain filters and still get one query. |
+| **N+1 loop** | Do not load related data one row at a time. | Use `select_related` or `prefetch_related`. |
+| **Migrations are files** | Schema changes become code files. | Review them before running them in production. |
+| **Admin is quick back office** | Django admin gives CRUD screens fast. | Useful for internal tools and support teams. |
+| **Middleware wraps request** | Request goes through middleware in order, then response comes back. | Order matters, especially session before auth. |
+| **Async is limited** | Django has async support, but much is still sync. | Use FastAPI for heavily async services. |
 
 ---
 
@@ -63,18 +63,18 @@ interviewer pushes.
 
 | # | Question | Say this |
 |---|---|---|
-| 1 | **What is Django?** | "A batteries-included Python web framework. ORM, migrations, admin, auth, forms, templates, security — all shipped. It's ASP.NET MVC plus EF plus Identity in one package." |
-| 2 | **MVC or MVT?** | "Django calls it MVT — Model, View, Template. The View is the controller and the Template is the view. Same idea, different names." |
-| 3 | **The ORM in one line?** | "Active Record. The model class **is** the table and it carries its own query manager. EF Core is Data Mapper, where the DbContext is separate." |
-| 4 | **The N+1 problem?** | ⭐ "Looping over objects and touching a relation fires one query per row. `select_related` does a JOIN for forward foreign keys; `prefetch_related` does a second query and joins in Python for many-to-many and reverse relations." |
-| 5 | **Are QuerySets lazy?** | "Yes. Nothing hits the database until you iterate, slice, or call `len`, `list`, `count` or `exists`. So you can chain filters and only one query runs." |
-| 6 | **Migrations?** | "`makemigrations` generates versioned Python files from model changes, `migrate` applies them. Same role as EF Migrations, and they're reviewable in a pull request." |
-| 7 | **The admin?** | "A full CRUD back office generated from the models, with permissions. It's genuinely the reason Django wins projects — weeks of internal tooling for about ten lines." |
-| 8 | **What is DRF?** | "Django REST Framework. Serializers, viewsets, routers, auth and permissions for building APIs. Serializers are validation plus mapping — closest to AutoMapper plus FluentValidation." |
-| 9 | **Fat models?** | "Business logic belongs in models and service functions, not in views. The view should do HTTP: parse, delegate, respond." |
-| 10 | **Is Django async?** | "Partly. ASGI, async views and async ORM calls exist since 3.1–4.1. The ecosystem is still mostly sync, so I wouldn't pick Django for a heavily async workload." |
-| 11 | **Security out of the box?** | "CSRF tokens, SQL injection protection via parameterised ORM queries, XSS auto-escaping in templates, clickjacking middleware, and PBKDF2 password hashing." |
-| 12 | **When would you not use it?** | "A small async microservice, an ML serving endpoint, or anything WebSocket-heavy. That's FastAPI. Django's value is everything around the API." |
+| 1 | **What is Django?** | "Django is a Python web framework with ORM, admin, login, forms, templates, and security built in." |
+| 2 | **MVC or MVT?** | "Django says MVT. Its View is like a controller, and Template is the HTML view." |
+| 3 | **The ORM in one line?** | "The model maps to a table and knows how to query and save itself." |
+| 4 | **The N+1 problem?** | "A loop can run one query per row. Fix it with `select_related` or `prefetch_related`." |
+| 5 | **Are QuerySets lazy?** | "Yes. A QuerySet does not hit the database until you use it." |
+| 6 | **Migrations?** | "Migrations are code files for database changes. `makemigrations` creates them; `migrate` runs them." |
+| 7 | **The admin?** | "Django admin gives quick CRUD screens from your models." |
+| 8 | **What is DRF?** | "Django REST Framework helps build APIs with serializers, views, auth, and permissions." |
+| 9 | **Fat models?** | "Keep HTTP work in views. Put business rules in models or services." |
+| 10 | **Is Django async?** | "Partly. It supports async, but much of the ecosystem is still sync." |
+| 11 | **Security out of the box?** | "Django gives CSRF protection, safe ORM queries, template escaping, and password hashing." |
+| 12 | **When would you not use it?** | "For a small async API or WebSocket-heavy service, I would usually pick FastAPI." |
 
 ---
 

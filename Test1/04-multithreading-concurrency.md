@@ -8,39 +8,39 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Waiting is not working** | I/O uses async; CPU uses threads. | `async/await` for network/disk/db waits; thread pool, `Parallel`, PLINQ or dedicated threads for compute. |
-| **Await returns** | `await` does not block a thread. | Compiler state machine, continuation, synchronization context, UI resume rules. |
-| **UI deadlock loop** | Blocking the UI blocks the continuation. | `.Result`/`.Wait()` on WPF thread plus captured context; fix with async all the way or library `ConfigureAwait(false)`. |
-| **Volatile is visibility** | It is not atomic. | Prevents reordering/stale reads; `Interlocked` for read-modify-write and compare-and-swap. |
-| **Lock order wins** | Deadlock prevention is mostly order. | Coffman conditions, break circular wait, timeouts, smaller lock scope. |
-| **Bounded means backpressure** | A full queue is a signal, not a surprise. | `System.Threading.Channels`, bounded capacity, drop policy, producer/consumer cancellation. |
-| **Single writer** | One owner per piece of state. | Partition by instrument/account to avoid shared mutable state and reduce locking. |
-| **Conflate the grid** | Latest value matters more than every tick. | Latest per instrument, batch, flush on timer, equality guard, virtualized UI. |
-| **p99 beats average** | Tail latency is what hurts. | Measure p50/p99/p99.9, coordinated omission, load shape, market-open spikes. |
+| **Waiting is not working** | Waiting on I/O uses async. Real CPU work uses threads. | `async` saves threads; it does not make CPU work faster. |
+| **Await frees the thread** | `await` pauses the method, not the thread. | The rest of the method runs later as a continuation. |
+| **UI deadlock** | Do not call `.Result` on the UI thread. | The continuation may need that same UI thread, so both sides wait forever. |
+| **Volatile is not atomic** | `volatile` helps visibility, not `x++`. | Use `Interlocked` for counters and compare-and-swap. |
+| **Same lock order** | Take locks in the same order every time. | That prevents the classic deadlock circle. |
+| **Bounded queue** | A queue must have a limit. | A full bounded channel gives backpressure. |
+| **One writer** | Let one thread own one piece of state. | Partition by symbol or account to avoid many locks. |
+| **Batch the grid** | Do not update WPF for every tick. | Keep latest value, batch updates, flush on a timer. |
+| **p99, not average** | Average hides the slow users. | Look at p99 and p99.9 latency. |
 
 ---
 
 # PART 0 — THE 10 CONCURRENCY ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **The framing (say this first, always)** | "**Waiting is not working.** If I'm waiting on network or disk, that's `async/await`. If I have real computation to spread across cores, that's threads or `Parallel`. Using async for CPU work buys nothing; using threads for waiting wastes a megabyte of stack each." |
-| 2 | **What does `await` actually do?** | "The compiler turns the method into a state machine. At an `await` the method returns to its caller and the rest is registered as a continuation. **No thread is blocked while waiting.**" |
-| 3 | **The classic deadlock** | "`.Result` on the UI thread. The UI thread blocks; the continuation needs the UI thread; neither can move. Fix: async all the way up, or `ConfigureAwait(false)` in the library." |
-| 4 | **`volatile`** | "It stops reordering and forces a read from memory. It does **not** make anything atomic. `x++` on a volatile field is still a race — that needs `Interlocked`." |
-| 5 | **Preventing deadlock** | "**Consistent lock ordering.** That's the practical answer — you break the circular-wait condition." |
-| 6 | **Producer/consumer in .NET today** | "`System.Threading.Channels`, bounded. A bounded channel *is* backpressure." |
-| 7 | **10,000 ticks a second into a grid** | "Don't touch the UI per tick. Conflate to the latest per instrument, batch, and flush on a timer." |
-| 8 | **The best architectural answer** | "**Single-writer principle.** Partition by instrument so each partition is owned by one thread. You get parallelism without shared mutable state, and most locking disappears." |
-| 9 | **Latency** | "Percentiles, never averages. p50, p99, p99.9. An average hides exactly the tail that hurts you." |
-| 10 | **Low-latency .NET** | "**Reduce allocation, don't tune the GC.** Structs, `Span<T>`, `ArrayPool`, object pooling, no LINQ or closures in the tick handler." |
+| 1 | **The framing** | "Waiting uses async. CPU work uses threads. I do not mix those two problems." |
+| 2 | **What does `await` do?** | "`await` pauses the method and frees the thread while the work waits." |
+| 3 | **The classic deadlock** | "Blocking the UI thread with `.Result` can deadlock. The fix is async all the way." |
+| 4 | **`volatile`** | "`volatile` is for visibility. It does not make `x++` safe; use `Interlocked`." |
+| 5 | **Preventing deadlock** | "Take locks in the same order every time." |
+| 6 | **Producer/consumer in .NET today** | "Use a bounded `Channel`. The limit gives backpressure." |
+| 7 | **10,000 ticks a second into a grid** | "Do not update the UI per tick. Keep latest values, batch them, and flush on a timer." |
+| 8 | **Best architecture answer** | "Use one writer per piece of state. That removes most locking." |
+| 9 | **Latency** | "Measure p99, not just average. The slow tail is what hurts users." |
+| 10 | **Low-latency .NET** | "Reduce allocations first. Less allocation means less GC pressure." |
 
 ---
 

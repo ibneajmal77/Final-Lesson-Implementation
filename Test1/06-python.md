@@ -50,23 +50,23 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then give the technical load only
-if they ask for depth.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Labels, not boxes** | A variable is a name pointing at an object. | Pass by object reference, mutation vs rebinding, shared mutable state. |
-| **Mutable shares** | Lists and dicts change in place. | Default argument trap, shallow vs deep copy, hashable means immutable. |
-| **`is` is identity** | Use `is` for `None`, not normal equality. | `==` calls `__eq__`; CPython caches small ints and interns strings as optimisations. |
-| **Yield one row** | Generators keep memory constant. | Iterator protocol, lazy streams, one-pass trade-offs, big files. |
-| **Count then sweep** | Python frees normal objects by refcount. | Cycle collector, `gc`, `tracemalloc`, closures/caches/C extensions as leak sources. |
-| **Waiting vs working** | Threads help waits; processes help CPU. | GIL, `asyncio`, `multiprocessing`, NumPy releasing the GIL. |
-| **Async can freeze** | One blocking call blocks the event loop. | `asyncio.to_thread`, async libraries, timeouts, cancellation, `TaskGroup`. |
-| **Money is Decimal** | Float is not for cash. | `Decimal` from strings, integer minor units, explicit rounding. |
-| **Validate the edge** | Type hints are not runtime safety. | `mypy`/`pyright` inside, Pydantic at API/file/message boundaries. |
-| **Vectorise data** | Pandas loops are usually wrong. | Column operations, NumPy C loops, categories/downcasting, Polars/DuckDB when needed. |
+| **Labels, not boxes** | A Python variable is a name pointing at an object. | Two names can point at the same list. |
+| **Mutable changes** | Lists and dicts change in place. | This is why shared lists and default `[]` arguments cause bugs. |
+| **`is` = same object** | Use `is` for `None`; use `==` for values. | Small integer caching is an implementation detail. |
+| **Yield saves memory** | A generator gives one item at a time. | Good for huge files because the whole file is never loaded. |
+| **Count then collect** | Python frees most objects when nobody points at them. | A separate collector handles objects that point at each other. |
+| **Wait or work** | Threads help waiting. Processes help heavy CPU work. | The GIL stops normal Python threads from running CPU code in parallel. |
+| **Async must not block** | One blocking call can freeze all async work. | Use async libraries or push blocking work to a thread. |
+| **Money is Decimal** | Do not use float for money. | Use `Decimal` or whole pennies/cents as integers. |
+| **Hints are not checks** | Type hints help tools, but Python does not enforce them. | Validate real input with Pydantic or similar. |
+| **Pandas likes columns** | Do work on whole columns, not row by row. | Vectorized code runs in fast C/NumPy code. |
 
 ---
 
@@ -76,21 +76,21 @@ Each one is a complete answer. Learn these first.
 
 | # | Question | Say this |
 |---|---|---|
-| 1 | **What is the GIL?** | "One lock. Only one thread runs Python code at a time. So threads help when you **wait**. They don't help when you **compute**. For computing I use processes, or NumPy — NumPy drops the lock and runs in C." |
-| 2 | **CPU work or waiting work?** | "**Waiting → asyncio or threads. Working → processes or NumPy.**" |
-| 3 | **The asyncio trap** | "One blocking call freezes everything. It's one thread. If I must call something blocking, I push it out with `asyncio.to_thread`." |
-| 4 | **Money** | "Never float. `Decimal`, or whole pennies as ints. Float is fine for stats. Never for cash." |
-| 5 | **Mutable default arg** | "`def f(x, items=[])` is a bug. The list is made once, at `def` time. Every call shares it. Use `None`, build it inside." |
-| 6 | **`is` vs `==`** | "`==` is same value. `is` is same object. I only use `is` for `None`, `True`, `False`." |
-| 7 | **Are type hints enforced?** | "No. Erased at runtime. Same as TypeScript. They're for the editor and mypy. Real data gets validated at the edge with Pydantic." |
-| 8 | **File too big for memory** | "Generators. `yield` one row at a time. Constant memory, any file size." |
-| 9 | **Pandas is slow** | "Never loop over rows. Vectorise — one operation on the whole column. 10 to 100 times faster. It runs in C." |
-| 10 | **How is memory freed?** | "Reference counting frees it the moment the last name goes. A cycle collector handles objects pointing at each other." |
-| 11 | **Shallow vs deep copy** | "Shallow: new box, same contents. Deep: copies all the way down. **Copies the shelf, not the books.**" |
-| 12 | **What is a decorator?** | "A function that wraps a function. Middleware for one function. Logging, timing, auth — without touching the body." |
-| 13 | **`__init__` vs `__new__`** | "`__new__` makes the object. `__init__` fills it in. You only ever touch `__init__`." |
-| 14 | **Dataclass vs Pydantic** | "Dataclass saves boilerplate inside my code. Pydantic **validates and converts** — that's for anything crossing a boundary." |
-| 15 | **Python in a .NET shop** | "Python does analytics, quant and ML. It sits behind a versioned HTTP or gRPC contract. .NET stays the system of record." |
+| 1 | **What is the GIL?** | "It is one lock around normal Python code. Threads help waiting, not heavy CPU work." |
+| 2 | **CPU work or waiting work?** | "Waiting uses async or threads. CPU work uses processes or NumPy." |
+| 3 | **The asyncio trap** | "One blocking call can freeze the whole event loop." |
+| 4 | **Money** | "Never use float for money. Use `Decimal` or integer cents." |
+| 5 | **Mutable default arg** | "Do not use `[]` as a default argument. Use `None` and create the list inside." |
+| 6 | **`is` vs `==`** | "`==` checks value. `is` checks same object. I use `is` for `None`." |
+| 7 | **Are type hints enforced?** | "No. Python does not enforce them at runtime. I validate real input at the edge." |
+| 8 | **File too big for memory** | "Use a generator. Read one row at a time." |
+| 9 | **Pandas is slow** | "Do not loop row by row. Work on whole columns." |
+| 10 | **How is memory freed?** | "Python frees most objects when nothing points at them anymore." |
+| 11 | **Shallow vs deep copy** | "Shallow copies the outer object. Deep copies the inside too." |
+| 12 | **What is a decorator?** | "A decorator wraps a function to add behavior like logging or timing." |
+| 13 | **`__init__` vs `__new__`** | "`__new__` creates the object. `__init__` fills it with values." |
+| 14 | **Dataclass vs Pydantic** | "Dataclass reduces code inside the app. Pydantic validates outside input." |
+| 15 | **Python in a .NET shop** | "Use .NET for the core system and Python for analytics or data work behind an API." |
 
 ---
 

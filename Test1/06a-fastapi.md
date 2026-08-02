@@ -37,21 +37,21 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then expand only where the
-interviewer pushes.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Minimal API for Python** | FastAPI feels like ASP.NET Core Minimal API. | Starlette for web, Pydantic for data, Uvicorn/ASGI for serving. |
-| **Types become contracts** | Type hints drive validation and OpenAPI. | Pydantic parsing/coercion, generated docs, request and response models. |
-| **Async only if awaitable** | `async def` must not call blocking libraries. | Event loop freezing, plain `def` in threadpool, `asyncio.to_thread` escape hatch. |
-| **Depends is DI** | Dependencies are function parameters. | Request-scoped caching, chaining, settings, DB sessions, current user, test overrides. |
-| **Model filters output** | The response model is the contract. | Prevents password/hash leaks, shapes data, separates ORM entity from API DTO. |
-| **JWT in dependency** | Auth belongs at the boundary. | Bearer tokens, signature validation, `iss`/`aud`/`exp`, hashing with bcrypt. |
-| **Stream large data** | Do not build huge responses in memory. | `StreamingResponse`, generators, backpressure, large exports. |
-| **Workers beat threads for CPU** | One process per core is the usual deployment shape. | GIL, Uvicorn/Gunicorn workers, Nginx, health checks, reload only in dev. |
+| **Python Minimal API** | FastAPI is like ASP.NET Core Minimal API in Python. | It uses Starlette for web and Pydantic for data. |
+| **Types make docs** | Type hints become validation and API docs. | FastAPI creates OpenAPI and Swagger automatically. |
+| **Do not block async** | An `async def` route must not call blocking code. | Use true async libraries or make the route plain `def`. |
+| **Depends = DI** | `Depends()` gives a route what it needs. | Use it for DB sessions, settings, and current user. |
+| **Response model protects output** | The response model decides what leaves the API. | It stops fields like password hashes leaking. |
+| **Auth as dependency** | Check the token before the route runs. | Decode JWT, check expiry and issuer, then load the user. |
+| **Stream big output** | Do not build huge files in memory. | Return a stream/generator instead. |
+| **Use workers** | Run several server processes in production. | One process per core is common because of the GIL. |
 
 ---
 
@@ -59,18 +59,18 @@ interviewer pushes.
 
 | # | Question | Say this |
 |---|---|---|
-| 1 | **What is FastAPI?** | "An async Python web framework built on Starlette and Pydantic. Type hints do double duty — validation at runtime and OpenAPI docs for free. It's ASP.NET Core Minimal API." |
-| 2 | **Why is it fast?** | "ASGI, not WSGI, so it's async end to end. And Pydantic v2's validation core is written in Rust." |
-| 3 | **What does Pydantic do?** | "Parses and validates incoming data against the type hints, then gives me a typed object. It's model binding plus FluentValidation in one." |
-| 4 | **The biggest trap?** | "Putting blocking code in an `async def` route. That freezes the whole event loop. Either make it truly async, or declare the route `def` and let FastAPI run it in a threadpool." |
-| 5 | **`def` vs `async def` route?** | "`async def` runs on the event loop — use it only if everything inside is awaitable. Plain `def` gets run in a threadpool, which is the safe choice for blocking libraries." |
-| 6 | **Dependency injection?** | "`Depends()`. It's constructor injection at the parameter level — DB sessions, the current user, settings. It's cached per request and it's overridable in tests." |
-| 7 | **Docs?** | "Free. OpenAPI generated from the type hints. `/docs` for Swagger, `/redoc`, `/openapi.json`." |
-| 8 | **Auth?** | "OAuth2 password flow with JWT bearer tokens, verified in a dependency. Short-lived access token, refresh token, `python-jose` or `pyjwt`, and `passlib` with bcrypt for hashing." |
-| 9 | **How do you run it?** | "Uvicorn workers behind Gunicorn, or `uvicorn --workers`. Nginx in front. One process per core, because of the GIL." |
-| 10 | **Response model?** | "`response_model=` filters the output. It's how a password hash never leaks — the model is the contract, not the ORM object." |
-| 11 | **Background jobs?** | "`BackgroundTasks` for cheap fire-and-forget after the response. Celery or ARQ for anything that must survive a restart." |
-| 12 | **vs Django?** | "FastAPI is a fast async API layer, no ORM, no admin, no templates. Django is batteries-included: ORM, admin, auth, migrations. API-only microservice → FastAPI. Full product with a back office → Django." |
+| 1 | **What is FastAPI?** | "FastAPI is a Python API framework, similar to ASP.NET Core Minimal API." |
+| 2 | **Why is it fast?** | "It uses async server plumbing and fast Pydantic validation." |
+| 3 | **What does Pydantic do?** | "It checks incoming data and turns it into typed Python objects." |
+| 4 | **The biggest trap?** | "Do not put blocking code inside an `async def` route." |
+| 5 | **`def` vs `async def` route?** | "Use `async def` only when the code inside can `await`. Use `def` for blocking libraries." |
+| 6 | **Dependency injection?** | "`Depends()` gives routes things like DB sessions, settings, or the current user." |
+| 7 | **Docs?** | "FastAPI creates OpenAPI and Swagger docs from the code." |
+| 8 | **Auth?** | "Check the JWT in a dependency before the route runs." |
+| 9 | **How do you run it?** | "Run Uvicorn workers, usually behind Nginx or another reverse proxy." |
+| 10 | **Response model?** | "The response model controls what the API returns, so private fields do not leak." |
+| 11 | **Background jobs?** | "`BackgroundTasks` is for small after-response work. Use a real queue for important jobs." |
+| 12 | **vs Django?** | "FastAPI is best for APIs. Django is best when you want the full web product stack." |
 
 ---
 
@@ -830,7 +830,7 @@ app = FastAPI(default_response_class=ORJSONResponse)     # faster JSON
 
 | | **FastAPI** | **Django** | **Flask** | **ASP.NET Core** |
 |---|---|---|---|---|
-| Style | async API framework | batteries-included | minimal | batteries-included |
+| Style | async API framework | many features included | minimal | many features included |
 | Protocol | ASGI | WSGI + ASGI | WSGI | Kestrel |
 | ORM | none (bring SQLAlchemy) | **built in** | none | EF Core |
 | Admin UI | no | **yes** ⭐ | no | no |

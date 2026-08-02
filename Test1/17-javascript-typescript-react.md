@@ -16,23 +16,23 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. This topic is medium priority for the role, so keep
-answers short unless they ask for depth.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **One thread, no waiting** | JavaScript is single-threaded but non-blocking. | Runtime handles I/O, callbacks queue, blocking loop freezes the page like WPF dispatcher. |
-| **Sync, promises, timers** | Promise callbacks run before timers. | Call stack, microtask queue, macrotask queue, event loop order. |
-| **`const` locks the label** | The object can still change. | Reference binding vs object immutability, like C# `readonly` reference fields. |
-| **Use `===`** | Avoid type coercion surprises. | `==` conversion rules, `x == null` as the only practical exception. |
-| **Promise = Task** | It is a future value. | `async`/`await`, `Promise.all`, rejection handling, cancellation gap. |
-| **Types erase** | TypeScript is build-time safety only. | Runtime validation with Zod/io-ts/Pydantic-style edge validation. |
-| **UI = f(state)** | React renders from state. | Components, props, state, reconciliation, virtual DOM mental model. |
-| **State is snapshots** | Do not mutate state directly. | Immutable updates, re-render triggers, stale closures, functional setters. |
-| **Effects sync with outside world** | `useEffect` is for side effects, not derived data. | Dependencies, cleanup, fetches, subscriptions, timers. |
-| **Backend-heavy honesty** | Calibrate frontend depth early. | Medium job requirement; focus interview time on .NET, data, real-time systems. |
+| **One thread** | JavaScript has one main thread. | Slow I/O is handled by the runtime and callbacks run later. |
+| **Promises before timers** | Promise callbacks run before timer callbacks. | This is the event loop order. |
+| **`const` locks name** | `const` stops reassignment, not object changes. | The object can still be mutated. |
+| **Use `===`** | Use strict equality to avoid weird conversions. | `x == null` is the only common exception. |
+| **Promise = Task** | A Promise is like a C# `Task`. | It represents a value that will arrive later. |
+| **Types disappear** | TypeScript types are not runtime checks. | Validate real API data at the boundary. |
+| **UI from state** | React shows the UI for the current state. | Change state, React redraws what changed. |
+| **Do not mutate state** | Make a new state value instead of changing the old one. | This helps React know it must re-render. |
+| **Effect = outside work** | `useEffect` is for fetches, timers, and subscriptions. | Clean up subscriptions and timers. |
+| **Keep frontend short** | This role only needs medium frontend depth. | Move the interview back to .NET, data, and real-time systems. |
 
 ---
 
@@ -55,18 +55,18 @@ themselves. And for this role backend depth is what they're buying anyway.
 
 # PART 0.5 — THE 10 JAVASCRIPT ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **Is JS single-threaded?** | "Yes — one thread. But it never sits and waits. Slow work is handed to the runtime and the callback queues up. Same as one UI thread with no thread pool." |
-| 2 | **The event loop** | "Run the synchronous code. Then drain all the promises. Then take one timer. **Sync → promises → timers.**" |
-| 3 | **`var` / `let` / `const`** | "`const` by default, `let` when you must reassign, never `var`. `var` is function-scoped and causes loop bugs." |
-| 4 | **Is `const` immutable?** | "No. The variable can't be re-pointed. The object it points at can still change. Like `readonly` on a reference field in C#." |
-| 5 | **`==` vs `===`** | "Always `===`. `==` converts types first and the rules are strange. The one exception is `x == null`, which conveniently catches both `null` and `undefined`." |
-| 6 | **Array methods** | "**They're LINQ with different names.** `map`=`Select`, `filter`=`Where`, `reduce`=`Aggregate`, `find`=`FirstOrDefault`." |
-| 7 | **A Promise is…** | "A placeholder for a value that isn't ready. It's a `Task<T>`." |
-| 8 | **`this`** | "In a normal function it depends on how it was called. In an arrow function it's whatever it was outside. **Use arrows in callbacks and the problem disappears.**" |
-| 9 | **TypeScript at runtime** | "The types are erased. They exist for the editor and the build. So I validate real API data at the boundary with Zod." |
-| 10 | **React in one line** | "**UI = f(state).** I describe what the screen should look like for the current state, and React works out the minimum change." |
+| 1 | **Is JS single-threaded?** | "Yes. It has one main thread, but slow I/O runs outside it." |
+| 2 | **The event loop** | "JavaScript runs normal code first, then promises, then timers." |
+| 3 | **`var` / `let` / `const`** | "Use `const` first, `let` when reassignment is needed, and avoid `var`." |
+| 4 | **Is `const` immutable?** | "No. The name cannot point somewhere else, but the object can still change." |
+| 5 | **`==` vs `===`** | "Use `===` so JavaScript does not convert types behind your back." |
+| 6 | **Array methods** | "`map`, `filter`, and `reduce` are like LINQ methods." |
+| 7 | **A Promise is…** | "A Promise is like a C# `Task`: a value that arrives later." |
+| 8 | **`this`** | "Normal functions get `this` from how they are called. Arrow functions keep the outside `this`." |
+| 9 | **TypeScript at runtime** | "TypeScript types disappear at runtime, so validate real API data." |
+| 10 | **React in one line** | "React shows the UI for the current state." |
 
 ---
 

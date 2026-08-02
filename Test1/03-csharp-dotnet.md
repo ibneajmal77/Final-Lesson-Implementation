@@ -9,40 +9,40 @@
 
 ---
 
-# FULL TECH LOAD MEMORY HOOKS
+# EASY MEMORY NOTES
 
-Use these as labels for the full detail below. Say the hook first, then give the technical load only
-if they ask for depth.
+Read this first. Start with the short phrase. Say the simple line. Add the last column only if they
+ask for more.
 
-| Hook | Simple wording | Full tech load to keep |
+| Remember | Say it simply | If they ask more |
 |---|---|---|
-| **Money = decimal** | Cash needs exact base-10 maths. | `decimal`/`Decimal`/`DECIMAL`, explicit rounding, `checked` arithmetic. |
-| **Declaration decides location** | A struct is not automatically stack memory. | Locals can be on the stack; struct fields inside classes live inline on the heap. |
-| **Boxing allocates** | A value gets wrapped as an object. | Heap allocation, copy, indirection, GC pressure; avoid in hot paths. |
-| **Allocate less** | Low latency is mostly fewer allocations. | Gen 0/1/2, LOH at 85 KB, pooling, `ArrayPool<T>`, `Span<T>`, no LINQ in tick handlers. |
-| **Query stays SQL** | Keep database work in the database. | `IQueryable` expression tree vs `IEnumerable` in memory; `ToList()` too early causes client filtering. |
-| **Hash must match equals** | If two values are equal, their hashes must be equal. | Override both; never hash mutable fields. |
-| **Dispose now, finalizer later** | `Dispose` is controlled cleanup. | `using`, `IAsyncDisposable`, `SafeHandle`, `GC.SuppressFinalize`. |
-| **Lifetime leaks** | A long-lived object can accidentally hold short-lived state. | Singleton/scoped/transient, captive dependencies, `DbContext`, event handler leaks. |
+| **Money = decimal** | For money I use `decimal`, not `double`. | It keeps decimal numbers exact and I round on purpose. |
+| **Struct not always stack** | A struct is not automatically on the stack. | A struct inside a class lives with that class object on the heap. |
+| **Boxing makes garbage** | Boxing turns a value into an object and allocates memory. | Bad in fast loops because it adds GC work. |
+| **Fast = allocate less** | For low latency, I first create fewer objects. | Use pooling, `Span<T>`, structs, and avoid LINQ in hot code. |
+| **Do not fetch too early** | Keep the query in SQL until the database has done its work. | `ToList()` too early pulls data into memory and makes it slow. |
+| **Equal needs same hash** | If two objects are equal, their hash must be equal too. | Override `Equals` and `GetHashCode` together. |
+| **Dispose cleans now** | `Dispose` cleans resources now. | A finalizer runs later, so I prefer `using` and `Dispose`. |
+| **Long life can leak** | A long-lived object can keep other objects alive by mistake. | Common examples: events, static caches, singleton holding scoped services. |
 
 ---
 
 # PART 0 — THE 12 C# ANSWERS THAT WIN
 
-| # | The question | The answer, in one breath |
+| # | The question | Simple answer |
 |---|---|---|
-| 1 | **Money** | "`decimal`. It's base-10 and exact for decimal fractions. `double` is binary — `0.1 + 0.2` isn't `0.3`. In finance, `decimal`, always, and I wrap the arithmetic in `checked`." |
-| 2 | **Do value types live on the stack?** | "No — that's the trap. **Where** a value lives depends on where it's declared. A struct field inside a class lives on the heap, inline with the object. Stack vs heap is about storage, not about value vs reference." |
-| 3 | **Boxing** | "Wrapping a value type in a heap object so it can be treated as `object`. It costs an allocation and a copy. In a tick handler that's a real performance bug." |
-| 4 | **The GC** | "Generational, mark-sweep-compact. Gen 0 is cheap and most objects die there. Gen 2 is the expensive one. Large objects — 85 KB and up — go on the Large Object Heap, which historically isn't compacted, so you get fragmentation." |
-| 5 | **Low latency in .NET** | "**Don't tune the GC — reduce allocation.** Structs, `Span<T>`, `ArrayPool`, object pooling, no LINQ or closures in the hot path." |
-| 6 | **`IEnumerable` vs `IQueryable`** | "In-memory versus an expression tree the provider turns into SQL. Call `ToList()` too early and you pull the whole table and filter in memory." |
-| 7 | **`Equals` and `GetHashCode`** | "Override one, you must override the other. Hash-based collections find the bucket first — mismatch and the dictionary loses your item. And never hash a field you'll mutate." |
-| 8 | **`throw;` vs `throw ex;`** | "`throw;` keeps the original stack trace. `throw ex;` resets it and you lose where it came from." |
-| 9 | **DI lifetimes** | "Singleton, Scoped, Transient. The trap is the **captive dependency** — inject a Scoped into a Singleton and it lives forever, which breaks scoping and usually `DbContext`." |
-| 10 | **N+1 in EF** | "One query for the parents, then one per child. Fix with `Include`, or better, project to a DTO with `Select` so you only fetch the columns you need." |
-| 11 | **`HttpClient`** | "`new HttpClient()` per call exhausts sockets. A static one never picks up DNS changes. Use `IHttpClientFactory` — it solves both." |
-| 12 | **Value objects** | "A `record`. It generates value-based `Equals`, `GetHashCode` and `ToString`, and `with` gives non-destructive copies." |
+| 1 | **Money** | "For money I use `decimal`, never `double`. It is exact for normal decimal numbers." |
+| 2 | **Do value types live on the stack?** | "Not always. Where it lives depends on where it is stored, not only on the type." |
+| 3 | **Boxing** | "Boxing wraps a value as an object. It allocates memory, so I avoid it in hot code." |
+| 4 | **The GC** | "The GC cleans managed memory in generations. Short-lived objects are cheap; long-lived and large objects cost more." |
+| 5 | **Low latency in .NET** | "I first reduce allocations. Fewer objects means less GC work and fewer pauses." |
+| 6 | **`IEnumerable` vs `IQueryable`** | "`IQueryable` can still become SQL. `IEnumerable` is already in memory. Do not call `ToList()` too early." |
+| 7 | **`Equals` and `GetHashCode`** | "If I override equality, I also override the hash. Equal objects must have equal hashes." |
+| 8 | **`throw;` vs `throw ex;`** | "`throw;` keeps the original error location. `throw ex;` loses it." |
+| 9 | **DI lifetimes** | "Singleton lives longest, scoped lives per request, transient is new each time. Do not put scoped services inside singletons." |
+| 10 | **N+1 in EF** | "N+1 means one query, then one more per row. I fix it by loading the needed data in one planned query." |
+| 11 | **`HttpClient`** | "I use `IHttpClientFactory`. It avoids socket problems and handles DNS changes better." |
+| 12 | **Value objects** | "A C# `record` is a good fit for value objects because equality is based on values." |
 
 ---
 
@@ -146,7 +146,9 @@ int.TryParse(symbol, out var value);                   // allocation-free parsin
 
 ## 2.1 How it works
 
-**Say:** *"It's a generational, tracing, mark-sweep-and-compact collector.*
+**Say:** *"The GC finds objects still in use, frees the rest, and keeps short-lived and long-lived
+objects in different groups. In simple terms: it finds live objects, frees dead objects, and tidies
+memory.*
 - ***Gen 0*** *is new small objects. Collected very often, very cheaply — most objects die here.*
 - ***Gen 1*** *is survivors of gen 0, a buffer between short- and long-lived.*
 - ***Gen 2*** *is long-lived. Collected rarely, and a full gen 2 is the expensive pause.*
