@@ -9,6 +9,25 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then expand with a project example.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Problem before pattern** | Never recite definitions first. | Explain the constraint, the trade-off, and the project example. |
+| **DI singleton, not static singleton** | One instance is a lifetime choice. | Testability, explicit dependencies, container-managed lifetime. |
+| **Order is state** | Status transitions belong inside the aggregate. | State pattern, valid transitions, no external status mutation. |
+| **Decorator wraps behavior** | Add retry/log/cache without changing the core type. | ASP.NET middleware, MediatR pipeline, Python decorators. |
+| **CQRS is not event sourcing** | Separate reads/writes does not require event storage. | One DB or many, read models, write model, projection cost. |
+| **Outbox fixes dual write** | Write state and message record in one DB transaction. | Relay publishes later, idempotent publish, at-least-once delivery. |
+| **Exactly-once effects** | Delivery is at-least-once; processing must be idempotent. | Idempotency keys, dedupe tables, upserts, natural idempotence. |
+| **PACELC is senior CAP** | Even without a partition, latency and consistency trade off. | Partition choice: consistency vs availability; normal case: latency vs consistency. |
+| **Modular monolith first** | Split services only for a real reason. | Independent scale, release, ownership; network latency and failure cost. |
+| **Strangler plus shadow** | Replace legacy gradually and compare outputs. | Routing slices, old/new side by side, reconciliation before cutover. |
+
+---
+
 # PART 0 — THE 10 ARCHITECTURE ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |

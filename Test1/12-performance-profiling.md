@@ -5,6 +5,26 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then expand only where the
+interviewer pushes.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Measure first** | Do not optimise by guessing. | Define target, profile real workload, fix one thing, measure again. |
+| **p99 beats average** | The tail is what users feel. | p50/p95/p99/p99.9, coordinated omission, market-open load shape. |
+| **Find the dominant term** | Optimise the part that actually costs time. | Amdahl's law, flame graphs, traces, request breakdown. |
+| **Usually I/O, allocation, N+1** | The bottleneck is rarely the interesting algorithm. | Database calls, over-fetching, remote calls, GC pressure. |
+| **BenchmarkDotNet or it did not happen** | Microbenchmarks need warm-up and stats. | `[MemoryDiagnoser]`, JIT warm-up, outliers, no raw `Stopwatch` loop. |
+| **Sampling in prod** | Low overhead beats perfect local detail. | `dotnet-trace`, PerfView, py-spy; instrumenting profilers distort timings. |
+| **Allocation drives GC** | Low-latency .NET means fewer objects. | Gen 0 rate, gen 2 pauses, LOH fragmentation, pooling, `Span<T>`. |
+| **Queue length tells starvation** | Throughput collapse often means blocked async. | ThreadPool queue length, `.Result`/`.Wait()`, async all the way. |
+| **Cache carefully** | Fast wrong data is still wrong. | Reference data caches, TTL jitter, stampede protection, avoid caching live prices blindly. |
+| **Load shape matters** | Market traffic is not uniform. | Spike, soak, stress, realistic distributions, SLO-based testing. |
+
+---
+
 # PART 0 — THE 8 ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |

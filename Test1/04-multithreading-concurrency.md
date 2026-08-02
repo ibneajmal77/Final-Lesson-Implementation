@@ -8,6 +8,25 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then expand only where the
+interviewer pushes.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Waiting is not working** | I/O uses async; CPU uses threads. | `async/await` for network/disk/db waits; thread pool, `Parallel`, PLINQ or dedicated threads for compute. |
+| **Await returns** | `await` does not block a thread. | Compiler state machine, continuation, synchronization context, UI resume rules. |
+| **UI deadlock loop** | Blocking the UI blocks the continuation. | `.Result`/`.Wait()` on WPF thread plus captured context; fix with async all the way or library `ConfigureAwait(false)`. |
+| **Volatile is visibility** | It is not atomic. | Prevents reordering/stale reads; `Interlocked` for read-modify-write and compare-and-swap. |
+| **Lock order wins** | Deadlock prevention is mostly order. | Coffman conditions, break circular wait, timeouts, smaller lock scope. |
+| **Bounded means backpressure** | A full queue is a signal, not a surprise. | `System.Threading.Channels`, bounded capacity, drop policy, producer/consumer cancellation. |
+| **Single writer** | One owner per piece of state. | Partition by instrument/account to avoid shared mutable state and reduce locking. |
+| **Conflate the grid** | Latest value matters more than every tick. | Latest per instrument, batch, flush on timer, equality guard, virtualized UI. |
+| **p99 beats average** | Tail latency is what hurts. | Measure p50/p99/p99.9, coordinated omission, load shape, market-open spikes. |
+
+---
+
 # PART 0 — THE 10 CONCURRENCY ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |

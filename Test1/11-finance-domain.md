@@ -11,6 +11,26 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then expand honestly as an
+engineer, not as a quant.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Buy-side owns money** | Asset managers invest capital; sell-side executes and makes markets. | Sovereign wealth funds, PMs, traders, brokers, custodians. |
+| **PMS decides, OMS controls, EMS executes** | Three systems, three jobs. | Portfolio target, order workflow/audit, execution quality and venue routing. |
+| **Order is a state machine** | Orders move through valid statuses. | New, PendingNew, PartiallyFilled, Filled, Cancelled, Rejected, cancel/replace race. |
+| **Partial fills are normal** | One order becomes many executions. | Position updates after each fill, allocation, settlement, reconciliation. |
+| **Dedupe on ExecID** | Execution reports can repeat. | At-least-once delivery, `MsgSeqNum`, reconnect replay, idempotent consumer. |
+| **FIX is tag=value** | Trading messages are sequenced fields. | `35=D`, `35=8`, `11=ClOrdID`, sessions, sequence reset. |
+| **Numbers are the product** | Money must be exact. | `decimal`/`Decimal`/`DECIMAL`, instrument precision, explicit rounding. |
+| **Audit asks why** | Regulators need the reason, not only the value. | Event sourcing, point-in-time data, bitemporal history, replay. |
+| **P&L has two states** | Realised is closed; unrealised is open. | Mark-to-market, average/FIFO cost, valuation source. |
+| **Engineer, not quant** | Implement models correctly, precisely, and fast. | Markowitz mean-variance as constrained quadratic optimisation; ask domain expectations. |
+
+---
+
 # PART 0 — THE 10 DOMAIN LINES THAT WIN
 
 | # | The question | The answer, in one breath |

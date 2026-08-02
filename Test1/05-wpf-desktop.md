@@ -8,6 +8,25 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then expand only where the
+interviewer pushes.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Retained tree** | You describe objects; WPF renders them. | Visual tree, logical tree, templates, GPU composition, high-DPI vector UI. |
+| **XAML builds objects** | Markup is object construction. | XAML maps to CLR objects, properties, resources, bindings, templates. |
+| **DPs are shared storage** | Controls do not store every property in fields. | Sparse property store, inheritance, notification, animation, styling, value precedence. |
+| **Local beats style** | Code-set values override triggers. | DP precedence: animation, local value, template/style triggers, setters, inherited, default; fix with `ClearValue()`. |
+| **VMs notify, controls depend** | View-models use `INotifyPropertyChanged`; controls use DPs. | MVVM boundary, testability, no `System.Windows.Controls` in view-models. |
+| **Collection is not item** | `ObservableCollection` reports add/remove, not row field changes. | Item types need `INotifyPropertyChanged`; computed properties need manual raises. |
+| **Dispatcher owns UI** | Only the UI thread touches WPF objects. | Thread affinity, `Dispatcher.InvokeAsync`, `DispatcherTimer`, background work, cancellation. |
+| **Conflate, batch, flush** | Never update the grid per tick. | Latest per instrument, bounded channel, timer flush, equality guard, virtualization with recycling. |
+| **Virtualize or freeze** | Big grids need fewer visual objects. | Recycling, shallow visual tree, frozen brushes/geometries, binding error tracing. |
+
+---
+
 # PART 0 — THE 10 WPF ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |

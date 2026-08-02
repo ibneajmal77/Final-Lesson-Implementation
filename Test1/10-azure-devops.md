@@ -8,6 +8,25 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then expand only where the
+interviewer pushes.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Ask where it runs** | On-prem, Azure, or hybrid changes the answer. | Data residency, regulated workloads, sovereign regions, ExpressRoute. |
+| **Three event services** | Service Bus commands, Event Hubs streams, Event Grid notifications. | Sessions, DLQ, partitions, offsets, routing, fan-out. |
+| **Build once** | The same artefact moves through environments. | Config from environment, promotion, signing, provenance, repeatability. |
+| **Migrations are hard** | Database change controls rollback. | Expand/contract, backfill, dual writes, approvals, compatibility windows. |
+| **Deploy is not release** | Feature flags separate shipping from exposing. | Blue/green, canary, rollback, progressive rollout. |
+| **No secrets** | Prefer identity over stored passwords. | Managed identity, workload identity federation, Key Vault, rotation. |
+| **Desktop distribution** | WPF deploy is not `kubectl apply`. | MSI/MSIX, code signing, SCCM/Intune, staged trader rollout, rollback. |
+| **Observe before blame** | Logs alone are not enough. | Metrics, traces, logs, correlation IDs, OpenTelemetry, KQL, SLOs. |
+| **Market hours matter** | Release windows are a business constraint. | Change approval, segregation of duties, no deployment during trading hours. |
+
+---
+
 # PART 0 — THE 8 ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |

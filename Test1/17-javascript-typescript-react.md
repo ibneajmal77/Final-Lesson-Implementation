@@ -16,6 +16,26 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. This topic is medium priority for the role, so keep
+answers short unless they ask for depth.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **One thread, no waiting** | JavaScript is single-threaded but non-blocking. | Runtime handles I/O, callbacks queue, blocking loop freezes the page like WPF dispatcher. |
+| **Sync, promises, timers** | Promise callbacks run before timers. | Call stack, microtask queue, macrotask queue, event loop order. |
+| **`const` locks the label** | The object can still change. | Reference binding vs object immutability, like C# `readonly` reference fields. |
+| **Use `===`** | Avoid type coercion surprises. | `==` conversion rules, `x == null` as the only practical exception. |
+| **Promise = Task** | It is a future value. | `async`/`await`, `Promise.all`, rejection handling, cancellation gap. |
+| **Types erase** | TypeScript is build-time safety only. | Runtime validation with Zod/io-ts/Pydantic-style edge validation. |
+| **UI = f(state)** | React renders from state. | Components, props, state, reconciliation, virtual DOM mental model. |
+| **State is snapshots** | Do not mutate state directly. | Immutable updates, re-render triggers, stale closures, functional setters. |
+| **Effects sync with outside world** | `useEffect` is for side effects, not derived data. | Dependencies, cleanup, fetches, subscriptions, timers. |
+| **Backend-heavy honesty** | Calibrate frontend depth early. | Medium job requirement; focus interview time on .NET, data, real-time systems. |
+
+---
+
 # PART 0 — THE HONEST CALIBRATION LINE (use it if frontend comes up)
 
 Your CV lists a lot of frontend. If your real depth is thinner, **say so early and simply.**

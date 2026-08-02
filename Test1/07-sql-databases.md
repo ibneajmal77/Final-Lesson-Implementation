@@ -7,6 +7,26 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then give the technical load only
+if they ask for depth.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Actual plan first** | Do not guess why a query is slow. | Actual execution plan, scans, seeks, lookups, estimate vs actual rows, stats. |
+| **WHERE cancels LEFT** | A right-table filter in `WHERE` removes null rows. | Put right-table predicates in `ON` to preserve `LEFT JOIN` semantics. |
+| **NULL kills `NOT IN`** | One null can make the result empty. | Three-valued logic; use `NOT EXISTS`. |
+| **Window keeps rows** | Aggregate without collapsing the result. | `ROW_NUMBER`, `RANK`, `LAG`, running totals, explicit `ROWS` frame. |
+| **Latest row = row number** | Rank each group and keep rank 1. | `PARTITION BY symbol ORDER BY ts DESC`, alternatives: `CROSS APPLY`, `DISTINCT ON`. |
+| **Cover the query** | Answer from the index alone. | Key columns plus `INCLUDE`, no key lookup, write cost trade-off. |
+| **Leftmost prefix** | Composite index order matters. | `(symbol, ts)` helps symbol filters; not ts-only filters. |
+| **Keep it SARGable** | Do not wrap indexed columns in functions. | Range predicates allow seeks; `YEAR(ts)` causes scans. |
+| **Keyset beats offset** | Deep paging should use the last seen key. | Stable, constant-cost paging with timestamp/id cursor. |
+| **Columnar for analytics** | Read few columns across many rows. | Tick history, compression, vectorized scans; not OLTP order writes. |
+
+---
+
 # PART 0 — THE 10 SQL ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |

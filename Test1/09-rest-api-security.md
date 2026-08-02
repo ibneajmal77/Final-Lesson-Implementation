@@ -8,6 +8,26 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then expand only where the
+interviewer pushes.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **401 who, 403 allowed** | Authentication vs authorisation. | Challenge on 401, deny on 403, object-level checks every request. |
+| **Idempotency survives retries** | Doing it twice should not double-charge or double-order. | GET/PUT/DELETE idempotent; POST with `Idempotency-Key`. |
+| **PKCE for desktop** | Public clients cannot keep secrets. | Authorization Code + PKCE, loopback/custom URI, OS secure token store. |
+| **OAuth grants access** | OIDC tells identity. | Access token for APIs, ID token for client login, never call API with ID token. |
+| **JWT trust is explicit** | Verify every trust boundary. | JWKS signature, `iss`, `aud`, `exp`, algorithm pinning, no `alg:none`. |
+| **JWT revokes poorly** | Self-contained tokens live until expiry. | Short expiry, refresh rotation, opaque tokens/introspection for high-value ops. |
+| **BOLA is the big one** | Never trust an object id from the client. | Authorise `this user` against `this object` on every request. |
+| **ETag guards writes** | Read version, write only if unchanged. | `ETag`, `If-Match`, `412`, HTTP optimistic concurrency. |
+| **Cursor beats offset** | Large/live datasets need stable paging. | Keyset pagination, sort key, next cursor, no deep offset scan. |
+| **Problem Details** | Errors need a standard shape. | RFC 7807/9457, correlation ID, safe messages, OpenAPI contract. |
+
+---
+
 # PART 0 — THE 10 API ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |

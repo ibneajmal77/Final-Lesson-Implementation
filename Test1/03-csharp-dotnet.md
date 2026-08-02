@@ -9,6 +9,24 @@
 
 ---
 
+# FULL TECH LOAD MEMORY HOOKS
+
+Use these as labels for the full detail below. Say the hook first, then give the technical load only
+if they ask for depth.
+
+| Hook | Simple wording | Full tech load to keep |
+|---|---|---|
+| **Money = decimal** | Cash needs exact base-10 maths. | `decimal`/`Decimal`/`DECIMAL`, explicit rounding, `checked` arithmetic. |
+| **Declaration decides location** | A struct is not automatically stack memory. | Locals can be on the stack; struct fields inside classes live inline on the heap. |
+| **Boxing allocates** | A value gets wrapped as an object. | Heap allocation, copy, indirection, GC pressure; avoid in hot paths. |
+| **Allocate less** | Low latency is mostly fewer allocations. | Gen 0/1/2, LOH at 85 KB, pooling, `ArrayPool<T>`, `Span<T>`, no LINQ in tick handlers. |
+| **Query stays SQL** | Keep database work in the database. | `IQueryable` expression tree vs `IEnumerable` in memory; `ToList()` too early causes client filtering. |
+| **Hash must match equals** | If two values are equal, their hashes must be equal. | Override both; never hash mutable fields. |
+| **Dispose now, finalizer later** | `Dispose` is controlled cleanup. | `using`, `IAsyncDisposable`, `SafeHandle`, `GC.SuppressFinalize`. |
+| **Lifetime leaks** | A long-lived object can accidentally hold short-lived state. | Singleton/scoped/transient, captive dependencies, `DbContext`, event handler leaks. |
+
+---
+
 # PART 0 — THE 12 C# ANSWERS THAT WIN
 
 | # | The question | The answer, in one breath |
