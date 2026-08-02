@@ -31,18 +31,18 @@ ask for more.
 
 # PART 0 — THE 10 ARCHITECTURE ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **Singleton** | "I prefer a DI singleton lifetime, not static singleton code." |
-| 2 | **Order lifecycle** | "An order is a state machine. The order should control valid status changes." |
-| 3 | **Retry, caching, logging** | "Use a decorator or middleware to wrap behavior around the core code." |
-| 4 | **CQRS** | "CQRS means separate read and write models. It does not automatically mean event sourcing." |
-| 5 | **Event sourcing** | "Store events, then rebuild state from those events. Good for audit, but more complex." |
-| 6 | **Exactly-once delivery** | "Delivery can repeat. Make the processing safe to repeat." |
-| 7 | **Dual writes** | "Use an outbox: save the data change and message record in the same database transaction." |
-| 8 | **CAP** | "When the network breaks, you choose consistency or availability." |
-| 9 | **Microservices?** | "Start with a modular monolith. Split services only for a real reason." |
-| 10 | **Legacy modernisation** | "Replace legacy systems slowly. Run old and new side by side before switching." |
+| 1 | **Singleton** | "I prefer DI singleton lifetime instead of static singleton code. The container owns the one instance, dependencies stay visible, and tests can replace it." |
+| 2 | **Order lifecycle** | "An order is a state machine. It moves through valid states like New, PartiallyFilled, Filled, Cancelled, or Rejected. The order object should own those transitions." |
+| 3 | **Retry, caching, logging** | "Use a decorator or middleware to wrap behavior around the core code. The business code stays clean, and retry, logging, caching, or timing can be added outside it." |
+| 4 | **CQRS** | "CQRS means separate models for reads and writes. It can be one database or many. It does not automatically mean event sourcing." |
+| 5 | **Event sourcing** | "Event sourcing stores the facts that happened, then rebuilds current state from those facts. It gives strong audit and replay, but it adds work around projections, versions, and snapshots." |
+| 6 | **Exactly-once delivery** | "Messages can be delivered more than once. The real goal is safe repeat handling: use idempotency keys, dedupe tables, or upserts so repeating the message has the same final effect." |
+| 7 | **Dual writes** | "The outbox pattern avoids writing data and publishing a message separately. I save the data change and an outbox row in one database transaction, then a relay publishes the message later." |
+| 8 | **CAP** | "When the network breaks between nodes, a distributed system must choose whether to stay consistent or stay available. In normal times, there is also a trade-off between low latency and stronger consistency." |
+| 9 | **Microservices?** | "I start with a modular monolith by default. I split a service only when I need independent scaling, independent release, or clear team ownership. Every network call adds latency and failure risk." |
+| 10 | **Legacy modernisation** | "Do not replace a legacy system in one big move. Replace it piece by piece, run old and new side by side, compare results, and switch traffic only when the new path is trusted." |
 
 ---
 

@@ -43,14 +43,23 @@ five-hour exam.**
 
 The whole pack uses one format, so you always know what you're looking at:
 
-> **Q:** the question they ask
-> **Say:** the exact words you speak — short, then stop
-> **Remember:** a one-line hook so it sticks
+Use every technical lesson in this order:
+
+1. **Easy Memory Notes** — short hooks so the idea stays in your head.
+2. **Part 0** — the full interview answer, but written in simple words.
+3. **Deep sections** — the extra detail you use only if they push.
+4. **Rapid-fire** — cover the answer column and speak out loud.
+
+Inside the lessons:
+
+> **Remember:** the short phrase
+> **Say:** the answer in plain words
+> **If they ask more:** the deeper technical point
 > ⚠️ the follow-up they'll try, or the trap
 
 **Every file opens with "THE ANSWERS THAT WIN"** — a table of the handful of answers that carry that
-topic. **If you're short on time, read only those tables.** They are about 15 minutes total across
-the whole pack and they cover most of what gets asked.
+topic. Those tables now keep the technical depth, but the wording is simpler. **If you're short on
+time, read Easy Memory Notes plus Part 0.**
 
 **Every file ends with rapid-fire questions.** Cover the answer column and say them out loud.
 ⚠️ **Reading silently is worth about 20% of the value. Speaking is what builds recall under

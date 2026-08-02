@@ -33,18 +33,18 @@ ask for more.
 
 # PART 0 — THE 10 DOMAIN LINES THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **Buy-side vs sell-side** | "Buy-side invests money. Sell-side helps trade and execute." |
-| 2 | **The order lifecycle** | "Create order, check rules, route it, receive fills, allocate, settle, reconcile." |
-| 3 | **OMS vs EMS vs PMS** | "PMS decides what to own. OMS manages orders. EMS executes orders." |
-| 4 | **What is FIX?** | "FIX is trading messages made of tag=value fields." |
-| 5 | **Money** | "Use decimal types for money. Never float." |
-| 6 | **Realised vs unrealised P&L** | "Realised is closed trades. Unrealised is open positions valued now." |
-| 7 | **The hard engineering problem** | "Execution reports can duplicate or arrive out of order, so I dedupe and handle repeats safely." |
-| 8 | **Why audit matters** | "Finance systems must explain why a number had a value at a specific time." |
-| 9 | **Financial optimisation** | "I know the basic idea: choose portfolio weights under rules. I would implement the model carefully." |
-| 10 | **Your honest frame** | "I am an engineer, not a quant. My job is correct, precise, fast implementation." |
+| 1 | **Buy-side vs sell-side** | "Buy-side firms invest money: asset managers, pension funds, sovereign wealth funds. Sell-side firms help execute trades or make markets: banks and brokers." |
+| 2 | **The order lifecycle** | "A normal order flow is: create order, check pre-trade rules, route it, receive partial or full fills, allocate, settle, and reconcile against the custodian." |
+| 3 | **OMS vs EMS vs PMS** | "PMS answers what the portfolio should own. OMS manages the order and audit trail. EMS focuses on execution quality and routing." |
+| 4 | **What is FIX?** | "FIX is a common trading message format made of tag=value fields over a sequenced session. For example, `35=D` is a new order and `35=8` is an execution report." |
+| 5 | **Money** | "Use exact decimal types for money: `decimal` in C#, `Decimal` in Python, and `DECIMAL` in SQL. Never use float for cash values." |
+| 6 | **Realised vs unrealised P&L** | "Realised P&L comes from closed trades. Unrealised P&L is the current gain or loss on positions still open, usually marked to market." |
+| 7 | **The hard engineering problem** | "Execution reports can duplicate, arrive late, or arrive out of order. The system must dedupe, handle repeats safely, and keep positions correct after every fill." |
+| 8 | **Why audit matters** | "Finance systems must explain not only the current number, but why that number was true at a specific time. That is why event history and point-in-time data matter." |
+| 9 | **Financial optimisation** | "The basic idea is choosing portfolio weights to balance return and risk under rules. I am not claiming quant depth, but I can implement a specified model carefully and test it." |
+| 10 | **Your honest frame** | "I am an engineer, not a quant. My job is to implement models correctly, precisely, fast, and in a way that is testable and explainable." |
 
 ---
 

@@ -29,18 +29,18 @@ ask for more.
 
 # PART 0 — THE 10 SQL ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **This query is slow. What do you do?** | "I check the actual execution plan first, then fix one clear problem and measure again." |
-| 2 | **Latest row per group** | "Use `ROW_NUMBER()` per group, order newest first, and keep row 1." |
-| 3 | **The `LEFT JOIN` trap** | "A right-table filter in `WHERE` can break a `LEFT JOIN`. Put it in `ON`." |
-| 4 | **The `NOT IN` trap** | "`NOT IN` behaves badly with `NULL`. Use `NOT EXISTS`." |
-| 5 | **Covering index** | "A covering index has all columns the query needs, so SQL can answer from the index." |
-| 6 | **Composite index order** | "In a multi-column index, the first column matters most." |
-| 7 | **SARGable** | "Do not wrap indexed columns in functions. Use ranges so the index can be used." |
-| 8 | **Deadlocks** | "Two transactions each wait for the other. Use the same access order and retry if needed." |
-| 9 | **Money in the database** | "Use `DECIMAL`, never `FLOAT`, for money." |
-| 10 | **Deep pagination** | "Offset gets slower on deep pages. Use keyset or cursor paging." |
+| 1 | **This query is slow. What do you do?** | "I get the actual execution plan first. I look for scans, lookups, bad row estimates, missing indexes, and filters that stop index use. Then I fix one thing and measure again." |
+| 2 | **Latest row per group** | "Use `ROW_NUMBER()` over each group, order newest first, and keep row 1. Example: latest price per symbol is partition by symbol and order by timestamp descending." |
+| 3 | **The `LEFT JOIN` trap** | "If I put a filter on the right table in `WHERE`, I can accidentally remove the null rows and turn the `LEFT JOIN` into an `INNER JOIN`. The right-side filter belongs in `ON`." |
+| 4 | **The `NOT IN` trap** | "`NOT IN` behaves badly when the subquery contains `NULL`; it can return no rows. I use `NOT EXISTS` because it handles this safely." |
+| 5 | **Covering index** | "A covering index contains all columns the query needs. Then SQL can answer from the index and does not need to go back to the table for missing columns." |
+| 6 | **Composite index order** | "In a multi-column index, the first column matters most. An index on `(symbol, time)` helps queries by symbol, but not a query filtering only by time." |
+| 7 | **SARGable** | "The simple idea is: write filters so indexes can be used. Do not wrap indexed columns in functions. Use date ranges instead of `YEAR(date)`." |
+| 8 | **Deadlocks** | "A deadlock happens when two transactions each hold something the other needs. I reduce this by touching tables in the same order and retrying safely if the database picks my transaction as the victim." |
+| 9 | **Money in the database** | "Use `DECIMAL` for money, never `FLOAT`. This matches `decimal` in C# and `Decimal` in Python." |
+| 10 | **Deep pagination** | "`OFFSET` gets slower on deep pages because the database still walks past earlier rows. Cursor or keyset paging uses the last seen key and stays fast." |
 
 ---
 

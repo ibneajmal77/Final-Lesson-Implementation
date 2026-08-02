@@ -57,20 +57,20 @@ ask for more.
 
 # PART 0 — THE 12 ANSWERS THAT WIN
 
-| # | Question | Say this |
+| # | Question | Full answer in simple words |
 |---|---|---|
-| 1 | **What is FastAPI?** | "FastAPI is a Python API framework, similar to ASP.NET Core Minimal API." |
-| 2 | **Why is it fast?** | "It uses async server plumbing and fast Pydantic validation." |
-| 3 | **What does Pydantic do?** | "It checks incoming data and turns it into typed Python objects." |
-| 4 | **The biggest trap?** | "Do not put blocking code inside an `async def` route." |
-| 5 | **`def` vs `async def` route?** | "Use `async def` only when the code inside can `await`. Use `def` for blocking libraries." |
-| 6 | **Dependency injection?** | "`Depends()` gives routes things like DB sessions, settings, or the current user." |
-| 7 | **Docs?** | "FastAPI creates OpenAPI and Swagger docs from the code." |
-| 8 | **Auth?** | "Check the JWT in a dependency before the route runs." |
-| 9 | **How do you run it?** | "Run Uvicorn workers, usually behind Nginx or another reverse proxy." |
-| 10 | **Response model?** | "The response model controls what the API returns, so private fields do not leak." |
-| 11 | **Background jobs?** | "`BackgroundTasks` is for small after-response work. Use a real queue for important jobs." |
-| 12 | **vs Django?** | "FastAPI is best for APIs. Django is best when you want the full web product stack." |
+| 1 | **What is FastAPI?** | "FastAPI is a Python framework for building APIs. It feels close to ASP.NET Core Minimal API: routes are functions, type hints describe inputs, and the framework handles validation and docs." |
+| 2 | **Why is it fast?** | "FastAPI sits on async web plumbing, so it handles many waiting requests well. Pydantic validation is also fast. It is fast for Python, but ASP.NET Core is still faster for raw throughput." |
+| 3 | **What does Pydantic do?** | "Pydantic checks incoming data, converts it where safe, and gives me a typed Python object. It is like model binding plus validation." |
+| 4 | **The biggest trap?** | "Do not put blocking code inside an `async def` route. One blocking database or HTTP call can freeze the event loop. Use true async libraries or make the route plain `def`." |
+| 5 | **`def` vs `async def` route?** | "`async def` runs on the event loop, so everything inside should be awaitable. Plain `def` runs in a thread pool, which is safer for blocking libraries." |
+| 6 | **Dependency injection?** | "`Depends()` gives routes the things they need: DB sessions, settings, current user, permissions. It is also easy to override in tests." |
+| 7 | **Docs?** | "FastAPI creates OpenAPI automatically from routes and type hints. `/docs` gives Swagger UI, and `/openapi.json` gives the contract." |
+| 8 | **Auth?** | "I usually check auth in a dependency. It reads the bearer token, validates the JWT, checks expiry and issuer, and loads the current user before the route body runs." |
+| 9 | **How do you run it?** | "In production I run multiple Uvicorn workers, usually behind Nginx or another reverse proxy. Multiple processes matter because Python has the GIL." |
+| 10 | **Response model?** | "The response model is the output contract. It filters what leaves the API, so fields like password hashes do not leak from ORM objects." |
+| 11 | **Background jobs?** | "`BackgroundTasks` is fine for small after-response work, like sending a simple email. For important work that must survive restarts, use a real queue like Celery, RQ, or ARQ." |
+| 12 | **vs Django?** | "FastAPI is best for focused APIs and async services. Django is best when I want a full product stack: ORM, admin, auth, migrations, forms, and templates." |
 
 ---
 

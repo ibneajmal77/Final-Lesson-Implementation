@@ -74,23 +74,23 @@ ask for more.
 
 Each one is a complete answer. Learn these first.
 
-| # | Question | Say this |
+| # | Question | Full answer in simple words |
 |---|---|---|
-| 1 | **What is the GIL?** | "It is one lock around normal Python code. Threads help waiting, not heavy CPU work." |
-| 2 | **CPU work or waiting work?** | "Waiting uses async or threads. CPU work uses processes or NumPy." |
-| 3 | **The asyncio trap** | "One blocking call can freeze the whole event loop." |
-| 4 | **Money** | "Never use float for money. Use `Decimal` or integer cents." |
-| 5 | **Mutable default arg** | "Do not use `[]` as a default argument. Use `None` and create the list inside." |
-| 6 | **`is` vs `==`** | "`==` checks value. `is` checks same object. I use `is` for `None`." |
-| 7 | **Are type hints enforced?** | "No. Python does not enforce them at runtime. I validate real input at the edge." |
-| 8 | **File too big for memory** | "Use a generator. Read one row at a time." |
-| 9 | **Pandas is slow** | "Do not loop row by row. Work on whole columns." |
-| 10 | **How is memory freed?** | "Python frees most objects when nothing points at them anymore." |
-| 11 | **Shallow vs deep copy** | "Shallow copies the outer object. Deep copies the inside too." |
-| 12 | **What is a decorator?** | "A decorator wraps a function to add behavior like logging or timing." |
-| 13 | **`__init__` vs `__new__`** | "`__new__` creates the object. `__init__` fills it with values." |
-| 14 | **Dataclass vs Pydantic** | "Dataclass reduces code inside the app. Pydantic validates outside input." |
-| 15 | **Python in a .NET shop** | "Use .NET for the core system and Python for analytics or data work behind an API." |
+| 1 | **What is the GIL?** | "The GIL is one lock around normal Python code in CPython. It means only one thread runs Python bytecode at a time. Threads still help I/O waiting, but for CPU-heavy work I use processes or C/NumPy code." |
+| 2 | **CPU work or waiting work?** | "If the code is waiting on I/O, I use `asyncio` or threads. If the code is doing heavy CPU work, I use processes or NumPy, because normal Python threads do not run CPU code in parallel." |
+| 3 | **The asyncio trap** | "`asyncio` runs on one event loop. One blocking call, like `time.sleep()` or a blocking HTTP client, can freeze everything. Use async libraries or push blocking work to a thread." |
+| 4 | **Money** | "Never use float for money. Floats are fine for statistics, but money needs exact decimal rules. Use `Decimal` from strings, or store whole cents/pennies as integers." |
+| 5 | **Mutable default arg** | "Do not write `items=[]` as a default. Python creates that list once when the function is defined, so every call shares it. Use `None`, then create a new list inside." |
+| 6 | **`is` vs `==`** | "`==` asks whether values are equal. `is` asks whether both names point to the exact same object. I use `is` for `None` and normal equality for values." |
+| 7 | **Are type hints enforced?** | "No. Python type hints help editors, reviews, and tools like mypy, but Python does not enforce them at runtime. For real external input, I validate at the boundary with Pydantic or similar." |
+| 8 | **File too big for memory** | "Use a generator and process one row at a time. That keeps memory almost constant no matter how large the file is." |
+| 9 | **Pandas is slow** | "Pandas is slow when I loop row by row in Python. It is fast when I work on whole columns, because the heavy work runs in optimized C/NumPy code." |
+| 10 | **How is memory freed?** | "Python frees most objects as soon as nothing points at them anymore. For objects that point at each other in a cycle, a separate cycle collector cleans them later." |
+| 11 | **Shallow vs deep copy** | "A shallow copy makes a new outer container but keeps the same inner objects. A deep copy copies nested objects too. Deep copy is safer for mutation, but slower." |
+| 12 | **What is a decorator?** | "A decorator wraps a function with extra behavior, without changing the function body. Common uses are logging, timing, caching, retry, and auth." |
+| 13 | **`__init__` vs `__new__`** | "`__new__` creates the object. `__init__` fills that object with values. Most code only needs `__init__`." |
+| 14 | **Dataclass vs Pydantic** | "A dataclass reduces boilerplate for internal objects. Pydantic validates and converts real input, so it belongs at boundaries like APIs, files, and messages." |
+| 15 | **Python in a .NET shop** | "I would keep .NET as the core system of record and use Python for analytics, quant, ML, or data processing. They should talk through a clear HTTP or gRPC contract." |
 
 ---
 

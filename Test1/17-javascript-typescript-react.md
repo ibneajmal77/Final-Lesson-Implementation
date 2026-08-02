@@ -55,18 +55,18 @@ themselves. And for this role backend depth is what they're buying anyway.
 
 # PART 0.5 — THE 10 JAVASCRIPT ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **Is JS single-threaded?** | "Yes. It has one main thread, but slow I/O runs outside it." |
-| 2 | **The event loop** | "JavaScript runs normal code first, then promises, then timers." |
-| 3 | **`var` / `let` / `const`** | "Use `const` first, `let` when reassignment is needed, and avoid `var`." |
-| 4 | **Is `const` immutable?** | "No. The name cannot point somewhere else, but the object can still change." |
-| 5 | **`==` vs `===`** | "Use `===` so JavaScript does not convert types behind your back." |
-| 6 | **Array methods** | "`map`, `filter`, and `reduce` are like LINQ methods." |
-| 7 | **A Promise is…** | "A Promise is like a C# `Task`: a value that arrives later." |
-| 8 | **`this`** | "Normal functions get `this` from how they are called. Arrow functions keep the outside `this`." |
-| 9 | **TypeScript at runtime** | "TypeScript types disappear at runtime, so validate real API data." |
-| 10 | **React in one line** | "React shows the UI for the current state." |
+| 1 | **Is JS single-threaded?** | "Yes, JavaScript has one main thread. Slow I/O is handled by the browser or Node runtime, then the callback runs later when the thread is free." |
+| 2 | **The event loop** | "JavaScript runs normal synchronous code first. Then promise callbacks run. Then timers and other callbacks run. The useful memory rule is: sync, promises, timers." |
+| 3 | **`var` / `let` / `const`** | "Use `const` by default, `let` when reassignment is needed, and avoid `var`. `var` has old function-scope behavior that causes bugs." |
+| 4 | **Is `const` immutable?** | "No. `const` means the variable name cannot point somewhere else. The object it points to can still be changed." |
+| 5 | **`==` vs `===`** | "Use `===` so JavaScript does not convert types before comparing. `==` has surprising conversion rules." |
+| 6 | **Array methods** | "`map`, `filter`, `reduce`, and `find` are like LINQ-style operations over arrays: transform, keep, combine, and find." |
+| 7 | **A Promise is…** | "A Promise is like a C# `Task`: it represents a value or error that will arrive later." |
+| 8 | **`this`** | "In a normal function, `this` depends on how the function is called. In an arrow function, `this` comes from the outer scope, which is why arrows are common in callbacks." |
+| 9 | **TypeScript at runtime** | "TypeScript checks types while building and editing, but those types disappear at runtime. Real API data still needs runtime validation." |
+| 10 | **React in one line** | "React shows the UI for the current state. When state changes, React works out what screen changes are needed." |
 
 ---
 

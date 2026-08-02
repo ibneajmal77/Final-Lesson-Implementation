@@ -29,18 +29,18 @@ ask for more.
 
 # PART 0 — THE 10 CONCURRENCY ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **The framing** | "Waiting uses async. CPU work uses threads. I do not mix those two problems." |
-| 2 | **What does `await` do?** | "`await` pauses the method and frees the thread while the work waits." |
-| 3 | **The classic deadlock** | "Blocking the UI thread with `.Result` can deadlock. The fix is async all the way." |
-| 4 | **`volatile`** | "`volatile` is for visibility. It does not make `x++` safe; use `Interlocked`." |
-| 5 | **Preventing deadlock** | "Take locks in the same order every time." |
-| 6 | **Producer/consumer in .NET today** | "Use a bounded `Channel`. The limit gives backpressure." |
-| 7 | **10,000 ticks a second into a grid** | "Do not update the UI per tick. Keep latest values, batch them, and flush on a timer." |
-| 8 | **Best architecture answer** | "Use one writer per piece of state. That removes most locking." |
-| 9 | **Latency** | "Measure p99, not just average. The slow tail is what hurts users." |
-| 10 | **Low-latency .NET** | "Reduce allocations first. Less allocation means less GC pressure." |
+| 1 | **The framing** | "There are two different problems: waiting and working. Waiting on network, disk, or database uses `async/await`. Real CPU work uses threads, `Parallel`, or processes. Async saves threads; it does not make CPU work faster." |
+| 2 | **What does `await` do?** | "`await` pauses the method when the awaited work is not finished. The thread goes back to the pool or UI loop. When the work completes, the rest of the method continues." |
+| 3 | **The classic deadlock** | "The common desktop deadlock is `.Result` on the UI thread. The async continuation wants the UI thread, but the UI thread is blocked. Fix it by using async all the way, and use `ConfigureAwait(false)` in library code when appropriate." |
+| 4 | **`volatile`** | "`volatile` helps one thread see a fresh value from another thread. It does not make compound actions like `x++` safe. For counters and compare-and-swap, use `Interlocked`." |
+| 5 | **Preventing deadlock** | "The practical rule is: take locks in the same order everywhere. That removes the circular wait, which is the usual cause of deadlock." |
+| 6 | **Producer/consumer in .NET today** | "Use `System.Threading.Channels`, usually bounded. A bounded channel gives backpressure because producers cannot grow memory forever." |
+| 7 | **10,000 ticks a second into a grid** | "Do not update WPF for every tick. Store only the latest value per instrument, batch changes, and flush to the UI on a timer. Then use virtualization so the grid only draws visible rows." |
+| 8 | **Best architecture answer** | "Use the single-writer idea: one thread or actor owns one piece of state. For example, partition by instrument. That gives parallel work without lots of shared mutable state." |
+| 9 | **Latency** | "Measure percentiles, not only average. p99 and p99.9 show the slow tail, which is what traders or users feel." |
+| 10 | **Low-latency .NET** | "Reduce allocations first. Less allocation means less GC pressure and fewer pauses. In hot paths I avoid LINQ, closures, and temporary objects." |
 
 ---
 

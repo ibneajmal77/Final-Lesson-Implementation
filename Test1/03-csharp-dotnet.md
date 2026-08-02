@@ -29,20 +29,20 @@ ask for more.
 
 # PART 0 — THE 12 C# ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **Money** | "For money I use `decimal`, never `double`. It is exact for normal decimal numbers." |
-| 2 | **Do value types live on the stack?** | "Not always. Where it lives depends on where it is stored, not only on the type." |
-| 3 | **Boxing** | "Boxing wraps a value as an object. It allocates memory, so I avoid it in hot code." |
-| 4 | **The GC** | "The GC cleans managed memory in generations. Short-lived objects are cheap; long-lived and large objects cost more." |
-| 5 | **Low latency in .NET** | "I first reduce allocations. Fewer objects means less GC work and fewer pauses." |
-| 6 | **`IEnumerable` vs `IQueryable`** | "`IQueryable` can still become SQL. `IEnumerable` is already in memory. Do not call `ToList()` too early." |
-| 7 | **`Equals` and `GetHashCode`** | "If I override equality, I also override the hash. Equal objects must have equal hashes." |
-| 8 | **`throw;` vs `throw ex;`** | "`throw;` keeps the original error location. `throw ex;` loses it." |
-| 9 | **DI lifetimes** | "Singleton lives longest, scoped lives per request, transient is new each time. Do not put scoped services inside singletons." |
-| 10 | **N+1 in EF** | "N+1 means one query, then one more per row. I fix it by loading the needed data in one planned query." |
-| 11 | **`HttpClient`** | "I use `IHttpClientFactory`. It avoids socket problems and handles DNS changes better." |
-| 12 | **Value objects** | "A C# `record` is a good fit for value objects because equality is based on values." |
+| 1 | **Money** | "For money I use `decimal`, never `double`. `decimal` stores normal base-10 money values accurately, while `double` is binary and can create tiny rounding errors. In finance I also round deliberately and use `checked` when overflow matters." |
+| 2 | **Do value types live on the stack?** | "Not always. A value type copies its data, but its storage location depends on where it is stored. A local struct may be on the stack; a struct field inside a class lives inside that heap object." |
+| 3 | **Boxing** | "Boxing wraps a value type in an object so it can be treated as `object` or an interface. That creates a heap allocation and a copy, so it is bad inside fast loops like tick processing." |
+| 4 | **The GC** | "The GC finds objects still in use, frees objects no longer used, and groups objects by age. New short-lived objects are cheap; old objects and large objects are more expensive and can cause pauses." |
+| 5 | **Low latency in .NET** | "For low latency I first reduce allocations. That means fewer GC pauses. Typical tools are structs for small values, `Span<T>` for slicing without copies, `ArrayPool<T>` for buffers, and no LINQ or closures in the hot path." |
+| 6 | **`IEnumerable` vs `IQueryable`** | "`IQueryable` still represents a query that can become SQL. `IEnumerable` means the data is now in memory. If I call `ToList()` too early, I may pull a whole table into memory and filter there." |
+| 7 | **`Equals` and `GetHashCode`** | "If two objects are equal, they must produce the same hash. So if I override `Equals`, I also override `GetHashCode`, and I never base the hash on fields that can change." |
+| 8 | **`throw;` vs `throw ex;`** | "`throw;` rethrows while keeping the original stack trace. `throw ex;` resets the stack trace, so I lose the real source of the error." |
+| 9 | **DI lifetimes** | "Singleton lives for the app, scoped usually lives for one request, and transient is created each time. The trap is putting a scoped service like `DbContext` into a singleton, because then it lives too long." |
+| 10 | **N+1 in EF** | "N+1 means one query loads parent rows, then one extra query runs for each child relation. I fix it with `Include` when useful, or better with `Select` into a DTO so I fetch only the columns I need." |
+| 11 | **`HttpClient`** | "Creating `HttpClient` for every call can exhaust sockets. Keeping one forever can miss DNS changes. `IHttpClientFactory` manages handlers properly and solves both problems." |
+| 12 | **Value objects** | "A C# `record` is good for value objects because equality is based on values, not identity. It also gives useful `ToString` output and `with` copies." |
 
 ---
 

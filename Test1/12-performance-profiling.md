@@ -27,16 +27,16 @@ ask for more.
 
 # PART 0 — THE 8 ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **How do you approach performance?** | "Measure first, fix one thing, then measure again." |
-| 2 | **Where is it usually?** | "Usually I/O, database calls, allocation, or N+1 queries." |
-| 3 | **How do you measure latency?** | "Use percentiles like p99, not only average." |
-| 4 | **Do you optimise early?** | "I design for known performance needs, but I do not guess at micro-optimisations." |
-| 5 | **Low-latency .NET** | "Reduce allocations before tuning the GC." |
-| 6 | **Throughput collapsed under load** | "Look for blocked thread-pool work or blocking async code." |
-| 7 | **Amdahl's law** | "Improve the part that takes most of the time." |
-| 8 | **Benchmarking** | "Use BenchmarkDotNet for small benchmarks, not a simple `Stopwatch` loop." |
+| 1 | **How do you approach performance?** | "I measure first. I define the target, profile the real workload, find the biggest cost, fix one thing, and measure again." |
+| 2 | **Where is it usually?** | "In business apps it is usually I/O, database calls, over-fetching, allocation, or N+1 queries. The interesting algorithm is often not the real bottleneck." |
+| 3 | **How do you measure latency?** | "I use percentiles like p95, p99, and p99.9, not only average. Average hides the slow tail that users actually notice." |
+| 4 | **Do you optimise early?** | "I design for known performance needs, like data size and latency targets. But I do not guess at micro-optimisations until measurement shows the real cost." |
+| 5 | **Low-latency .NET** | "I reduce allocation before tuning the GC. Fewer temporary objects means fewer collections and fewer pauses." |
+| 6 | **Throughput collapsed under load** | "I look for blocked thread-pool work, blocking async code, or downstream calls backing up. A growing queue is often the clue." |
+| 7 | **Amdahl's law** | "Improve the part that takes most of the time. If a small part of the request is optimized, the total gain is small." |
+| 8 | **Benchmarking** | "For small benchmarks I use BenchmarkDotNet because it handles warm-up, repeated runs, and memory measurements. A simple `Stopwatch` loop can mislead." |
 
 ---
 

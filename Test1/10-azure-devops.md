@@ -29,16 +29,16 @@ ask for more.
 
 # PART 0 — THE 8 ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **Any hosting question** | "First I ask: on-prem, Azure, or hybrid? Then I answer for that reality." |
-| 2 | **Service Bus vs Event Hubs vs Event Grid** | "Service Bus is for important messages. Event Hubs is for big streams. Event Grid is for notifications." |
-| 3 | **The CI/CD principle** | "Build once, then move the same package through every environment." |
-| 4 | **The hard part of CI/CD** | "Database migrations are the risky part. Change schema in safe steps." |
-| 5 | **Deployment strategies** | "Blue/green helps rollback. Canary rolls out slowly. Feature flags turn features on later." |
-| 6 | **The finance twist** | "Do not deploy during market hours. Use approval and clear separation of duties." |
-| 7 | **The desktop twist** | "Desktop apps need installers, code signing, update channels, and staged rollout." |
-| 8 | **Data residency** | "For finance clients, ask where data is allowed to live." |
+| 1 | **Any hosting question** | "First I ask where the system runs today: on-prem, Azure, or hybrid. A financial client may have data-residency and network constraints, so the right architecture depends on that answer." |
+| 2 | **Service Bus vs Event Hubs vs Event Grid** | "Service Bus is for important business messages and workflows. Event Hubs is for very high-volume streams. Event Grid is for lightweight notifications that something happened." |
+| 3 | **The CI/CD principle** | "Build once, then move the same package through dev, test, and production. Environment-specific settings come from config or secrets, not from rebuilding the code." |
+| 4 | **The hard part of CI/CD** | "Database migrations are the risky part because rollback is hard. I change schema in safe steps: add, backfill, run compatible code, switch reads, and remove old fields later." |
+| 5 | **Deployment strategies** | "Blue/green gives quick rollback by switching traffic. Canary rolls out to a small group first. Feature flags let me deploy code without releasing the feature immediately." |
+| 6 | **The finance twist** | "In finance I also consider release windows, change approval, and separation of duties. I would not deploy during market hours unless there is a controlled emergency process." |
+| 7 | **The desktop twist** | "A WPF desktop app is a distribution problem. It needs MSI or MSIX, code signing, versioning, update channels, staged rollout, and a rollback story for users who cannot restart immediately." |
+| 8 | **Data residency** | "For an Abu Dhabi financial client I would ask where data is allowed to live. Some workloads may need to stay on-prem or in approved regions, while analytics or dev/test may use cloud." |
 
 ---
 

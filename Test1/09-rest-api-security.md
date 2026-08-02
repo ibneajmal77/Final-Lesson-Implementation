@@ -30,18 +30,18 @@ ask for more.
 
 # PART 0 — THE 10 API ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **401 vs 403** | "401 means not logged in. 403 means logged in but not allowed." |
-| 2 | **Which verbs are idempotent?** | "GET, PUT, and DELETE are safe to retry. For POST, add an idempotency key." |
-| 3 | **OAuth for a desktop app** | "Use Authorization Code with PKCE because a desktop app cannot keep a secret." |
-| 4 | **OAuth vs OIDC** | "OAuth gives API access. OIDC tells the app who the user is." |
-| 5 | **Validating a JWT** | "Check signature, issuer, audience, expiry, and algorithm." |
-| 6 | **Can you revoke a JWT?** | "Not easily before it expires. Use short expiry and refresh-token rotation." |
-| 7 | **The #1 API vulnerability** | "Always check if this user can access this object." |
-| 8 | **Optimistic concurrency over HTTP** | "Use `ETag` and `If-Match`; return 412 if the version changed." |
-| 9 | **Pagination at scale** | "Use cursor or keyset paging for big lists." |
-| 10 | **Error format** | "Use Problem Details and include a correlation ID." |
+| 1 | **401 vs 403** | "401 means the API does not know who the caller is. 403 means the API knows the caller, but the caller is not allowed to do that action." |
+| 2 | **Which verbs are idempotent?** | "GET, PUT, and DELETE should be safe to retry because doing them twice has the same final effect. POST is not naturally safe to retry, so for create/process actions I add an idempotency key." |
+| 3 | **OAuth for a desktop app** | "Use Authorization Code with PKCE. A desktop app is a public client, so it cannot safely store a client secret. Tokens should go into the OS secure store." |
+| 4 | **OAuth vs OIDC** | "OAuth gives an application permission to call an API. OIDC adds login identity and tells the client who the user is. Access tokens go to APIs; ID tokens stay with the client." |
+| 5 | **Validating a JWT** | "I check the signature, issuer, audience, expiry, and allowed algorithm. I do not trust the token just because it is well-formed." |
+| 6 | **Can you revoke a JWT?** | "A normal self-contained JWT cannot easily be revoked before expiry. The usual answer is short-lived access tokens, refresh-token rotation, or opaque tokens for high-risk operations." |
+| 7 | **The #1 API vulnerability** | "The big risk is trusting an object id from the client. Every request must check that this user can access this exact object." |
+| 8 | **Optimistic concurrency over HTTP** | "Use `ETag` when reading and `If-Match` when writing. If the version changed, return 412 so the caller knows someone else updated it first." |
+| 9 | **Pagination at scale** | "Use cursor or keyset paging for large or changing lists. Offset paging gets slower and can skip or duplicate rows when new rows are inserted." |
+| 10 | **Error format** | "Use a consistent error shape, usually Problem Details, and include a correlation ID so support and logs can trace the request." |
 
 ---
 

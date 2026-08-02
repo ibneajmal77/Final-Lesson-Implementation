@@ -29,18 +29,18 @@ ask for more.
 
 # PART 0 — THE 10 WPF ANSWERS THAT WIN
 
-| # | The question | Simple answer |
+| # | The question | Full answer in simple words |
 |---|---|---|
-| 1 | **What is WPF?** | "WPF is a Windows UI framework. I describe a tree of UI objects, and WPF draws it." |
-| 2 | **The killer feature** | "Binding connects the screen to the view-model. That is why MVVM works well." |
-| 3 | **Dependency property — why?** | "It is a special WPF property that supports binding, styling, animation, and inheritance." |
-| 4 | **The famous DP gotcha** | "A value set in code can beat a style trigger. If that happens, clear the value or use binding." |
-| 5 | **DP vs `INotifyPropertyChanged`** | "Controls use dependency properties. View-models use `INotifyPropertyChanged`." |
-| 6 | **The `ObservableCollection` trap** | "`ObservableCollection` reports rows added or removed. Each row must report its own field changes." |
-| 7 | **Why MVVM?** | "MVVM keeps logic in a plain class, so I can test it without the UI." |
-| 8 | **UI thread rule** | "Only the UI thread touches WPF controls. Background code must use the Dispatcher." |
-| 9 | **10,000 ticks/sec into a grid** | "Do not update per tick. Keep latest values, batch, flush on a timer, and virtualize the grid." |
-| 10 | **Dialog from a view-model?** | "Use an `IDialogService` so the view-model does not directly open windows." |
+| 1 | **What is WPF?** | "WPF is a Windows UI framework. I describe a tree of UI objects in XAML or code, and WPF draws it. I do not manually paint every pixel." |
+| 2 | **The killer feature** | "The big feature is data binding. Binding connects the screen to the view-model, so the UI updates when state changes. That is why MVVM fits WPF so well." |
+| 3 | **Dependency property - why?** | "A dependency property is a special WPF property for controls. It supports binding, styling, animation, default values, and value inheritance through the UI tree." |
+| 4 | **The famous DP gotcha** | "A value set directly in code becomes a local value, and it can beat a style trigger. If a trigger seems broken, check for a local value and fix with `ClearValue()` or by using binding/style instead." |
+| 5 | **DP vs `INotifyPropertyChanged`** | "Controls use dependency properties because they need styling and binding support. View-models use `INotifyPropertyChanged` because they should stay plain and testable." |
+| 6 | **The `ObservableCollection` trap** | "`ObservableCollection` tells the UI when items are added or removed. It does not tell the UI when a property inside an item changes. Each row object must raise `PropertyChanged` too." |
+| 7 | **Why MVVM?** | "MVVM keeps UI layout in the View and logic/state in a plain ViewModel. That makes the logic testable without opening a window or using the UI thread." |
+| 8 | **UI thread rule** | "WPF controls belong to the UI thread that created them. Background work must send UI changes back through the Dispatcher." |
+| 9 | **10,000 ticks/sec into a grid** | "I would not update the grid per tick. I would keep the latest value per instrument, batch changes, flush on a timer, avoid raising unchanged values, and turn on grid virtualization." |
+| 10 | **Dialog from a view-model?** | "I use an `IDialogService`. The ViewModel asks for a dialog through an interface, so it stays testable and does not directly create windows." |
 
 ---
 

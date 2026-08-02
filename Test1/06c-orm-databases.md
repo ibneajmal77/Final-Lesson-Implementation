@@ -58,23 +58,23 @@ ask for more.
 
 # PART 0 — THE 15 ANSWERS THAT WIN
 
-| # | Question | Say this |
+| # | Question | Full answer in simple words |
 |---|---|---|
-| 1 | **What is an ORM?** | "An ORM maps database rows to objects. It saves boilerplate, but I still need to understand the SQL." |
-| 2 | **Two patterns?** | "Active Record: object saves itself. Data Mapper: a session or context saves objects." |
-| 3 | **N+1 in one line?** | "One list query becomes one extra query per row. Fix by loading related data up front." |
-| 4 | **Lazy vs eager loading?** | "Lazy loads when touched. Eager loads early. Lazy often causes N+1." |
-| 5 | **Unit of work?** | "The session tracks changes and saves them together in one transaction." |
-| 6 | **Identity map?** | "Inside one session, the same database row gives the same object instance." |
-| 7 | **Flush vs commit?** | "Flush sends SQL. Commit finishes the transaction." |
-| 8 | **Optimistic vs pessimistic locking?** | "Optimistic uses a version check. Pessimistic takes a real database lock." |
-| 9 | **Isolation levels?** | "Isolation levels choose how much consistency you want versus how much concurrency you allow." |
-| 10 | **Why pool connections?** | "Opening DB connections costs time. A pool reuses them." |
-| 11 | **Migrations?** | "Migrations are versioned database changes stored in source control." |
-| 12 | **Zero-downtime schema change?** | "Change the schema in steps: add, backfill, switch code, then remove old fields." |
-| 13 | **When not to use an ORM?** | "For bulk loads, complex reports, or special SQL, I write SQL directly." |
-| 14 | **Biggest ORM risk?** | "It can hide bad SQL. I log queries and check query counts." |
-| 15 | **SQLAlchemy vs EF Core?** | "Both use a session/context and unit of work. SQLAlchemy also has a strong SQL expression layer." |
+| 1 | **What is an ORM?** | "An ORM maps database rows to objects. It saves boilerplate for normal app work, but I still need to understand and check the SQL it generates." |
+| 2 | **Two patterns?** | "Active Record means the object knows how to save itself, like Django. Data Mapper means a session or context saves plain objects, like SQLAlchemy or EF Core." |
+| 3 | **N+1 in one line?** | "N+1 means one query loads the list, then one extra query runs per row when I touch a relation. I fix it by loading related data up front." |
+| 4 | **Lazy vs eager loading?** | "Lazy loading waits until I touch the relation. Eager loading loads the relation before I need it. Lazy is convenient, but it often causes N+1." |
+| 5 | **Unit of work?** | "The session tracks changes in memory and saves them together in one transaction. In EF Core this is like `DbContext.SaveChanges()`." |
+| 6 | **Identity map?** | "Inside one session, the same database row maps to the same object instance. That avoids two in-memory objects fighting over the same row." |
+| 7 | **Flush vs commit?** | "Flush sends SQL to the database, but the transaction is still open. Commit finishes the transaction. After flush I can still roll back." |
+| 8 | **Optimistic vs pessimistic locking?** | "Optimistic locking uses a version check and fails if someone changed the row first. Pessimistic locking takes a real database lock, useful for high-risk money operations." |
+| 9 | **Isolation levels?** | "Isolation levels choose how much consistency I need while other transactions run. More isolation reduces strange reads, but can reduce concurrency." |
+| 10 | **Why pool connections?** | "Opening a database connection costs time. A pool keeps connections ready and reuses them, but the pool size must stay within database limits." |
+| 11 | **Migrations?** | "Migrations are versioned database schema changes stored in source control. They make database changes reviewable and repeatable." |
+| 12 | **Zero-downtime schema change?** | "Change schema in steps: add the new nullable field, backfill data, deploy code that supports both old and new, switch reads, then remove the old field later." |
+| 13 | **When not to use an ORM?** | "For bulk loads, complex reports, window functions, recursive queries, or highly tuned reads, I write SQL directly. The ORM is for the normal transactional work." |
+| 14 | **Biggest ORM risk?** | "The ORM can hide bad SQL. I log queries in development, watch for N+1, and can assert query counts in tests." |
+| 15 | **SQLAlchemy vs EF Core?** | "Both use the Data Mapper style with a session/context and unit of work. SQLAlchemy also has a strong explicit SQL expression layer underneath the ORM." |
 
 ---
 
