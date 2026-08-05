@@ -1,0 +1,58 @@
+[build-system]
+# Python packaging metadata. This is closest to the SDK/build part of a `.csproj`.
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# Runtime package metadata plus install dependencies.
+name = "atlas-ai-platform"
+version = "0.1.0"
+description = "Atlas AI Platform Phase 00 through Phase 02 implementation"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "psycopg[binary]>=3.2",
+  "redis>=5.0",
+]
+
+[project.optional-dependencies]
+# Extra dependencies for local development, tests, linting, and type checking.
+dev = [
+  "pytest>=8.2",
+  "httpx>=0.27",
+  "ruff>=0.5",
+  "mypy>=1.10",
+]
+
+[tool.setuptools.packages.find]
+# Tell setuptools to package both executable hosts (`apps`) and shared libraries
+# (`packages`) from the repository root.
+where = ["."]
+include = ["apps*", "packages*"]
+
+[tool.pytest.ini_options]
+# Pytest configuration. `pythonpath = ["."]` lets tests import `apps` and
+# `packages` without installing the project globally.
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+# Ruff is the Python linter/formatter family used here.
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+# Mypy is the static type checker. `strict = true` is similar in spirit to
+# enabling nullable/reference and strict compiler checks in C#.
+python_version = "3.11"
+strict = true
+packages = ["apps", "packages"]
+exclude = ["packages/db/migrations"]

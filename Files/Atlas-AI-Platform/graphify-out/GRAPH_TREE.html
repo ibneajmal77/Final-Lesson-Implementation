@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Atlas AI Platform — graphify tree viewer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0 0 24px;
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #1e3a56;
+    }
+    .controls {
+      margin: 20px 0 15px 24px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 8px 18px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:active {
+      background: #004085;
+    }
+    #tree-container {
+      width: calc(100vw - 48px); /* Adjust for body margin/padding */
+      height: 85vh;
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      margin-left: 24px;
+      margin-right: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid #ddd;
+    }
+    svg {
+      background: #fff;
+      border-radius: 8px;
+      display: block; /* Important for D3 */
+    }
+    .node circle {
+      stroke-width: 2.5px;
+    }
+    .node text { /* Base style for the <text> container */
+      font: 13px 'Segoe UI', sans-serif;
+      paint-order: stroke fill; /* Ensures text is readable over lines */
+      stroke: #fff; /* White halo */
+      stroke-width: 3px; /* Halo thickness */
+      stroke-linejoin: round;
+      stroke-opacity: 0.85; /* Halo opacity */
+    }
+    .link {
+      fill: none;
+      stroke-opacity: 0.7;
+      stroke-width: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Atlas AI Platform — Knowledge Graph</h1>
+  <div class="controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+    <button onclick="resetView()">Reset View</button>
+  </div>
+  <div id="tree-container">
+    <svg id="tree-svg" width="6000" height="8000"></svg>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const initialJsonData = {"name":"Atlas AI Platform","total_count":380,"children":[{"name":"apps","total_count":69,"children":[{"name":"api","total_count":66,"children":[{"name":"app.py","total_count":2,"children":[{"name":"_error_response()","total_count":1,"children":[]},{"name":"create_app()","total_count":1,"children":[]}]},{"name":"middleware","total_count":3,"children":[{"name":"request_id.py","total_count":2,"children":[{"name":".dispatch()","total_count":1,"children":[]},{"name":"RequestIdMiddleware","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"routes","total_count":59,"children":[{"name":"ai_runs.py","total_count":2,"children":[{"name":"AIRunPayload","total_count":1,"children":[]},{"name":"get_ai_run()","total_count":1,"children":[]}]},{"name":"health.py","total_count":9,"children":[{"name":"_close_redis_client()","total_count":1,"children":[]},{"name":"_settings_from_request()","total_count":1,"children":[]},{"name":"check_configuration()","total_count":1,"children":[]},{"name":"check_database()","total_count":1,"children":[]},{"name":"check_redis()","total_count":1,"children":[]},{"name":"health()","total_count":1,"children":[]},{"name":"legacy_health()","total_count":1,"children":[]},{"name":"liveness()","total_count":1,"children":[]},{"name":"readiness()","total_count":1,"children":[]}]},{"name":"model_gateway.py","total_count":10,"children":[{"name":"chat()","total_count":1,"children":[]},{"name":"ChatMessagePayload","total_count":1,"children":[]},{"name":"embed()","total_count":1,"children":[]},{"name":"GatewayChatRequest","total_count":1,"children":[]},{"name":"GatewayChatResponse","total_count":1,"children":[]},{"name":"GatewayEmbedRequest","total_count":1,"children":[]},{"name":"GatewayEmbedResponse","total_count":1,"children":[]},{"name":"list_routes()","total_count":1,"children":[]},{"name":"RoutePayload","total_count":1,"children":[]},{"name":"UsagePayload","total_count":1,"children":[]}]},{"name":"prompts.py","total_count":37,"children":[{"name":"_activation_payload()","total_count":1,"children":[]},{"name":"_model_defaults()","total_count":1,"children":[]},{"name":"_template_payload()","total_count":1,"children":[]},{"name":"_test_case_payload()","total_count":1,"children":[]},{"name":"_variable_declaration()","total_count":1,"children":[]},{"name":"_version_detail_payload()","total_count":1,"children":[]},{"name":"_version_payload()","total_count":1,"children":[]},{"name":"activate_version()","total_count":1,"children":[]},{"name":"ActivationPayload","total_count":1,"children":[]},{"name":"approve_version()","total_count":1,"children":[]},{"name":"ApproveRequest","total_count":1,"children":[]},{"name":"create_template()","total_count":1,"children":[]},{"name":"create_test_case()","total_count":1,"children":[]},{"name":"create_version()","total_count":1,"children":[]},{"name":"CreateTemplateRequest","total_count":1,"children":[]},{"name":"CreateTestCaseRequest","total_count":1,"children":[]},{"name":"CreateVersionRequest","total_count":1,"children":[]},{"name":"deactivate_version()","total_count":1,"children":[]},{"name":"get_template()","total_count":1,"children":[]},{"name":"get_version()","total_count":1,"children":[]},{"name":"list_templates()","total_count":1,"children":[]},{"name":"list_test_cases()","total_count":1,"children":[]},{"name":"ModelDefaultsPayload","total_count":1,"children":[]},{"name":"PromptTemplateDetailPayload","total_count":1,"children":[]},{"name":"PromptTemplatePayload","total_count":1,"children":[]},{"name":"PromptTestCasePayload","total_count":1,"children":[]},{"name":"PromptTestRunPayload","total_count":1,"children":[]},{"name":"PromptVersionDetailPayload","total_count":1,"children":[]},{"name":"PromptVersionPayload","total_count":1,"children":[]},{"name":"ReasonRequest","total_count":1,"children":[]},{"name":"render_prompt()","total_count":1,"children":[]},{"name":"RenderedPromptPayload","total_count":1,"children":[]},{"name":"RenderRequest","total_count":1,"children":[]},{"name":"retire_version()","total_count":1,"children":[]},{"name":"run_prompt_tests()","total_count":1,"children":[]},{"name":"RunTestsRequest","total_count":1,"children":[]},{"name":"VariablePayload","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]},{"name":"main.py","total_count":1,"children":[]}]},{"name":"worker","total_count":2,"children":[{"name":"main.py","total_count":1,"children":[{"name":"main()","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"packages","total_count":233,"children":[{"name":"agents","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"auth","total_count":2,"children":[{"name":"gates.py","total_count":1,"children":[{"name":"enforce_tenant_rbac_gate()","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"core","total_count":32,"children":[{"name":"config.py","total_count":3,"children":[{"name":".normalize_api_prefix()","total_count":1,"children":[]},{"name":"get_settings()","total_count":1,"children":[]},{"name":"Settings","total_count":1,"children":[]}]},{"name":"errors.py","total_count":19,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__post_init__()","total_count":1,"children":[]},{"name":"AIOutputValidationError","total_count":1,"children":[]},{"name":"AIProviderError","total_count":1,"children":[]},{"name":"AppError","total_count":1,"children":[]},{"name":"ConflictError","total_count":1,"children":[]},{"name":"error_payload()","total_count":1,"children":[]},{"name":"NotFoundError","total_count":1,"children":[]},{"name":"PermissionDeniedError","total_count":1,"children":[]},{"name":"SafetyBlockedError","total_count":1,"children":[]},{"name":"ToolExecutionError","total_count":1,"children":[]},{"name":"ValidationAppError","total_count":1,"children":[]}]},{"name":"logging.py","total_count":6,"children":[{"name":".filter()","total_count":1,"children":[]},{"name":".format()","total_count":1,"children":[]},{"name":"_ensure_request_id_filter()","total_count":1,"children":[]},{"name":"configure_logging()","total_count":1,"children":[]},{"name":"JsonFormatter","total_count":1,"children":[]},{"name":"RequestIdFilter","total_count":1,"children":[]}]},{"name":"request_context.py","total_count":3,"children":[{"name":"get_request_id()","total_count":1,"children":[]},{"name":"reset_request_id()","total_count":1,"children":[]},{"name":"set_request_id()","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"db","total_count":26,"children":[{"name":"base.py","total_count":1,"children":[{"name":"Base","total_count":1,"children":[]}]},{"name":"migrations","total_count":10,"children":[{"name":"env.py","total_count":2,"children":[{"name":"run_migrations_offline()","total_count":1,"children":[]},{"name":"run_migrations_online()","total_count":1,"children":[]}]},{"name":"versions","total_count":8,"children":[{"name":"0001_initial_foundation.py","total_count":2,"children":[{"name":"downgrade()","total_count":1,"children":[]},{"name":"upgrade()","total_count":1,"children":[]}]},{"name":"0002_model_gateway.py","total_count":2,"children":[{"name":"downgrade()","total_count":1,"children":[]},{"name":"upgrade()","total_count":1,"children":[]}]},{"name":"0003_audit_events.py","total_count":2,"children":[{"name":"downgrade()","total_count":1,"children":[]},{"name":"upgrade()","total_count":1,"children":[]}]},{"name":"0004_prompt_system.py","total_count":2,"children":[{"name":"downgrade()","total_count":1,"children":[]},{"name":"upgrade()","total_count":1,"children":[]}]}]}]},{"name":"models","total_count":11,"children":[{"name":"audit.py","total_count":1,"children":[{"name":"AuditEvent","total_count":1,"children":[]}]},{"name":"identity.py","total_count":2,"children":[{"name":"Tenant","total_count":1,"children":[]},{"name":"User","total_count":1,"children":[]}]},{"name":"model_gateway.py","total_count":4,"children":[{"name":"AIRun","total_count":1,"children":[]},{"name":"CostRecord","total_count":1,"children":[]},{"name":"ModelProvider","total_count":1,"children":[]},{"name":"ModelRoute","total_count":1,"children":[]}]},{"name":"prompts.py","total_count":3,"children":[{"name":"PromptTemplate","total_count":1,"children":[]},{"name":"PromptTestCase","total_count":1,"children":[]},{"name":"PromptVersion","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"session.py","total_count":3,"children":[{"name":"get_db_session()","total_count":1,"children":[]},{"name":"get_engine()","total_count":1,"children":[]},{"name":"get_session_factory()","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"evals","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"ingestion","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"model_gateway","total_count":83,"children":[{"name":"bootstrap.py","total_count":3,"children":[{"name":"_provider()","total_count":1,"children":[]},{"name":"_route()","total_count":1,"children":[]},{"name":"ensure_default_gateway_config()","total_count":1,"children":[]}]},{"name":"client.py","total_count":16,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":"._call_route()","total_count":1,"children":[]},{"name":"._call_with_policy()","total_count":1,"children":[]},{"name":"._create_blocked_run()","total_count":1,"children":[]},{"name":"._create_running_run()","total_count":1,"children":[]},{"name":"._execute()","total_count":1,"children":[]},{"name":"._finalize_success()","total_count":1,"children":[]},{"name":"._mark_failed()","total_count":1,"children":[]},{"name":"._raise_selection_error()","total_count":1,"children":[]},{"name":".chat()","total_count":1,"children":[]},{"name":".embed()","total_count":1,"children":[]},{"name":"_default_provider_registry()","total_count":1,"children":[]},{"name":"_elapsed_ms()","total_count":1,"children":[]},{"name":"_is_attempts_exhausted()","total_count":1,"children":[]},{"name":"ModelGateway","total_count":1,"children":[]},{"name":"run_status()","total_count":1,"children":[]}]},{"name":"errors.py","total_count":12,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":"BudgetExceededError","total_count":1,"children":[]},{"name":"DataPolicyBlockedError","total_count":1,"children":[]},{"name":"GatewayError","total_count":1,"children":[]},{"name":"ProviderTimeoutError","total_count":1,"children":[]},{"name":"ProviderUnavailableError","total_count":1,"children":[]},{"name":"RouteNotFoundError","total_count":1,"children":[]}]},{"name":"observability.py","total_count":1,"children":[{"name":"genai_attributes()","total_count":1,"children":[]}]},{"name":"pricing.py","total_count":3,"children":[{"name":"estimate_cost_lines()","total_count":1,"children":[]},{"name":"quantize_money()","total_count":1,"children":[]},{"name":"total_estimated_cost()","total_count":1,"children":[]}]},{"name":"providers","total_count":20,"children":[{"name":"base.py","total_count":5,"children":[{"name":".chat()","total_count":1,"children":[]},{"name":".embed()","total_count":1,"children":[]},{"name":"Execute a chat/completion style request.","total_count":1,"children":[]},{"name":"Execute an embedding request.","total_count":1,"children":[]},{"name":"ProviderAdapter","total_count":1,"children":[]}]},{"name":"mock.py","total_count":8,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":"._chat_content()","total_count":1,"children":[]},{"name":"._count_message_tokens()","total_count":1,"children":[]},{"name":"._embedding_for_text()","total_count":1,"children":[]},{"name":"._maybe_fail()","total_count":1,"children":[]},{"name":".chat()","total_count":1,"children":[]},{"name":".embed()","total_count":1,"children":[]},{"name":"MockProvider","total_count":1,"children":[]}]},{"name":"openai_compatible.py","total_count":6,"children":[{"name":"._post_json()","total_count":1,"children":[]},{"name":".chat()","total_count":1,"children":[]},{"name":".embed()","total_count":1,"children":[]},{"name":"_as_int()","total_count":1,"children":[]},{"name":"create_managed_provider()","total_count":1,"children":[]},{"name":"OpenAICompatibleProvider","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"redaction.py","total_count":8,"children":[{"name":"_message_to_json()","total_count":1,"children":[]},{"name":"preview_text()","total_count":1,"children":[]},{"name":"redact_text()","total_count":1,"children":[]},{"name":"redacted_request_json()","total_count":1,"children":[]},{"name":"redacted_response_json()","total_count":1,"children":[]},{"name":"request_hash()","total_count":1,"children":[]},{"name":"request_preview()","total_count":1,"children":[]},{"name":"response_preview()","total_count":1,"children":[]}]},{"name":"router.py","total_count":10,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":"._rejection_reason()","total_count":1,"children":[]},{"name":"._select_from_statement()","total_count":1,"children":[]},{"name":".list_routes()","total_count":1,"children":[]},{"name":".select_fallback()","total_count":1,"children":[]},{"name":".select_route()","total_count":1,"children":[]},{"name":"_decision_for_rejections()","total_count":1,"children":[]},{"name":"_required_capability()","total_count":1,"children":[]},{"name":"_to_selected_route()","total_count":1,"children":[]},{"name":"ModelRouter","total_count":1,"children":[]}]},{"name":"types.py","total_count":9,"children":[{"name":"ChatMessage","total_count":1,"children":[]},{"name":"CostLine","total_count":1,"children":[]},{"name":"GatewayResponse","total_count":1,"children":[]},{"name":"ModelRequest","total_count":1,"children":[]},{"name":"ProviderChatResponse","total_count":1,"children":[]},{"name":"ProviderEmbeddingResponse","total_count":1,"children":[]},{"name":"RouteDecision","total_count":1,"children":[]},{"name":"SelectedRoute","total_count":1,"children":[]},{"name":"TokenUsage","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"observability","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"prompts","total_count":81,"children":[{"name":"contracts.py","total_count":12,"children":[{"name":"CheckResult","total_count":1,"children":[]},{"name":"model_defaults_from_json()","total_count":1,"children":[]},{"name":"model_defaults_to_json()","total_count":1,"children":[]},{"name":"ModelDefaults","total_count":1,"children":[]},{"name":"PromptTestResult","total_count":1,"children":[]},{"name":"PromptTestSummary","total_count":1,"children":[]},{"name":"PromptVersionSpec","total_count":1,"children":[]},{"name":"RenderedPrompt","total_count":1,"children":[]},{"name":"ResolvedPromptVersion","total_count":1,"children":[]},{"name":"variable_declaration_from_json()","total_count":1,"children":[]},{"name":"variable_declaration_to_json()","total_count":1,"children":[]},{"name":"VariableDeclaration","total_count":1,"children":[]}]},{"name":"errors.py","total_count":9,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":".__init__()","total_count":1,"children":[]},{"name":"no_active_version_error()","total_count":1,"children":[]},{"name":"PromptConflictError","total_count":1,"children":[]},{"name":"PromptError","total_count":1,"children":[]},{"name":"PromptNotFoundError","total_count":1,"children":[]},{"name":"PromptValidationError","total_count":1,"children":[]},{"name":"version_not_approved_error()","total_count":1,"children":[]}]},{"name":"optimization.py","total_count":1,"children":[{"name":"create_candidate_version()","total_count":1,"children":[]}]},{"name":"records.py","total_count":4,"children":[{"name":"_dict_or_none()","total_count":1,"children":[]},{"name":"_model_defaults_from_json()","total_count":1,"children":[]},{"name":"_variables_from_json()","total_count":1,"children":[]},{"name":"version_spec_from_models()","total_count":1,"children":[]}]},{"name":"registry.py","total_count":12,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":"._resolve_active()","total_count":1,"children":[]},{"name":"._resolve_pinned()","total_count":1,"children":[]},{"name":"._select_active()","total_count":1,"children":[]},{"name":".clear_cache()","total_count":1,"children":[]},{"name":".invalidate()","total_count":1,"children":[]},{"name":".render()","total_count":1,"children":[]},{"name":".resolve()","total_count":1,"children":[]},{"name":"_cache_key()","total_count":1,"children":[]},{"name":"_CachedVersion","total_count":1,"children":[]},{"name":"_resolved_from_row()","total_count":1,"children":[]},{"name":"PromptRegistry","total_count":1,"children":[]}]},{"name":"renderer.py","total_count":10,"children":[{"name":"_fence_untrusted_value()","total_count":1,"children":[]},{"name":"_render_hash()","total_count":1,"children":[]},{"name":"_render_variable_value()","total_count":1,"children":[]},{"name":"_stringify()","total_count":1,"children":[]},{"name":"_substitute()","total_count":1,"children":[]},{"name":"estimate_tokens()","total_count":1,"children":[]},{"name":"placeholder_names()","total_count":1,"children":[]},{"name":"render_prompt()","total_count":1,"children":[]},{"name":"validate_render_variables()","total_count":1,"children":[]},{"name":"validate_template_contract()","total_count":1,"children":[]}]},{"name":"service.py","total_count":21,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":"._audit()","total_count":1,"children":[]},{"name":"._audit_status_change()","total_count":1,"children":[]},{"name":"._has_active_route()","total_count":1,"children":[]},{"name":"._next_version_number()","total_count":1,"children":[]},{"name":".activate_version()","total_count":1,"children":[]},{"name":".approve_version()","total_count":1,"children":[]},{"name":".create_template()","total_count":1,"children":[]},{"name":".create_test_case()","total_count":1,"children":[]},{"name":".create_version()","total_count":1,"children":[]},{"name":".deactivate_version()","total_count":1,"children":[]},{"name":".get_template()","total_count":1,"children":[]},{"name":".get_version()","total_count":1,"children":[]},{"name":".list_templates()","total_count":1,"children":[]},{"name":".list_test_cases()","total_count":1,"children":[]},{"name":".list_versions()","total_count":1,"children":[]},{"name":".mark_testing()","total_count":1,"children":[]},{"name":".retire_version()","total_count":1,"children":[]},{"name":"_validate_use_case()","total_count":1,"children":[]},{"name":"ActivationResult","total_count":1,"children":[]},{"name":"PromptService","total_count":1,"children":[]}]},{"name":"tests.py","total_count":11,"children":[{"name":".__init__()","total_count":1,"children":[]},{"name":"._active_version()","total_count":1,"children":[]},{"name":"._run_single()","total_count":1,"children":[]},{"name":"._selected_cases()","total_count":1,"children":[]},{"name":".run_prompt_tests()","total_count":1,"children":[]},{"name":"_as_list()","total_count":1,"children":[]},{"name":"_elapsed_ms()","total_count":1,"children":[]},{"name":"_evaluate_checks()","total_count":1,"children":[]},{"name":"_outcome_from_checks()","total_count":1,"children":[]},{"name":"_summary()","total_count":1,"children":[]},{"name":"PromptTestRunner","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"rag","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"retrieval","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"safety","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"tools","total_count":1,"children":[{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"pyproject.toml","total_count":1,"children":[{"name":"atlas-ai-platform","total_count":1,"children":[]}]},{"name":"tests","total_count":77,"children":[{"name":"api","total_count":23,"children":[{"name":"test_error_handlers.py","total_count":5,"children":[{"name":"_test_settings()","total_count":1,"children":[]},{"name":"DemoPayload","total_count":1,"children":[]},{"name":"test_app_errors_use_standard_error_envelope()","total_count":1,"children":[]},{"name":"test_unexpected_errors_are_hidden_and_traced()","total_count":1,"children":[]},{"name":"test_validation_errors_use_standard_error_envelope()","total_count":1,"children":[]}]},{"name":"test_health.py","total_count":7,"children":[{"name":"_test_settings()","total_count":1,"children":[]},{"name":"test_health_router_uses_configured_api_prefix()","total_count":1,"children":[]},{"name":"test_legacy_health_alias_still_works()","total_count":1,"children":[]},{"name":"test_liveness_returns_process_status()","total_count":1,"children":[]},{"name":"test_readiness_returns_503_when_dependency_fails()","total_count":1,"children":[]},{"name":"test_readiness_returns_ready_when_dependencies_are_available()","total_count":1,"children":[]},{"name":"test_versioned_health_returns_status_and_request_id()","total_count":1,"children":[]}]},{"name":"test_model_gateway.py","total_count":6,"children":[{"name":"_client()","total_count":1,"children":[]},{"name":"_tenant_id()","total_count":1,"children":[]},{"name":"test_ai_run_detail_endpoint_returns_usage_and_cost()","total_count":1,"children":[]},{"name":"test_model_gateway_chat_endpoint_returns_ai_run_id()","total_count":1,"children":[]},{"name":"test_model_gateway_embed_endpoint_returns_vectors()","total_count":1,"children":[]},{"name":"test_route_listing_returns_gateway_columns()","total_count":1,"children":[]}]},{"name":"test_prompts.py","total_count":4,"children":[{"name":"_client()","total_count":1,"children":[]},{"name":"_tenant_id()","total_count":1,"children":[]},{"name":"test_create_version_rejects_untrusted_variable_in_system_prompt()","total_count":1,"children":[]},{"name":"test_prompt_crud_activation_and_test_run_contract()","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"migrations","total_count":8,"children":[{"name":"test_model_gateway_migration.py","total_count":3,"children":[{"name":"test_model_gateway_migration_includes_cost_records()","total_count":1,"children":[]},{"name":"test_model_gateway_models_are_registered_for_alembic()","total_count":1,"children":[]},{"name":"test_phase02_models_are_registered_for_alembic()","total_count":1,"children":[]}]},{"name":"test_phase02_migrations.py","total_count":5,"children":[{"name":"_active_version()","total_count":1,"children":[]},{"name":"_session_or_skip()","total_count":1,"children":[]},{"name":"test_ai_runs_prompt_version_fk_rejects_unknown_version()","total_count":1,"children":[]},{"name":"test_phase02_migration_files_include_required_constraints()","total_count":1,"children":[]},{"name":"test_second_active_version_rejected()","total_count":1,"children":[]}]}]},{"name":"model_gateway","total_count":11,"children":[{"name":"conftest.py","total_count":2,"children":[{"name":"db_session()","total_count":1,"children":[]},{"name":"tenant()","total_count":1,"children":[]}]},{"name":"test_contracts.py","total_count":1,"children":[{"name":"test_mock_provider_implements_chat_and_embedding_contracts()","total_count":1,"children":[]}]},{"name":"test_gateway_client.py","total_count":6,"children":[{"name":"test_budget_block_creates_blocked_ai_run()","total_count":1,"children":[]},{"name":"test_chat_request_persists_ai_run_and_cost_records()","total_count":1,"children":[]},{"name":"test_embedding_request_returns_vectors_in_input_order()","total_count":1,"children":[]},{"name":"test_restricted_request_redacts_stored_content()","total_count":1,"children":[]},{"name":"test_timeout_retries_inside_one_ai_run()","total_count":1,"children":[]},{"name":"test_unavailable_primary_falls_back_after_policy_revalidation()","total_count":1,"children":[]}]},{"name":"test_router_selection.py","total_count":2,"children":[{"name":"test_router_rejects_routes_over_request_budget()","total_count":1,"children":[]},{"name":"test_router_selects_private_route_for_restricted_data()","total_count":1,"children":[]}]}]},{"name":"prompts","total_count":18,"children":[{"name":"conftest.py","total_count":2,"children":[{"name":"db_session()","total_count":1,"children":[]},{"name":"tenant()","total_count":1,"children":[]}]},{"name":"test_optimizer_constraint.py","total_count":2,"children":[{"name":"test_optimizer_candidate_cannot_be_approved_or_activated()","total_count":1,"children":[]},{"name":"test_optimizer_candidate_is_created_as_draft()","total_count":1,"children":[]}]},{"name":"test_registry_and_lifecycle.py","total_count":5,"children":[{"name":"_approved_active_version()","total_count":1,"children":[]},{"name":"test_activation_requires_approval_and_writes_audit_event()","total_count":1,"children":[]},{"name":"test_no_active_version_raises_typed_error()","total_count":1,"children":[]},{"name":"test_registry_resolves_tenant_override_before_global()","total_count":1,"children":[]},{"name":"test_second_activation_leaves_exactly_one_active_version()","total_count":1,"children":[]}]},{"name":"test_renderer.py","total_count":8,"children":[{"name":"_replace_variables()","total_count":1,"children":[]},{"name":"prompt_version_spec()","total_count":1,"children":[]},{"name":"test_missing_multiple_variables_reports_all_of_them()","total_count":1,"children":[]},{"name":"test_renders_with_all_required_variables()","total_count":1,"children":[]},{"name":"test_unknown_variable_supplied_is_rejected()","total_count":1,"children":[]},{"name":"test_untrusted_variable_in_system_prompt_is_rejected()","total_count":1,"children":[]},{"name":"test_untrusted_variable_is_fenced_and_delimiter_is_neutralized()","total_count":1,"children":[]},{"name":"test_variable_over_max_tokens_is_rejected()","total_count":1,"children":[]}]},{"name":"test_runner_and_gateway.py","total_count":1,"children":[{"name":"test_prompt_runner_executes_cases_and_stores_prompt_version_id()","total_count":1,"children":[]}]}]},{"name":"unit","total_count":16,"children":[{"name":"test_auth_gates.py","total_count":4,"children":[{"name":"test_tenant_rbac_gate_allows_feature_after_membership_and_rbac_are_ready()","total_count":1,"children":[]},{"name":"test_tenant_rbac_gate_blocks_tenant_aware_ai_features_before_rbac()","total_count":1,"children":[]},{"name":"test_tenant_rbac_gate_does_not_block_non_tenant_features()","total_count":1,"children":[]},{"name":"test_tenant_rbac_gate_lists_all_phase_critical_features()","total_count":1,"children":[]}]},{"name":"test_config.py","total_count":3,"children":[{"name":"test_api_prefix_cannot_be_empty()","total_count":1,"children":[]},{"name":"test_api_prefix_is_normalized()","total_count":1,"children":[]},{"name":"test_settings_defaults_are_local_safe()","total_count":1,"children":[]}]},{"name":"test_db_metadata.py","total_count":2,"children":[{"name":"test_base_metadata_has_stable_naming_convention()","total_count":1,"children":[]},{"name":"test_foundation_models_are_registered_for_alembic()","total_count":1,"children":[]}]},{"name":"test_errors.py","total_count":4,"children":[{"name":"test_ai_error_subclasses_have_stable_codes_and_statuses()","total_count":1,"children":[]},{"name":"test_app_error_initializes_base_exception_message()","total_count":1,"children":[]},{"name":"test_error_payload_includes_request_id_and_details()","total_count":1,"children":[]},{"name":"test_permission_denied_error_supports_rbac_gate()","total_count":1,"children":[]}]},{"name":"test_logging.py","total_count":2,"children":[{"name":"test_json_formatter_outputs_structured_log_record()","total_count":1,"children":[]},{"name":"test_request_id_filter_adds_default_when_no_context_exists()","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]},{"name":"__init__.py","total_count":1,"children":[]}]}]};
+
+    function transformData(jsonData) {
+        // Helper function to recursively build the children structure
+        function processNode(node, parentL1StageName) {
+            let displayName = node.name;
+            // Append total_count if it exists and is not already in the name
+            if (node.total_count !== undefined) {
+                if (!/\(Total Count: \d+\)$/.test(displayName)) {
+                    displayName += ` (Total Count: ${node.total_count})`;
+                }
+            }
+
+            const newNode = { name: displayName };
+
+            if (parentL1StageName === "Root") {
+                 newNode.originalStageName = node.name;
+            } else {
+                newNode.originalStageName = parentL1StageName;
+            }
+
+            if (node.children && node.children.length > 0) {
+                const stageNameToPass = (parentL1StageName === "Root") ? node.name : parentL1StageName;
+                newNode.children = node.children.map(child => processNode(child, stageNameToPass));
+            }
+
+            return newNode;
+        }
+
+        let rootDisplayName = jsonData.name;
+        if (jsonData.total_count !== undefined && !/\(Total Count: \d+\)$/.test(rootDisplayName)) {
+            rootDisplayName += ` (Total Count: ${jsonData.total_count})`;
+        }
+
+        return {
+            name: rootDisplayName,
+            originalStageName: "Root",
+            children: (jsonData.children || []).map(child => processNode(child, "Root"))
+        };
+    }
+
+    const treeData = transformData(initialJsonData);
+
+    // Auto-populated phaseColors: every depth-1 child of the root gets
+    // a stable colour from a bigger palette so all top-level dirs are
+    // distinguishable.
+    const PALETTE = [
+      ["#3498DB","#2980B9","#AED6F1"], ["#2ECC71","#27AE60","#A9DFBF"],
+      ["#E74C3C","#C0392B","#F5B7B1"], ["#9B59B6","#8E44AD","#D7BDE2"],
+      ["#F39C12","#D68910","#FAD7A0"], ["#1ABC9C","#117864","#A2D9CE"],
+      ["#34495E","#1B2631","#ABB2B9"], ["#E67E22","#BA4A00","#F5CBA7"],
+      ["#16A085","#0E6655","#A2D9CE"], ["#D35400","#A04000","#EDBB99"],
+      ["#7F8C8D","#566573","#D5DBDB"], ["#C0392B","#7B241C","#F5B7B1"],
+      ["#2E86C1","#1B4F72","#A9CCE3"], ["#28B463","#196F3D","#A9DFBF"],
+      ["#AF7AC5","#6C3483","#D2B4DE"],
+    ];
+    const phaseColors = { "Root": { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+                          "Default": { fill: "#BDC3C7", stroke: "#95A5A6", collapsedFill: "#ECF0F1" } };
+    (initialJsonData.children || []).forEach((c, i) => {
+      const pal = PALETTE[i % PALETTE.length];
+      phaseColors[c.name] = { fill: pal[0], stroke: pal[1], collapsedFill: pal[2] };
+    });
+
+    const levelSpecificPalettes = {
+      0: { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+      2: { fill: "#6ab04c", stroke: "#508a38", collapsedFill: "#a3d391" },
+      3: { fill: "#f0932b", stroke: "#d0730f", collapsedFill: "#f6c07e" },
+      4: { fill: "#be2edd", stroke: "#a01cb3", collapsedFill: "#e08bf2" },
+      5: { fill: "#00a8ff", stroke: "#007ac1", collapsedFill: "#74d2ff" },
+      6: { fill: "#e55039", stroke: "#c23620", collapsedFill: "#f09a8d" },
+      default: { fill: "#747d8c", stroke: "#57606f", collapsedFill: "#a4b0be" }
+    };
+
+    const svgElement = d3.select("#tree-svg");
+    const initialSvgWidth = +svgElement.attr("width");
+    const initialSvgHeight = +svgElement.attr("height");
+    const margin = { top: 40, right: 120, bottom: 80, left: 450 };
+    let width = initialSvgWidth - margin.left - margin.right;
+    let height = initialSvgHeight - margin.top - margin.bottom;
+    const duration = 500;
+    let nodeCounter = 0;
+    const g = svgElement.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const treemap = d3.tree().nodeSize([40, 0]);
+    let rootNode = d3.hierarchy(treeData, d => d.children);
+    rootNode.x0 = 0;
+    rootNode.y0 = 0;
+
+    if (rootNode.children) {
+      rootNode.children.forEach(d_child => {
+        if (d_child.children) { collapseBranch(d_child); }
+      });
+    }
+    updateTree(rootNode);
+
+    function collapseBranch(d) { if (d.children) { d._children = d.children; d._children.forEach(collapseBranch); d.children = null; } }
+    function expandBranch(d) { if (d._children) { d.children = d._children; d._children = null; } if (d.children) { d.children.forEach(expandBranch); } }
+    window.expandAll = () => { expandBranch(rootNode); updateTree(rootNode); };
+    window.collapseAll = () => { if (rootNode.children) { rootNode.children.forEach(collapseBranch); } updateTree(rootNode); };
+    window.resetView = () => { if (rootNode.children) { rootNode.children.forEach(d_child => { if (d_child.children || d_child._children) { collapseBranch(d_child); } }); } if (rootNode._children && !rootNode.children) { rootNode.children = rootNode._children; rootNode._children = null; } updateTree(rootNode); };
+
+    function updateTree(source) {
+      const treeLayoutData = treemap(rootNode);
+      let nodes = treeLayoutData.descendants();
+      let links = treeLayoutData.descendants().slice(1);
+
+      let minX = 0;
+      let maxX = 0;
+      if (nodes.length > 0) {
+        minX = d3.min(nodes, d => d.x);
+        maxX = d3.max(nodes, d => d.x);
+      }
+
+      let neededHeight = Math.max(initialSvgHeight, maxX - minX + margin.top + margin.bottom + 100);
+      svgElement.transition().duration(duration / 2).attr("height", neededHeight);
+      g.transition().duration(duration / 2).attr("transform", `translate(${margin.left},${margin.top - minX + 40})`);
+
+      nodes.forEach(d => { d.y = d.depth * 400; }); // Adjust horizontal separation if needed
+
+      const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++nodeCounter));
+      const nodeEnter = node.enter().append('g')
+        .attr('class', d => "node" + (d.children || d._children ? " node--internal" : " node--leaf") + (d._children ? " _children" : ""))
+        .attr('transform', d => `translate(${source.y0},${source.x0})`)
+        .on('click', (event, d) => { if (d.children) { d._children = d.children; d.children = null; } else if (d._children) { d.children = d._children; d._children = null; } updateTree(d); })
+        .style('cursor', d => (d.children || d._children) ? 'pointer' : 'default');
+
+      nodeEnter.append('circle').attr('r', 1e-6);
+
+      nodeEnter.append('text')
+        .attr('dy', '.35em')
+        .attr('x', d => d.children || d._children ? -14 : 14)
+        .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+        .style("fill-opacity", 1e-6)
+        .call(wrapText, 380);
+
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.transition().duration(duration)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .attr('class', d => "node" + (d.children ? " node--internal" : " node--leaf") + (d._children ? " node--internal _children" : ""));
+
+      nodeUpdate.select('circle').attr('r', 8.5)
+        .style('fill', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            if (d._children) return palette.collapsedFill;
+            if (d.children) return palette.fill;
+            return "#fff";
+        })
+        .style('stroke', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            return palette.stroke;
+        });
+      nodeUpdate.select('text').style("fill-opacity", 1).call(wrapText, 380);
+
+      const nodeExit = node.exit().transition().duration(duration).attr('transform', d => `translate(${source.y},${source.x})`).remove();
+      nodeExit.select('circle').attr('r', 1e-6);
+      nodeExit.select('text').style('fill-opacity', 1e-6);
+
+      const link = g.selectAll('path.link').data(links, d => d.id);
+      const linkEnter = link.enter().insert('path', "g").attr('class', 'link').attr('d', d => { const o = { x: source.x0, y: source.y0 }; return diagonal(o, o); });
+
+      linkEnter.merge(link).transition().duration(duration).attr('d', d => diagonal(d, d.parent))
+        .style('stroke', d => {
+            const sourceNode = d.parent;
+            if (!sourceNode) return phaseColors.Default.stroke;
+            const l1AncestorName = sourceNode.data.originalStageName;
+            const colorPalette = phaseColors[l1AncestorName] || phaseColors.Default;
+            return colorPalette.stroke;
+        });
+      link.exit().transition().duration(duration).attr('d', d => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
+      nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+    }
+
+    function diagonal(s, d) { return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`; }
+
+    function wrapText(textElements, maxWidth) {
+        const textPartColors = {
+            name: '#343a40',
+            count: '#0056b3'
+        };
+        const countRegex = /(\s\(Total Count: \d+\))$/;
+
+        textElements.each(function () {
+            const textD3 = d3.select(this);
+            const originalNodeText = textD3.datum().data.name;
+            const x = parseFloat(textD3.attr("x") || 0);
+            const initialDy = textD3.attr("dy");
+            const textAnchor = textD3.attr("text-anchor");
+            const lineHeight = 1.1;
+
+            textD3.text(null);
+
+            let namePart = originalNodeText;
+            let countPartText = "";
+
+            const countMatch = originalNodeText.match(countRegex);
+            if (countMatch && originalNodeText.endsWith(countMatch[0])) {
+                namePart = originalNodeText.substring(0, originalNodeText.length - countMatch[0].length).trim();
+                countPartText = countMatch[0].trim();
+            }
+
+            const tokens = [];
+            namePart.split(/\s+/).filter(Boolean).forEach(word => {
+                tokens.push({ text: word, type: 'name' });
+            });
+            if (countPartText) {
+                tokens.push({ text: countPartText, type: 'count' });
+            }
+
+            if (tokens.length === 0 && originalNodeText) {
+                tokens.push({ text: originalNodeText, type: 'name' });
+            }
+
+            let currentTspan = textD3.append("tspan").attr("x", x).attr("dy", initialDy);
+            if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+
+            let lineTokens = [];
+
+            for (let i = 0; i < tokens.length; i++) {
+                const tokenObj = tokens[i];
+
+                lineTokens.push(tokenObj);
+                currentTspan.text(lineTokens.map(t => t.text).join(" "));
+
+                if (currentTspan.node().getComputedTextLength() > maxWidth && lineTokens.length > 1) {
+                    lineTokens.pop();
+
+                    currentTspan.text(null);
+                    lineTokens.forEach((prevToken, idx) => {
+                        currentTspan.append("tspan")
+                            .text((idx > 0 ? " " : "") + prevToken.text)
+                            .style("fill", textPartColors[prevToken.type] || textPartColors.name)
+                            .style("font-weight", prevToken.type === 'count' ? "bold" : "normal");
+                    });
+
+                    lineTokens = [tokenObj];
+                    currentTspan = textD3.append("tspan").attr("x", x).attr("dy", lineHeight + "em");
+                    if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+                }
+            }
+
+            currentTspan.text(null);
+            lineTokens.forEach((token, idx) => {
+                currentTspan.append("tspan")
+                    .text((idx > 0 ? " " : "") + token.text)
+                    .style("fill", textPartColors[token.type] || textPartColors.name)
+                    .style("font-weight", token.type === 'count' ? "bold" : "normal");
+            });
+
+            if (textD3.selectAll("tspan > tspan").empty() && textD3.select("tspan").text().length === 0 && originalNodeText) {
+                let t = textD3.select("tspan");
+                let displayText = originalNodeText;
+                t.text(displayText).style("fill", textPartColors.name);
+                if (t.node() && t.node().getComputedTextLength() > maxWidth && displayText.length > 20) {
+                    let estimatedChars = Math.floor(maxWidth / (t.node().getComputedTextLength()/displayText.length) );
+                    displayText = displayText.substring(0, Math.max(0, estimatedChars - 3)) + "...";
+                    t.text(displayText);
+                }
+            }
+        });
+    }
+  </script>
+</body>
+</html>
