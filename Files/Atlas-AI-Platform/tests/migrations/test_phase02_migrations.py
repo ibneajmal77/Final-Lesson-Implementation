@@ -6,20 +6,17 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
 from packages.db.models.identity import Tenant
 from packages.db.models.model_gateway import AIRun
 from packages.db.models.prompts import PromptTemplate, PromptVersion
-from packages.db.session import get_engine, get_session_factory
+from packages.db.session import get_session_factory
+from tests.conftest import skip_without_database
 
 
 def _session_or_skip():
-    try:
-        with get_engine().connect() as connection:
-            connection.exec_driver_sql("select 1")
-    except SQLAlchemyError as exc:
-        pytest.skip(f"database unavailable for migration tests: {exc.__class__.__name__}")
+    skip_without_database("migration tests")
     return get_session_factory()()
 
 

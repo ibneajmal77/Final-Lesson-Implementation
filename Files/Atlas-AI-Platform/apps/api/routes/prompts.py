@@ -237,9 +237,13 @@ def list_templates(
 def get_template(
     prompt_id: UUID,
     session: Annotated[Session, Depends(get_db_session)],
+    tenant_id: UUID | None = None,
 ) -> PromptTemplateDetailPayload:
+    # `tenant_id` is an optional scope, not an identity claim: real tenant
+    # binding arrives with RBAC (see packages.auth.gates). Until then, passing
+    # it makes cross-tenant reads return 404 instead of another tenant's prompt.
     service = PromptService(session)
-    template = service.get_template(prompt_id)
+    template = service.get_template(prompt_id, tenant_scope=tenant_id)
     versions = service.list_versions(template_id=prompt_id)
     base = _template_payload(service, template)
     return PromptTemplateDetailPayload(

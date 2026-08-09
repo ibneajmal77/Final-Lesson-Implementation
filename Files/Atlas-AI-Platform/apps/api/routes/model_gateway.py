@@ -21,9 +21,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from packages.db.session import get_db_session
+from packages.db.session import get_async_db_session, get_db_session
+from packages.model_gateway.async_client import AsyncModelGateway
 from packages.model_gateway.bootstrap import ensure_default_gateway_config
 from packages.model_gateway.client import ModelGateway
 from packages.model_gateway.router import ModelRouter
@@ -190,6 +192,62 @@ def embed(
         route_key=response.route_key,
         status=response.status,
         embeddings=[list(vector) for vector in response.embeddings],
+        usage=UsagePayload(**asdict(response.usage)),
+        estimated_cost_usd=response.estimated_cost_usd,
+        latency_ms=response.latency_ms,
+        trace_id=response.trace_id,
+        observability_attributes=response.observability_attributes,
+    )
+
+
+@router.post("/async/chat", response_model=GatewayChatResponse)
+async def chat_async(
+    payload: GatewayChatRequest,
+    session: Annotated[AsyncSession, Depends(get_async_db_session)],
+) -> GatewayChatResponse:
+    """Execute a chat request on the non-blocking gateway path.
+
+    This endpoint is the async twin of `POST /model-gateway/chat` above, and the
+    pair exists so both execution models can be read and measured side by side.
+
+    Note what `async def` obliges here. Because this handler runs directly on the
+    event loop rather than on Starlette's threadpool, every call it makes has to
+    be awaitable: an `AsyncSession` instead of `Session`, `AsyncModelGateway`
+    instead of `ModelGateway`, and an httpx-based provider instead of urllib. A
+    single blocking call in this chain would stall every other request in the
+    process, which is why the sync version is not simply reused with an await.
+
+    Where async pays: a provider call is tens of seconds of pure network wait. On
+    the sync path each of those holds a threadpool thread, capping concurrency at
+    the pool size. Here the wait yields, so the same process can hold far more
+    in-flight model calls.
+    """
+    # `run_sync` hands a normal blocking function a sync-style session backed by
+    # the async connection. It is the sanctioned bridge for reusing existing
+    # synchronous SQLAlchemy code — the work still happens off the event loop.
+    await session.run_sync(ensure_default_gateway_config)
+    request = ModelRequest(
+        tenant_id=payload.tenant_id,
+        user_id=payload.user_id,
+        use_case=payload.use_case,
+        messages=tuple(
+            ChatMessage(role=message.role, content=message.content)
+            for message in payload.messages
+        ),
+        restricted_data=payload.restricted_data,
+        max_cost_usd=payload.max_cost_usd,
+        prompt_version_id=payload.prompt_version_id,
+    )
+    response = await AsyncModelGateway(session).chat(request)
+    return GatewayChatResponse(
+        ai_run_id=response.ai_run_id,
+        use_case=response.use_case,
+        provider_name=response.provider_name,
+        model_name=response.model_name,
+        route_key=response.route_key,
+        status=response.status,
+        content=response.content or "",
+        finish_reason=response.finish_reason,
         usage=UsagePayload(**asdict(response.usage)),
         estimated_cost_usd=response.estimated_cost_usd,
         latency_ms=response.latency_ms,

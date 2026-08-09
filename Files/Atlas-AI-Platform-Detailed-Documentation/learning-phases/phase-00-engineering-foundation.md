@@ -879,114 +879,153 @@ Used in Phase 00 for:
 
 ## 12. Folder Structure To Create
 
-Recommended Phase 00 structure:
+Recommended Phase 00 structure.
+
+Every entry is tagged so the scope of this phase is explicit:
+
+- `NEW in Phase NN` — this phase adds the file.
+- `NEW in Phase NN (stub)` — an empty `__init__.py` placeholder created now and filled by a later phase.
+- `CARRIED from Phase NN` — the file already exists; this phase only imports or reads it.
+- `MODIFIED in Phase NN` — the file already exists and this phase changes it.
+- `BUILT` / `NOT BUILT` — status in the `Atlas-AI-Platform` repository as of the Phase 02 implementation. A `NOT BUILT` entry is still open work; where the responsibility landed somewhere else instead, the note says where.
 
 ```text
 atlas-ai-platform/
-  README.md
-  pyproject.toml
-  .env.example
-  .gitignore
-  docker-compose.yml
+  README.md                    # NEW in Phase 00 — BUILT
+  pyproject.toml               # NEW in Phase 00 — BUILT
+  .env.example                 # NEW in Phase 00 — BUILT
+  .gitignore                   # NEW in Phase 00 — BUILT
+  docker-compose.yml           # NEW in Phase 00 — BUILT as infra/docker-compose.yml
+  alembic.ini                  # BUILT, unplanned addition — Alembic needs it at the root
 
   apps/
     api/
-      __init__.py
-      main.py
-      lifespan.py
+      __init__.py              # NEW in Phase 00 — BUILT
+      main.py                  # NEW in Phase 00 — BUILT (thin; it only imports app.py)
+      app.py                   # BUILT, unplanned addition — holds create_app() and the
+                               #   global exception handlers, keeping main.py an entry point
+      lifespan.py              # NEW in Phase 00 — NOT BUILT
+                               #   (no startup/shutdown hooks are needed yet)
       middleware/
-        __init__.py
-        request_id.py
+        __init__.py            # NEW in Phase 00 — BUILT
+        request_id.py          # NEW in Phase 00 — BUILT
       routes/
-        __init__.py
-        health.py
-      schemas/
-        __init__.py
-        health.py
-        errors.py
-      dependencies/
-        __init__.py
-        database.py
+        __init__.py            # NEW in Phase 00 — BUILT
+        health.py              # NEW in Phase 00 — BUILT
+      schemas/                 # NEW in Phase 00 — NOT BUILT, and still unbuilt after
+        __init__.py            #   Phase 02. Request/response models are declared inline
+        health.py              #   in each route module and the error envelope lives in
+        errors.py              #   packages/core/errors.py
+      dependencies/            # NEW in Phase 00 — NOT BUILT
+        __init__.py            #   (the only dependency, get_db_session, lives in
+        database.py            #    packages/db/session.py)
 
     worker/
-      __init__.py
-      main.py
-      jobs/
+      __init__.py              # NEW in Phase 00 — BUILT
+      main.py                  # NEW in Phase 00 — BUILT, but only as a logging stub:
+                               #   it configures settings/logging and exits
+      jobs/                    # NEW in Phase 00 — NOT BUILT (no queue or job runner yet)
         __init__.py
 
   packages/
     core/
-      __init__.py
-      config.py
-      errors.py
-      logging.py
-      ids.py
-      time.py
-      result.py
+      __init__.py              # NEW in Phase 00 — BUILT
+      config.py                # NEW in Phase 00 — BUILT
+      errors.py                # NEW in Phase 00 — BUILT
+      logging.py               # NEW in Phase 00 — BUILT
+      request_context.py       # BUILT, unplanned addition — the contextvar that carries
+                               #   request_id into log records and ai_runs.trace_id
+      ids.py                   # NEW in Phase 00 — NOT BUILT (uuid4 is called directly)
+      time.py                  # NEW in Phase 00 — NOT BUILT
+      result.py                # NEW in Phase 00 — NOT BUILT
+                               #   (AppError exceptions are used instead of a Result type)
 
     db/
-      __init__.py
-      base.py
-      session.py
+      __init__.py              # NEW in Phase 00 — BUILT
+      base.py                  # NEW in Phase 00 — BUILT
+      session.py               # NEW in Phase 00 — BUILT
       models/
-        __init__.py
-      repositories/
-        __init__.py
+        __init__.py            # NEW in Phase 00 — BUILT
+        identity.py            # BUILT, unplanned addition — the Phase 00 identity tables
+      repositories/            # NEW in Phase 00 — NOT BUILT, and still unbuilt after
+        __init__.py            #   Phase 02. Query code sits in the service classes
+                               #   (model_gateway/router.py, prompts/service.py)
       migrations/
-        env.py
-        script.py.mako
-        versions/
+        env.py                 # NEW in Phase 00 — BUILT
+        script.py.mako         # NEW in Phase 00 — BUILT
+        versions/              # NEW in Phase 00 — BUILT
+                               #   0001_initial_foundation.py is the Phase 00 revision
 
     auth/
-      __init__.py
+      __init__.py              # NEW in Phase 00 — BUILT
+      gates.py                 # BUILT, unplanned addition — enforce_tenant_rbac_gate(),
+                               #   which blocks tenant-scoped features until RBAC exists
 
     model_gateway/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, filled in Phase 01
 
     prompts/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, filled in Phase 02
 
     ingestion/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02
 
     retrieval/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02
 
     rag/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02
 
     agents/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02
 
     tools/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02
 
     safety/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02
 
     evals/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02
 
     observability/
-      __init__.py
+      __init__.py              # NEW in Phase 00 (stub) — BUILT, still empty after Phase 02.
+                               #   The only observability code so far is
+                               #   packages/model_gateway/observability.py, from Phase 01
 
   tests/
-    conftest.py
+    conftest.py                # NEW in Phase 00 — NOT BUILT at the root. Phase 01 and
+                               #   Phase 02 add per-package conftest.py files instead
+                               #   (tests/model_gateway/, tests/prompts/)
     unit/
-      test_config.py
-      test_errors.py
-    integration/
-      test_health_api.py
-      test_database.py
+      test_config.py           # NEW in Phase 00 — BUILT
+      test_errors.py           # NEW in Phase 00 — BUILT
+      test_logging.py          # BUILT, unplanned addition
+      test_auth_gates.py       # BUILT, unplanned addition — covers gates.py
+      test_db_metadata.py      # BUILT, unplanned addition — asserts model registration
+                               #   and naming conventions without needing a live database
+    integration/               # NEW in Phase 00 — NOT BUILT under this name:
+      test_health_api.py       #   landed as tests/api/test_health.py
+      test_database.py         #   replaced by tests/unit/test_db_metadata.py, plus the
+                               #   live-database tests under tests/migrations/ from
+                               #   Phase 01 onward
 
   infra/
-    docker/
-    ci/
+    docker/                    # NEW in Phase 00 — NOT BUILT. Only infra/docker-compose.yml
+                               #   exists, which starts PostgreSQL and Redis; the app
+                               #   itself has no Dockerfile yet
+    ci/                        # NEW in Phase 00 — NOT BUILT. There is no CI pipeline, so
+                               #   ruff, mypy, and pytest are never enforced automatically
 
   docs/
-    architecture/
-    runbooks/
-    decisions/
+    architecture/              # NEW in Phase 00 — NOT BUILT
+    runbooks/                  # NEW in Phase 00 — NOT BUILT
+    decisions/                 # NEW in Phase 00 — BUILT
+                               #   0001-phase-01-gateway-policy.md (Phase 01)
+                               #   0002-phase-02-prompt-system.md  (Phase 02)
+    python-for-dotnet-reviewers.md  # BUILT, unplanned addition
+    model-gateway-baseline.md       # BUILT, unplanned addition (Phase 01)
+    prompt-system-baseline.md       # BUILT, unplanned addition (Phase 02)
 ```
 
 ## 13. File Responsibilities

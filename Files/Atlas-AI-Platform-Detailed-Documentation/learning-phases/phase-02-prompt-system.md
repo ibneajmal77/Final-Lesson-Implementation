@@ -850,57 +850,121 @@ Deliberately not added in Phase 02: prompt-management SaaS clients, LangChain-st
 
 ## 14. Folder Structure To Create
 
-The blueprint's §5 repository structure already names the package and its files. Phase 02 fills it in:
+The blueprint's §5 repository structure already names the package and its files. Phase 02 fills it in.
+
+Every entry is tagged so the scope of this phase is explicit:
+
+- `NEW in Phase NN` — this phase adds the file.
+- `NEW in Phase NN (stub)` — an empty `__init__.py` placeholder created now and filled by a later phase.
+- `CARRIED from Phase NN` — the file already exists; this phase only imports or reads it.
+- `MODIFIED in Phase NN` — the file already exists and this phase changes it.
+- `BUILT` / `NOT BUILT` — status in the `Atlas-AI-Platform` repository as of the Phase 02 implementation. A `NOT BUILT` entry is still open work; where the responsibility landed somewhere else instead, the note says where.
+
+Phase 02 adds no new top-level package either. `packages/prompts/` is the stub Phase 00 created, and the phase touches Phase 01 code in exactly two places: `ai_runs` gains a `prompt_version_id` foreign key, and `apps/api/app.py` registers one more router.
 
 ```text
 packages/
   prompts/
-    __init__.py
-    contracts.py           # PromptVersionSpec, VariableDeclaration, RenderedPrompt, TestCaseSpec
-    templates.py           # template create/read/update/archive
-    versions.py            # version creation, status transitions, activation
-    registry.py            # (tenant, use_case) -> active version, with cache
-    renderer.py            # version + variables -> messages; pure, no I/O
-    tests.py               # test case storage and the test runner
-    lifecycle.py           # the status transition table and its guard functions
-    optimization.py        # draft-only candidate writer; Phase 20 seam
-    errors.py              # prompt error codes
-    seeds/
-      rag_answer_support.yaml
-      classification_ticket.yaml
+    __init__.py            # CARRIED from Phase 00 (stub) — MODIFIED in Phase 02 to
+                           #   re-export the public prompt surface — BUILT
+    contracts.py           # NEW in Phase 02 — BUILT
+                           #   PromptVersionSpec, VariableDeclaration, RenderedPrompt,
+                           #   TestCaseSpec
+    templates.py           # NEW in Phase 02 — NOT BUILT. Template create/read/update/
+                           #   archive landed in service.py
+    versions.py            # NEW in Phase 02 — NOT BUILT. Version creation, status
+                           #   transitions, and activation landed in service.py
+    lifecycle.py           # NEW in Phase 02 — NOT BUILT. The status transition table
+                           #   and its guard functions are enforced inside service.py
+    service.py             # BUILT, unplanned addition — the single application service
+                           #   that absorbed templates.py, versions.py, and lifecycle.py.
+                           #   It is the largest module in the package as a result
+    records.py             # BUILT, unplanned addition — the row-to-contract mapping
+                           #   layer that would otherwise be db/repositories/prompts.py
+    registry.py            # NEW in Phase 02 — BUILT
+                           #   (tenant, use_case) -> active version. Phase 03 adds
+                           #   resolve_by_name() to this same file
+    renderer.py            # NEW in Phase 02 — BUILT (pure, no I/O, as specified)
+    tests.py               # NEW in Phase 02 — BUILT (test case storage and the runner)
+    optimization.py        # NEW in Phase 02 — BUILT (draft-only writer; Phase 20 seam)
+    errors.py              # NEW in Phase 02 — BUILT
+    seeds/                 # NEW in Phase 02 — NOT BUILT. No seeds/ directory exists, so
+      rag_answer_support.yaml     #   the Section 11.3 rule that no prompt text lives in
+      classification_ticket.yaml  #   the Python package is currently unproven: there is
+                           #   no shipped prompt content at all. Phase 03 assumes this
+                           #   directory exists when it adds structured_output_repair.yaml
 
 packages/db/
   models/
-    prompts.py             # prompt_templates, prompt_versions, prompt_test_cases
-    audit_events.py        # only if Section 4.2 assigns audit_events to Phase 02
+    prompts.py             # NEW in Phase 02 — BUILT
+                           #   prompt_templates, prompt_versions, prompt_test_cases
+    audit_events.py        # NEW in Phase 02 — BUILT under the name audit.py.
+                           #   Section 4.2 does assign audit_events to Phase 02
+    model_gateway.py       # CARRIED from Phase 01 — MODIFIED in Phase 02: AIRun gains
+                           #   prompt_version_id
   repositories/
-    prompts.py
+    prompts.py             # NEW in Phase 02 — NOT BUILT. The repositories package was
+                           #   never created in Phase 00; the mapping code is records.py
+                           #   and the queries are in service.py and registry.py
   migrations/versions/
-    0004_create_prompt_tables.py
-    0005_add_ai_runs_prompt_version_fk.py
+    0003_audit_events.py   # NEW in Phase 02 — BUILT. Not listed in the original plan,
+                           #   but audit_events must exist before the prompt tables that
+                           #   write to it
+    0004_create_prompt_tables.py          # NEW in Phase 02 — NOT BUILT as two revisions.
+    0005_add_ai_runs_prompt_version_fk.py #   Both were merged into one revision,
+                           #   0004_prompt_system.py, which IS BUILT and carries the
+                           #   prompt tables, the one-active-version constraint, and the
+                           #   ai_runs.prompt_version_id -> prompt_versions(id) FK
 
 apps/api/
   routes/
-    prompts.py
+    prompts.py             # NEW in Phase 02 — BUILT (all twelve prompt endpoints)
   schemas/
-    prompts.py
+    prompts.py             # NEW in Phase 02 — NOT BUILT. apps/api/schemas/ still does
+                           #   not exist; the Pydantic models are declared inside
+                           #   routes/prompts.py, the same as Phase 01 did
 
 tests/
   prompts/
-    test_registry_resolution.py
-    test_renderer.py
-    test_variable_validation.py
-    test_lifecycle_transitions.py
-    test_activation_gate.py
-    test_one_active_version.py
-    test_test_runner.py
-    test_optimizer_constraint.py
-    test_tenant_isolation.py
+    conftest.py            # BUILT, unplanned addition — db_session and tenant fixtures.
+                           #   Like Phase 01's, they need a live PostgreSQL, so this whole
+                           #   directory skips without one
+    test_renderer.py       # NEW in Phase 02 — BUILT. It also covers what
+                           #   test_variable_validation.py was meant to cover: missing
+                           #   variables, unknown variables, untrusted-variable fencing,
+                           #   and the max-token limit
+    test_variable_validation.py # NEW in Phase 02 — NOT BUILT (folded into test_renderer)
+    test_registry_and_lifecycle.py # BUILT, unplanned addition — the file that absorbed
+                           #   the four planned modules listed immediately below
+    test_registry_resolution.py # NEW in Phase 02 — NOT BUILT
+                           #   -> test_registry_and_lifecycle.test_registry_resolves_
+                           #      tenant_override_before_global, and
+                           #      test_no_active_version_raises_typed_error
+    test_lifecycle_transitions.py # NEW in Phase 02 — NOT BUILT
+                           #   -> test_registry_and_lifecycle.py
+    test_activation_gate.py # NEW in Phase 02 — NOT BUILT
+                           #   -> test_registry_and_lifecycle.test_activation_requires_
+                           #      approval_and_writes_audit_event
+    test_one_active_version.py # NEW in Phase 02 — NOT BUILT. Covered twice, in fact:
+                           #   at the service layer by test_registry_and_lifecycle.
+                           #   test_second_activation_leaves_exactly_one_active_version,
+                           #   and at the database layer by tests/migrations/
+                           #   test_phase02_migrations.test_second_active_version_rejected
+    test_runner_and_gateway.py # BUILT, unplanned addition — the planned test_test_runner
+                           #   plus the ai_runs.prompt_version_id attribution assertion
+    test_test_runner.py    # NEW in Phase 02 — NOT BUILT (folded into the file above)
+    test_optimizer_constraint.py # NEW in Phase 02 — BUILT
+    test_tenant_isolation.py # NEW in Phase 02 — NOT BUILT, and not covered elsewhere.
+                           #   Nothing asserts that one tenant cannot read or activate
+                           #   another tenant's prompt versions. Phase 01 has the same
+                           #   gap, and Phase 03 plans the test again
   api/
-    test_prompts.py
+    test_prompts.py        # NEW in Phase 02 — BUILT
   migrations/
-    test_phase02_migrations.py
+    test_phase02_migrations.py # NEW in Phase 02 — BUILT
 ```
+
+Two gaps above are load-bearing rather than cosmetic. `seeds/` was never created, so the "no prompt text in the package" rule has nothing to demonstrate it and Phase 03 will have to create the directory it expects to already exist. `test_tenant_isolation.py` is the only planned test with no equivalent coverage anywhere, which means tenant scoping is enforced in code but never asserted.
 
 The tickets document's Phase 02 row expects exactly these locations:
 

@@ -4,9 +4,11 @@ The gateway stores these attributes with each run so traces, logs, and database
 records can use the same dimensions for provider/model/prompt analysis.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from packages.model_gateway.types import GatewayResponse, ModelRequest, SelectedRoute
+from packages.observability.tracing import gateway_span
 
 
 def genai_attributes(
@@ -44,3 +46,24 @@ def genai_attributes(
             }
         )
     return attributes
+
+
+def emit_gateway_span(
+    name: str,
+    *,
+    attributes: Mapping[str, Any],
+    latency_ms: int,
+) -> None:
+    """Record one completed gateway call as a span.
+
+    The span is opened and closed immediately because the work has already
+    happened by the time attributes are known. That costs a timestamp pair
+    rather than a real duration, which is the honest trade for not threading a
+    span context through the whole gateway workflow; `atlas.latency_ms` carries
+    the measured duration instead.
+
+    With tracing unconfigured this resolves to OpenTelemetry's no-op tracer, so
+    the call is effectively free.
+    """
+    with gateway_span(name, {**attributes, "atlas.latency_ms": latency_ms}):
+        pass

@@ -58,6 +58,7 @@ Internal endpoints:
 
 ```text
 POST /api/v1/model-gateway/chat
+POST /api/v1/model-gateway/async/chat
 POST /api/v1/model-gateway/embed
 GET /api/v1/model-gateway/routes
 GET /api/v1/ai-runs/{ai_run_id}
@@ -69,6 +70,49 @@ Managed OpenAI-compatible calls are disabled by default. To run an opt-in smoke 
 ATLAS_MODEL_GATEWAY_ENABLE_MANAGED_PROVIDER=true
 ATLAS_OPENAI_COMPATIBLE_API_KEY=...
 ```
+
+## Sync And Async Gateway Paths
+
+`/model-gateway/chat` and `/model-gateway/async/chat` do the same job with the
+two different Python concurrency models, on purpose, so they can be read and
+measured side by side:
+
+```text
+sync   def       -> Session       -> urllib            (client.py)
+async  async def -> AsyncSession  -> httpx.AsyncClient (async_client.py)
+```
+
+Async is not applied everywhere, and it should not be. A `def` endpoint runs on
+Starlette's threadpool, where blocking code is safe and merely costs a thread.
+An `async def` endpoint runs on the event loop, where a single blocking call
+stalls **every** request in the process. The rule is that consistency is
+required per request path, not per application: everything an `async def` calls
+must be awaitable all the way down.
+
+The gateway chat call is the one path where async pays, because it spends tens
+of seconds waiting on a provider. Health, prompt CRUD, and ai-run lookups stay
+synchronous because sub-millisecond database round-trips gain nothing from it.
+
+Routing policy, retry timing, capability gating, redaction, cost lines, and
+telemetry attributes are shared by both paths — only the I/O is written twice.
+Ruff's `ASYNC` ruleset is enabled so a blocking call inside an `async def` is
+caught by the linter rather than in production.
+
+## Configuration Added For Operations
+
+```text
+ATLAS_OTEL_EXPORTER=none|console|otlp   # default none: no collector required
+ATLAS_OTEL_ENDPOINT=...                 # only for the otlp exporter
+ATLAS_RATE_LIMIT_REQUESTS_PER_MINUTE=0  # 0 disables the limiter
+```
+
+Rate limiting is an in-process fixed window. With multiple workers each has its
+own counters, so it is a blunt safety valve, not a billing control; a shared
+limiter belongs in Redis.
+
+Span export is off by default and degrades to a no-op if the optional exporter
+is not installed — telemetry must never stop the API from starting. Install it
+with `python -m pip install -e ".[otlp]"`.
 
 ## Prompt System
 
@@ -134,6 +178,27 @@ python -m apps.worker.main
 python -m ruff check .
 python -m mypy apps packages
 python -m pytest
+python -m pytest --cov --cov-report=term-missing
+```
+
+These same three checks run in CI (`.github/workflows/ci.yml`) against real
+PostgreSQL and Redis services, so the database-backed tests that skip locally do
+execute there.
+
+Without a local database, roughly 29 tests skip by design. Start the compose
+stack first if you want the full suite:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+alembic upgrade head
+python -m pytest
+```
+
+## Container
+
+```bash
+docker build -t atlas-ai-platform .
+docker run --rm -p 8000:8000 --env-file .env atlas-ai-platform
 ```
 
 ## Graphify Knowledge Graph

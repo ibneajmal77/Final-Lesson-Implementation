@@ -4,13 +4,18 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 
 from apps.api.app import create_app
 from packages.core.config import Settings
 from packages.db.models.identity import Tenant
-from packages.db.session import get_engine, get_session_factory
+from packages.db.session import get_session_factory
+
+# Every endpoint in this module reaches PostgreSQL, including the route listing.
+# Guarding at module level means a test that does not happen to call
+# `_tenant_id()` still skips instead of failing with a raw connection timeout,
+# which is exactly how test_route_listing_returns_gateway_columns used to behave
+# differently from its siblings.
+pytestmark = pytest.mark.usefixtures("require_database")
 
 
 def _client() -> TestClient:
@@ -18,11 +23,6 @@ def _client() -> TestClient:
 
 
 def _tenant_id() -> str:
-    try:
-        with get_engine().connect() as connection:
-            connection.execute(text("select 1"))
-    except SQLAlchemyError as exc:
-        pytest.skip(f"database unavailable for model gateway API tests: {exc.__class__.__name__}")
     session = get_session_factory()()
     try:
         suffix = uuid4().hex

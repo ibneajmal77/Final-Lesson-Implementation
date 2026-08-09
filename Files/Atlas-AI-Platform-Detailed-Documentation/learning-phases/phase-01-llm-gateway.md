@@ -846,80 +846,149 @@ Deliberately not added in Phase 01: LangChain-style orchestration frameworks, ag
 
 ## 14. Folder Structure To Create
 
-The blueprint's repository structure defines the target. Phase 01 fills it in:
+The blueprint's repository structure defines the target. Phase 01 fills it in.
+
+Every entry is tagged so the scope of this phase is explicit:
+
+- `NEW in Phase NN` — this phase adds the file.
+- `NEW in Phase NN (stub)` — an empty `__init__.py` placeholder created now and filled by a later phase.
+- `CARRIED from Phase NN` — the file already exists; this phase only imports or reads it.
+- `MODIFIED in Phase NN` — the file already exists and this phase changes it.
+- `BUILT` / `NOT BUILT` — status in the `Atlas-AI-Platform` repository as of the Phase 02 implementation. A `NOT BUILT` entry is still open work; where the responsibility landed somewhere else instead, the note says where.
+
+Phase 01 adds no new top-level package. `packages/model_gateway/` already exists as the empty stub Phase 00 created, so this phase fills that directory and leaves everything Phase 00 built untouched apart from registering two routers in `apps/api/app.py`.
 
 ```text
 packages/
   model_gateway/
-    __init__.py
-    client.py              # ModelGatewayClient: orchestrates one request
-    router.py              # route selection, filtering, fallback resolution
-    contracts.py           # ChatRequest, ChatResponse, EmbeddingRequest, Usage, RouteDecision
-    capabilities.py        # capability matrix model and capability checks
-    policies.py            # data policy and budget checks
-    retries.py             # backoff, jitter, retry classification, circuit breaker
-    token_usage.py         # normalize provider usage into Atlas usage fields
-    cost.py                # pricing sheet loading and cost calculation
+    __init__.py            # CARRIED from Phase 00 (stub) — MODIFIED in Phase 01 to
+                           #   re-export the public gateway surface — BUILT
+    client.py              # NEW in Phase 01 — BUILT
+                           #   ModelGatewayClient: orchestrates one request. Shipped as
+                           #   class ModelGateway, and it absorbed retries.py, runs.py,
+                           #   and providers/registry.py (see below)
+    router.py              # NEW in Phase 01 — BUILT
+                           #   route selection, filtering, fallback resolution. Also
+                           #   absorbed policies.py: the data-policy and budget checks
+                           #   run inside select_route()
+    contracts.py           # NEW in Phase 01 — NOT BUILT under this name.
+                           #   Landed as types.py with the same job: ChatRequest,
+                           #   ChatResponse, EmbeddingRequest, Usage, RouteDecision
+    types.py               # BUILT, unplanned addition — the contracts.py rename above.
+                           #   ModelRequest, GatewayResponse, SelectedRoute, TokenUsage
+    capabilities.py        # NEW in Phase 01 — NOT BUILT. There is no capability matrix
+                           #   yet; capability gating is deferred to Phase 03, which
+                           #   needs it for structured-output mode selection
+    policies.py            # NEW in Phase 01 — NOT BUILT (folded into router.py)
+    retries.py             # NEW in Phase 01 — NOT BUILT. The retry and fallback loop
+                           #   lives in client.py (_call_route, _call_with_policy).
+                           #   Backoff, jitter, and the circuit breaker were NOT built
+                           #   at all — retries are immediate, with no delay
+    token_usage.py         # NEW in Phase 01 — NOT BUILT. TokenUsage is declared in
+                           #   types.py and each provider adapter normalizes its own
+                           #   usage fields
+    cost.py                # NEW in Phase 01 — NOT BUILT under this name.
+                           #   Landed as pricing.py
+    pricing.py             # BUILT, unplanned addition — the cost.py rename above:
+                           #   estimate_cost_lines(), total_estimated_cost()
     pricing/
-      pricing_v1.yaml      # versioned pricing sheet
-    runs.py                # ai_run creation/update and redaction
-    bootstrap.py           # load providers/routes from config into database
-    streaming.py           # stream assembler (thin in Phase 01)
-    structured.py          # placeholder for Phase 03
-    cache.py               # placeholder for Phase 20
-    errors.py              # gateway-specific error codes
+      pricing_v1.yaml      # NEW in Phase 01 — NOT BUILT. There is no versioned pricing
+                           #   sheet; the rates are constants inside pricing.py, so a
+                           #   price change needs a code change
+    runs.py                # NEW in Phase 01 — NOT BUILT. ai_run create/update sits in
+                           #   client.py and the redaction half became redaction.py
+    redaction.py           # BUILT, unplanned addition — the redaction half of runs.py:
+                           #   request/response hashing, previews, restricted-data masking
+    observability.py       # BUILT, unplanned addition — genai_attributes(), the
+                           #   OpenTelemetry GenAI attribute dictionary. Note it only
+                           #   writes attributes into ai_runs.response_json; no OTel SDK
+                           #   or exporter is wired up in this phase
+    bootstrap.py           # NEW in Phase 01 — BUILT, but it seeds providers and routes
+                           #   from Python constants rather than from config/*.yaml
+    streaming.py           # NEW in Phase 01 — NOT BUILT. No streaming path exists; the
+                           #   gateway returns complete responses only
+    structured.py          # NEW in Phase 01 (placeholder for Phase 03) — NOT BUILT.
+                           #   Phase 03 creates it for real
+    cache.py               # NEW in Phase 01 (placeholder for Phase 20) — NOT BUILT
+    errors.py              # NEW in Phase 01 — BUILT
     providers/
-      __init__.py
-      base.py              # ModelProviderAdapter protocol/ABC
-      openai_compatible.py # one real managed adapter
-      mock.py              # fake provider for tests
-      registry.py          # provider_type -> adapter class
+      __init__.py          # NEW in Phase 01 — BUILT
+      base.py              # NEW in Phase 01 — BUILT (ProviderAdapter protocol)
+      openai_compatible.py # NEW in Phase 01 — BUILT, opt-in and off by default.
+                           #   It calls urllib.request.urlopen synchronously, and its
+                           #   embed() deliberately raises ProviderUnavailableError
+      mock.py              # NEW in Phase 01 — BUILT (the default provider for tests)
+      registry.py          # NEW in Phase 01 — NOT BUILT. The provider_type -> adapter
+                           #   map is _default_provider_registry() in client.py
 
 packages/db/
   models/
-    model_providers.py
-    model_routes.py
-    ai_runs.py
-    cost_records.py
-  repositories/
-    model_routes.py
-    ai_runs.py
+    model_providers.py     # NEW in Phase 01 — NOT BUILT as four separate modules.
+    model_routes.py        #   All four tables (ModelProvider, ModelRoute, AIRun,
+    ai_runs.py             #   CostRecord) are declared together in
+    cost_records.py        #   packages/db/models/model_gateway.py, which IS BUILT
+  repositories/            # NEW in Phase 01 — NOT BUILT (see Phase 00: the repositories
+    model_routes.py        #   package was never created; query code lives in router.py
+    ai_runs.py             #   and client.py)
     cost_records.py
   migrations/versions/
-    0002_create_model_provider_and_route_tables.py
-    0003_create_ai_run_and_cost_tables.py
+    0002_create_model_provider_and_route_tables.py   # NEW in Phase 01 — NOT BUILT as
+    0003_create_ai_run_and_cost_tables.py            #   two revisions. Both were merged
+                           #   into one revision, 0002_model_gateway.py, which IS BUILT.
+                           #   (0003_audit_events.py exists but belongs to Phase 02)
 
 apps/api/
   routes/
-    model_gateway.py
-    ai_runs.py
+    model_gateway.py       # NEW in Phase 01 — BUILT
+    ai_runs.py             # NEW in Phase 01 — BUILT
   schemas/
-    model_gateway.py
+    model_gateway.py       # NEW in Phase 01 — NOT BUILT. The apps/api/schemas/ package
+                           #   still does not exist; the Pydantic request/response models
+                           #   are declared inside routes/model_gateway.py
 
-config/
-  model_providers.yaml
-  model_routes.yaml
+config/                    # NEW in Phase 01 — NOT BUILT. There is no config/ directory:
+  model_providers.yaml     #   bootstrap.py holds the seed providers and routes in
+  model_routes.yaml        #   Python, so provider config is not data-driven yet
 
 tests/
   model_gateway/
-    test_contracts.py
-    test_router_selection.py
-    test_router_rejection.py
-    test_provider_interface.py
-    test_mock_provider.py
-    test_retries.py
-    test_fallback.py
-    test_token_usage.py
-    test_cost.py
-    test_ai_run_persistence.py
-    test_redaction.py
-    test_observability_fields.py
+    conftest.py            # BUILT, unplanned addition — the shared db_session and
+                           #   tenant fixtures. These require a live PostgreSQL; without
+                           #   one every test in this directory skips
+    test_contracts.py      # NEW in Phase 01 — BUILT. It also covers what
+                           #   test_provider_interface.py and test_mock_provider.py
+                           #   were meant to cover
+    test_router_selection.py  # NEW in Phase 01 — BUILT. It also holds the budget
+                           #   rejection case, so test_router_rejection.py was folded in
+    test_router_rejection.py  # NEW in Phase 01 — NOT BUILT (folded into the file above)
+    test_provider_interface.py # NEW in Phase 01 — NOT BUILT (folded into test_contracts)
+    test_mock_provider.py  # NEW in Phase 01 — NOT BUILT (folded into test_contracts)
+    test_gateway_client.py # BUILT, unplanned addition — the file that absorbed the six
+                           #   planned test modules listed immediately below
+    test_retries.py        # NEW in Phase 01 — NOT BUILT
+                           #   -> test_gateway_client.test_timeout_retries_inside_one_ai_run
+    test_fallback.py       # NEW in Phase 01 — NOT BUILT
+                           #   -> test_gateway_client.test_unavailable_primary_falls_back...
+    test_token_usage.py    # NEW in Phase 01 — NOT BUILT, and not covered elsewhere.
+                           #   Usage normalization has no direct test
+    test_cost.py           # NEW in Phase 01 — NOT BUILT. Cost is only asserted
+                           #   indirectly, via the ai_run persistence and API tests
+    test_ai_run_persistence.py # NEW in Phase 01 — NOT BUILT
+                           #   -> test_gateway_client.test_chat_request_persists_ai_run...
+    test_redaction.py      # NEW in Phase 01 — NOT BUILT
+                           #   -> test_gateway_client.test_restricted_request_redacts...
+    test_observability_fields.py # NEW in Phase 01 — NOT BUILT, and not covered
+                           #   elsewhere. Nothing asserts the genai_attributes payload
   api/
-    test_model_gateway.py
-    test_ai_runs.py
+    test_model_gateway.py  # NEW in Phase 01 — BUILT. It also holds the ai_run detail
+                           #   case, so test_ai_runs.py was folded in
+    test_ai_runs.py        # NEW in Phase 01 — NOT BUILT (folded into the file above)
   migrations/
-    test_phase01_migrations.py
+    test_phase01_migrations.py  # NEW in Phase 01 — BUILT under the name
+                           #   test_model_gateway_migration.py
 ```
+
+Two gaps in that list are worth carrying forward rather than treating as cosmetic: `test_token_usage.py` and `test_observability_fields.py` are the only planned tests with no equivalent coverage anywhere, so usage normalization and the GenAI attribute payload are currently unasserted. The missing backoff/jitter/circuit-breaker half of `retries.py` is the other real deferral.
 
 The ticket document's Phase 01 row expects exactly these locations:
 

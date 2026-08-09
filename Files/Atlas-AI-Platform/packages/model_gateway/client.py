@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from packages.core.request_context import get_request_id
 from packages.db.models.model_gateway import AIRun, CostRecord
+from packages.model_gateway.capabilities import ensure_route_supports
 from packages.model_gateway.errors import (
     BudgetExceededError,
     DataPolicyBlockedError,
@@ -24,7 +25,7 @@ from packages.model_gateway.errors import (
     ProviderUnavailableError,
     RouteNotFoundError,
 )
-from packages.model_gateway.observability import genai_attributes
+from packages.model_gateway.observability import emit_gateway_span, genai_attributes
 from packages.model_gateway.pricing import estimate_cost_lines, total_estimated_cost
 from packages.model_gateway.providers.base import ProviderAdapter
 from packages.model_gateway.providers.mock import MockProvider
@@ -35,6 +36,11 @@ from packages.model_gateway.redaction import (
     request_hash,
     request_preview,
     response_preview,
+)
+from packages.model_gateway.retries import (
+    compute_backoff_delay,
+    policy_from_route_config,
+    sleep,
 )
 from packages.model_gateway.router import ModelRouter
 from packages.model_gateway.types import (
@@ -200,9 +206,14 @@ class ModelGateway:
                 retryable=False,
                 details={"provider_type": route.provider_type},
             )
-        max_retries = int(route.route_config.get("max_retries", 1))
-        # `range(1, max_retries + 2)` gives the initial attempt plus retries.
-        for attempt_number in range(1, max_retries + 2):
+        # Capability gating happens before the first attempt, not inside it: an
+        # unsupported operation is not a transient fault, so retrying or failing
+        # over to a fallback route would only repeat the same refusal.
+        ensure_route_supports(route, operation=operation)
+        policy = policy_from_route_config(route.route_config)
+        max_retries = policy.max_retries
+        # `range(1, max_attempts + 1)` gives the initial attempt plus retries.
+        for attempt_number in range(1, policy.max_attempts + 1):
             logger.info(
                 "model_gateway.attempt_started",
                 extra={
@@ -243,6 +254,19 @@ class ModelGateway:
                 )
                 if not getattr(exc, "retryable", False) or attempt_number > max_retries:
                     raise
+                # Wait before the next attempt. Retrying instantly puts the call
+                # back on the wire while the same overload is still happening.
+                delay_seconds = compute_backoff_delay(attempt_number, policy)
+                logger.info(
+                    "model_gateway.retry_backoff",
+                    extra={
+                        "event": "model_gateway.retry_backoff",
+                        "route_key": route.route_key,
+                        "attempt": attempt_number,
+                        "delay_seconds": round(delay_seconds, 4),
+                    },
+                )
+                sleep(delay_seconds)
         raise ProviderUnavailableError(retryable=False, details={"route_key": route.route_key})
 
     def _create_running_run(
@@ -380,6 +404,15 @@ class ModelGateway:
         response.observability_attributes.update(
             genai_attributes(request=request, route=route, response=response)
         )
+        response.observability_attributes["atlas.execution_mode"] = "sync"
+        # The same attributes go three places on purpose: the HTTP response, the
+        # ai_runs ledger, and a real span. Only the span is queryable across
+        # services, which is what the JSON column alone could never provide.
+        emit_gateway_span(
+            "model_gateway.chat",
+            attributes=response.observability_attributes,
+            latency_ms=latency_ms,
+        )
         # Store observability attributes after the response object is assembled
         # so the persisted ledger and HTTP response expose the same dimensions.
         ai_run.response_json = {
@@ -438,7 +471,7 @@ def _elapsed_ms(started: float) -> int:
 
 
 def _is_attempts_exhausted(attempts: list[dict[str, Any]], route: SelectedRoute) -> bool:
-    max_retries = int(route.route_config.get("max_retries", 1))
+    max_retries = policy_from_route_config(route.route_config).max_retries
     route_attempts = [
         attempt for attempt in attempts if attempt.get("route_key") == route.route_key
     ]

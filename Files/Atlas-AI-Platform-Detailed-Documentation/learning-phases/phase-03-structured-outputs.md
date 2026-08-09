@@ -762,65 +762,119 @@ Deliberately not added in Phase 03: local constrained-decoding libraries and fra
 
 ## 14. Folder Structure To Create
 
-The ticket document's Phase 03 row and Section 11.2's resolution together give the layout:
+The ticket document's Phase 03 row and Section 11.2's resolution together give the layout.
+
+Every entry is tagged so the scope of this phase is explicit:
+
+- `NEW in Phase NN` — this phase adds the file.
+- `NEW in Phase NN (stub)` — an empty `__init__.py` placeholder created now and filled by a later phase.
+- `CARRIED from Phase NN` — the file already exists; this phase only imports or reads it.
+- `MODIFIED in Phase NN` — the file already exists and this phase changes it.
+- `BUILT` / `NOT BUILT` — status in the `Atlas-AI-Platform` repository. **Phase 03 has not been implemented yet**, so every entry below is `NOT BUILT`; the notes instead record what the phase will find already on disk when it starts, and where the Phase 00–02 plan diverged from what shipped.
+
+Unlike Phases 01 and 02, this phase creates a top-level package that Phase 00 never stubbed: `packages/structured_outputs/` does not exist in any form today.
 
 ```text
 packages/
-  structured_outputs/
-    __init__.py
-    contracts.py           # StructuredRequest/Response, ValidationFailure, SchemaRef
-    base.py                # StructuredOutput base model and strictness config
-    registry.py            # (schema_name, schema_version) -> model + JSON Schema snapshot
-    validation.py          # parse, validate, classify the failure
-    failures.py            # the failure class taxonomy and its decision table
-    repair.py              # repair policy: allowed?, budget, prompt variables
-    allowlist.py           # enum and action closure checks
-    errors.py              # structured.* error codes
+  structured_outputs/      # NEW in Phase 03 — NOT BUILT. Note this package has no
+                           #   Phase 00 stub, unlike model_gateway/ and prompts/
+    __init__.py            # NEW in Phase 03 — NOT BUILT
+    contracts.py           # NEW in Phase 03 — NOT BUILT
+                           #   StructuredRequest/Response, ValidationFailure, SchemaRef.
+                           #   Phase 01 shipped the equivalent file as types.py, so pick
+                           #   one name and stay with it
+    base.py                # NEW in Phase 03 — NOT BUILT
+                           #   StructuredOutput base model and strictness config
+    registry.py            # NEW in Phase 03 — NOT BUILT
+                           #   (schema_name, schema_version) -> model + JSON Schema snapshot
+    validation.py          # NEW in Phase 03 — NOT BUILT
+                           #   parse, validate, classify the failure
+    failures.py            # NEW in Phase 03 — NOT BUILT
+                           #   the failure class taxonomy and its decision table
+    repair.py              # NEW in Phase 03 — NOT BUILT
+                           #   repair policy: allowed?, budget, prompt variables
+    allowlist.py           # NEW in Phase 03 — NOT BUILT
+                           #   enum and action closure checks
+    errors.py              # NEW in Phase 03 — NOT BUILT (structured.* error codes)
     schemas/
-      __init__.py
-      classification.py    # IntentClassification, TicketClassification
-      extraction.py        # DocumentExtractionResult
+      __init__.py          # NEW in Phase 03 — NOT BUILT
+      classification.py    # NEW in Phase 03 — NOT BUILT
+                           #   IntentClassification, TicketClassification
+      extraction.py        # NEW in Phase 03 — NOT BUILT
+                           #   DocumentExtractionResult
 
-packages/model_gateway/
-  structured.py            # capability gating, mode selection, provider translation,
-                           # the structured call, and the repair orchestration
+packages/model_gateway/    # CARRIED from Phase 01
+  structured.py            # NEW in Phase 03 — NOT BUILT. Phase 01 listed this as a
+                           #   placeholder file but never created it, so Phase 03 writes
+                           #   it from scratch: capability gating, mode selection,
+                           #   provider translation, the structured call, and the repair
+                           #   orchestration
+  capabilities.py          # NEW in Phase 03 — NOT BUILT. Phase 01 planned this and
+                           #   deferred it. Capability gating has no home yet, so this
+                           #   phase must either create the file or put the matrix in
+                           #   structured.py
+  client.py                # CARRIED from Phase 01 — MODIFIED in Phase 03: the structured
+                           #   path needs a hook into _execute()
+  types.py                 # CARRIED from Phase 01 — MODIFIED in Phase 03 if the
+                           #   structured contracts reuse ModelRequest/GatewayResponse
+  providers/
+    openai_compatible.py   # CARRIED from Phase 01 — MODIFIED in Phase 03 to translate
+                           #   the structured request into a provider-native mode
+    mock.py                # CARRIED from Phase 01 — MODIFIED in Phase 03 to emit
+                           #   controllable valid, invalid, and truncated payloads
 
-packages/prompts/
-  registry.py              # + resolve_by_name(), per Section 4.2
-  seeds/
-    structured_output_repair.yaml
+packages/prompts/          # CARRIED from Phase 02
+  registry.py              # CARRIED from Phase 02 — MODIFIED in Phase 03: adds
+                           #   resolve_by_name(), per Section 4.2
+  seeds/                   # NEW in Phase 03 — NOT BUILT. Phase 02 planned this directory
+    structured_output_repair.yaml  #   and never created it, so Phase 03 must create
+                           #   seeds/ itself rather than adding a file to it. There is no
+                           #   YAML loader in packages/prompts/ today either
 
 packages/db/
   migrations/versions/
-    0006_add_ai_runs_structured_output_columns.py
+    0006_add_ai_runs_structured_output_columns.py  # NEW in Phase 03 — NOT BUILT.
+                           #   Renumber this: the current head is 0004_prompt_system.py,
+                           #   because Phase 02 merged its planned 0004 and 0005 into one
+                           #   revision. The next revision is 0005, not 0006
 
 apps/api/
   routes/
-    structured.py
+    structured.py          # NEW in Phase 03 — NOT BUILT
   schemas/
-    structured.py
+    structured.py          # NEW in Phase 03 — NOT BUILT. apps/api/schemas/ has been
+                           #   planned since Phase 00 and never created; Phases 01 and 02
+                           #   both declared their Pydantic models inline in the route
+                           #   module. Either create the package here or follow the
+                           #   existing convention deliberately
 
 tests/
   structured_outputs/
-    test_base_model_strictness.py
-    test_schema_registry.py
-    test_json_schema_generation.py
-    test_validation_success.py
-    test_invalid_json_rejected.py
-    test_failure_classification.py
-    test_enum_violation_blocked.py
-    test_unauthorized_action_blocked.py
-    test_repair_policy.py
-    test_truncation_never_repaired.py
-    test_schema_evolution_compatibility.py
-    test_tenant_isolation.py
+    conftest.py            # NEW in Phase 03 — NOT BUILT, and not in the original list.
+                           #   Phases 01 and 02 both needed one for db_session/tenant
+    test_base_model_strictness.py       # NEW in Phase 03 — NOT BUILT
+    test_schema_registry.py             # NEW in Phase 03 — NOT BUILT
+    test_json_schema_generation.py      # NEW in Phase 03 — NOT BUILT
+    test_validation_success.py          # NEW in Phase 03 — NOT BUILT
+    test_invalid_json_rejected.py       # NEW in Phase 03 — NOT BUILT
+    test_failure_classification.py      # NEW in Phase 03 — NOT BUILT
+    test_enum_violation_blocked.py      # NEW in Phase 03 — NOT BUILT
+    test_unauthorized_action_blocked.py # NEW in Phase 03 — NOT BUILT
+    test_repair_policy.py               # NEW in Phase 03 — NOT BUILT
+    test_truncation_never_repaired.py   # NEW in Phase 03 — NOT BUILT
+    test_schema_evolution_compatibility.py # NEW in Phase 03 — NOT BUILT
+    test_tenant_isolation.py            # NEW in Phase 03 — NOT BUILT. Phases 01 and 02
+                           #   planned the same test and shipped neither, so tenant
+                           #   scoping is still unasserted across the whole codebase
   model_gateway/
-    test_structured_outputs.py
+    test_structured_outputs.py  # NEW in Phase 03 — NOT BUILT
   api/
-    test_structured.py
+    test_structured.py     # NEW in Phase 03 — NOT BUILT
   migrations/
-    test_phase03_migrations.py
+    test_phase03_migrations.py  # NEW in Phase 03 — NOT BUILT
 ```
+
+Three items above are prerequisites rather than deliverables, and each one is a Phase 01 or Phase 02 file that was planned and never written: `packages/prompts/seeds/`, `packages/model_gateway/capabilities.py`, and the migration numbering. Settle all three before starting Section 15, otherwise the first ticket in this phase blocks on a missing directory.
 
 The tickets document's Phase 03 row expects exactly these locations:
 

@@ -49,6 +49,24 @@ class BudgetExceededError(GatewayError):
         )
 
 
+class CapabilityNotSupportedError(GatewayError):
+    """The selected route cannot perform the requested operation at all.
+
+    This is a 400 rather than a 502: nothing failed downstream, the request was
+    simply asking a model for something it does not do. Raising it before the
+    provider call is what stops the equivalent provider-side error, which would
+    otherwise cost a billed request and a failed `ai_runs` row.
+    """
+
+    def __init__(self, details: dict[str, object] | None = None) -> None:
+        super().__init__(
+            code="ai.capability_not_supported",
+            message="The selected model route does not support this operation.",
+            status_code=400,
+            details=details,
+        )
+
+
 class ProviderUnavailableError(GatewayError):
     def __init__(
         self,

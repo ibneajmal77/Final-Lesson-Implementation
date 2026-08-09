@@ -12,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from apps.api.middleware.rate_limit import RateLimitMiddleware
 from apps.api.middleware.request_id import REQUEST_ID_HEADER, RequestIdMiddleware
 from apps.api.routes.ai_runs import router as ai_runs_router
 from apps.api.routes.health import legacy_router as legacy_health_router
@@ -21,6 +22,7 @@ from apps.api.routes.prompts import router as prompts_router
 from packages.core.config import Settings, get_settings
 from packages.core.errors import AppError, error_payload
 from packages.core.logging import configure_logging
+from packages.observability.tracing import configure_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +47,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
     settings = settings or get_settings()
     configure_logging(settings.log_level)
+    # Tracing is configured before any router is imported so the first request
+    # is already instrumented. With the default exporter ("none") this installs
+    # no provider at all and costs nothing.
+    configure_tracing(
+        exporter=settings.otel_exporter,
+        service_name=settings.app_name,
+        endpoint=settings.otel_endpoint,
+    )
 
     app = FastAPI(title=settings.app_name, version="0.1.0")
     # `app.state` is FastAPI's small application-wide bag, similar to storing
     # validated options on ASP.NET Core's service container for later retrieval.
     app.state.settings = settings
+    # Middleware order matters: Starlette runs the most recently added first, so
+    # adding the rate limiter before RequestIdMiddleware means request_id is
+    # already on `request.state` when a 429 response is built.
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.rate_limit_requests_per_minute,
+    )
     app.add_middleware(RequestIdMiddleware)
     # Routers are feature modules. The app-level prefix keeps route modules free
     # to declare only their local paths such as `/health` or `/model-gateway`.

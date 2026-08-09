@@ -12,6 +12,7 @@ Python notes for .NET reviewers:
 """
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,7 +37,19 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0")
     log_level: str = Field(default="INFO")
     model_gateway_enable_managed_provider: bool = Field(default=False)
-    openai_compatible_api_key: str | None = Field(default=None)
+    # Secrets are declared here rather than read with os.getenv at the call
+    # site, so there is one place to see what the process needs and one place to
+    # validate it. `repr` is suppressed so the key cannot leak into a logged or
+    # printed Settings object.
+    openai_compatible_api_key: str | None = Field(default=None, repr=False)
+
+    # Tracing. "none" keeps local runs and CI free of any collector dependency.
+    otel_exporter: Literal["none", "console", "otlp"] = Field(default="none")
+    otel_endpoint: str | None = Field(default=None)
+
+    # Rate limiting, applied per client to the gateway endpoints. Zero disables
+    # it, which is the right default for local development and tests.
+    rate_limit_requests_per_minute: int = Field(default=0, ge=0)
 
     @field_validator("api_prefix")
     @classmethod

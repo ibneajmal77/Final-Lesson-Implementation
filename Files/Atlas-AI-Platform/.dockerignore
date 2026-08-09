@@ -1,0 +1,15 @@
+# Keep the build context small and keep secrets and local state out of the image.
+.git
+.github
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+*.egg-info
+.env
+.codex
+graphify-out
+tests
+docs
+infra

@@ -1,0 +1,88 @@
+name: CI
+
+# Until now nothing enforced ruff, mypy, or pytest on a push: the commands were
+# documented in the README and run by hand. This workflow is what turns them
+# from a convention into a gate.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  # A new push to the same branch cancels the previous run instead of queueing
+  # behind it.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    services:
+      # The 22 database-backed tests skip when PostgreSQL is unavailable, which
+      # is correct locally but would silently gut CI. Running the service here
+      # is what makes them actually execute.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      ATLAS_DATABASE_URL: postgresql+psycopg://atlas:atlas@localhost:55432/atlas?connect_timeout=3
+      ATLAS_REDIS_URL: redis://localhost:6379/0
+      ATLAS_API_PREFIX: /api/v1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Type check
+        run: python -m mypy apps packages
+
+      - name: Migrate
+        run: python -m alembic upgrade head
+
+      - name: Test
+        # 65% is the level measured with NO database, so it is guaranteed
+        # reachable. CI has PostgreSQL and runs ~29 more tests, so the real
+        # number here will be higher — raise this threshold to just under
+        # whatever the first green run reports, and keep ratcheting it.
+        run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=65
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Building the image on every PR keeps the Dockerfile from rotting
+      # unnoticed, which is the usual fate of an image nobody builds in CI.
+      - name: Build image
+        run: docker build -t atlas-ai-platform:ci .

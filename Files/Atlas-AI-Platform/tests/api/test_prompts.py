@@ -6,13 +6,13 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 
 from apps.api.app import create_app
 from packages.core.config import Settings
 from packages.db.models.identity import Tenant
-from packages.db.session import get_engine, get_session_factory
+from packages.db.session import get_session_factory
+
+pytestmark = pytest.mark.usefixtures("require_database")
 
 
 def _client() -> TestClient:
@@ -20,11 +20,6 @@ def _client() -> TestClient:
 
 
 def _tenant_id() -> str:
-    try:
-        with get_engine().connect() as connection:
-            connection.execute(text("select 1"))
-    except SQLAlchemyError as exc:
-        pytest.skip(f"database unavailable for prompt API tests: {exc.__class__.__name__}")
     session = get_session_factory()()
     try:
         suffix = uuid4().hex

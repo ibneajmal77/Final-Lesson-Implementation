@@ -7,12 +7,12 @@ disabled unless an API key is configured, so CI never depends on paid providers.
 from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from typing import Any, cast
 
+from packages.core.config import get_settings
 from packages.model_gateway.errors import ProviderUnavailableError
 from packages.model_gateway.providers.base import ProviderAdapter
 from packages.model_gateway.types import (
@@ -27,7 +27,11 @@ from packages.model_gateway.types import (
 
 class OpenAICompatibleProvider:
     def chat(self, request: ModelRequest, route: SelectedRoute) -> ProviderChatResponse:
-        api_key = os.getenv("ATLAS_OPENAI_COMPATIBLE_API_KEY")
+        # Read through Settings rather than os.getenv, so configuration has one
+        # source, one prefix convention, and one place to validate. A bare
+        # getenv also silently disagrees with `.env` loading, which is how a key
+        # that "is set" still ends up missing at runtime.
+        api_key = get_settings().openai_compatible_api_key
         if not api_key:
             raise ProviderUnavailableError(
                 retryable=False,

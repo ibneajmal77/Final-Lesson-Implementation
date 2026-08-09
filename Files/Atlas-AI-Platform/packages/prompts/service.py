@@ -122,14 +122,38 @@ class PromptService:
             self._session.scalars(statement.order_by(PromptTemplate.created_at).limit(limit)).all()
         )
 
-    def get_template(self, template_id: UUID) -> PromptTemplate:
+    def get_template(
+        self,
+        template_id: UUID,
+        *,
+        tenant_scope: UUID | None = None,
+    ) -> PromptTemplate:
+        """Load a template, optionally refusing it if it belongs to another tenant.
+
+        `tenant_scope` defaults to None, which keeps the existing unscoped
+        behavior for internal callers that have already established the tenant.
+        When a caller does pass a scope, a template owned by a different tenant
+        is reported as **not found** rather than forbidden: a 403 would confirm
+        that the id exists, which is enough to enumerate another tenant's
+        template ids one guess at a time.
+
+        Global templates (`tenant_id is None`) stay readable by every tenant,
+        which is the same precedence the registry applies when resolving.
+        """
         template = self._session.get(PromptTemplate, template_id)
+        not_found = PromptNotFoundError(
+            code="prompts.template_not_found",
+            message="Prompt template not found.",
+            details={"prompt_template_id": str(template_id)},
+        )
         if template is None:
-            raise PromptNotFoundError(
-                code="prompts.template_not_found",
-                message="Prompt template not found.",
-                details={"prompt_template_id": str(template_id)},
-            )
+            raise not_found
+        if (
+            tenant_scope is not None
+            and template.tenant_id is not None
+            and template.tenant_id != tenant_scope
+        ):
+            raise not_found
         return template
 
     def get_version(self, *, template_id: UUID, version_id: UUID) -> PromptVersion:

@@ -1,0 +1,34 @@
+# Seed prompt for grounded support answers.
+#
+# Prompt text lives in YAML, not in a Python module. That separation is the
+# point: prompt wording changes far more often than prompt code, and a reviewer
+# reading a diff should see the wording change on its own, without a code change
+# wrapped around it.
+name: rag_answer_support
+use_case: rag_answer
+description: Answer a support question using only the retrieved policy excerpts.
+system_prompt: |
+  You are a support assistant for an enterprise product.
+
+  Answer only from the provided context. If the context does not contain the
+  answer, say that you do not have that information and suggest contacting
+  support. Never invent a policy, a date, or a refund amount.
+
+  Cite the source id in square brackets after each claim you make.
+user_template: |
+  Context:
+  ${context}
+
+  Customer question:
+  ${question}
+input_variables:
+  - name: context
+    required: true
+    # Retrieved document text is untrusted: it comes from a corpus that a
+    # customer may have influenced, so the renderer fences it.
+    trusted: false
+    max_tokens: 6000
+  - name: question
+    required: true
+    trusted: false
+    max_tokens: 500

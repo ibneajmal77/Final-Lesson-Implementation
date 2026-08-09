@@ -10,24 +10,19 @@ from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from packages.db.models.identity import Tenant
-from packages.db.session import get_engine, get_session_factory
+from packages.db.session import get_session_factory
 from packages.model_gateway.bootstrap import ensure_default_gateway_config
 from packages.prompts.registry import PromptRegistry
+from tests.conftest import skip_without_database
 
 
 @pytest.fixture()
 def db_session() -> Generator[Session, None, None]:
     """Yield a database session or skip tests when PostgreSQL is unavailable."""
-    try:
-        with get_engine().connect() as connection:
-            connection.execute(text("select 1"))
-    except SQLAlchemyError as exc:
-        pytest.skip(f"database unavailable for prompt tests: {exc.__class__.__name__}")
+    skip_without_database("prompt tests")
 
     session = get_session_factory()()
     try:
