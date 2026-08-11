@@ -77,8 +77,11 @@ The matrix describes the target implementation coverage. Current repository stat
 |---|---|---|
 | Master architecture | Designed | Implementation reference used by developers |
 | Phase 00 learning guide | Written; matching scaffold created | Implemented code plus tests |
-| Phases 01-07 learning guides | Not yet written | Written as MVP spine teaching docs |
-| MVP code | Phase 00 scaffold created in sibling `Atlas-AI-Platform` folder; Phases 01-07 not implemented | Running local app with tests and demo |
+| Phases 01-04 learning guides | Written against `learning-phases/PHASE-AUTHORING-STANDARD.md` | Implemented code plus tests |
+| Phases 05-07 learning guides | Not yet written | Written as MVP spine teaching docs |
+| Phases 08-25 learning guides | Not yet written | Written as depth and breadth teaching docs |
+| MVP code | Phases 00-02 implemented in sibling `Atlas-AI-Platform` folder (`packages/core`, `db`, `model_gateway`, `prompts`) with tests; Phase 03 present only as gateway capability flags; Phases 04-07 not implemented | Running local app with tests and demo |
+| Cross-cutting completion items 28, 29, 30, 35, 41, 43 | Owned by every phase document via `PHASE-AUTHORING-STANDARD.md` §8.2 | Answered or explicitly marked "No change" in each phase document |
 | Proof cells in this matrix | Target proof | Actual proof after implementation |
 | Standards controls | Mapped in docs | Verified by tests/reviews/audit artifacts |
 
@@ -173,7 +176,8 @@ These documents improve the matrix from broad design toward implementable and re
 |---|---|---|---|---|
 | Document upload | 04 | ingestion/API | upload endpoint | uploaded doc record |
 | Text extraction | 04 | ingestion | parser pipeline | extracted text preview |
-| OCR baseline | 04, 12 | ingestion/multimodal | OCR job | OCR confidence output |
+| OCR triage: detect a missing text layer | 04 | ingestion | triage gates, `ingestion.no_text_extracted` | scanned PDF fails terminally instead of storing an empty document |
+| OCR baseline: run the engine | 12 | multimodal | OCR job | OCR confidence output |
 | Cleaning | 04 | ingestion | normalization rules | cleaned text diff |
 | Chunking | 04 | ingestion/chunking | chunk table | chunk viewer |
 | Metadata capture | 04 | ingestion | metadata_json | filtered retrieval test |
@@ -199,7 +203,7 @@ These documents improve the matrix from broad design toward implementable and re
 | Multi-hop retrieval | 23 | rag | subquestion records | multi-hop eval |
 | GraphRAG/RAPTOR | 23 | retrieval | optional experiments | proof only if beats baseline |
 | ACL-filtered retrieval | 06, 11, 23 | retrieval/auth | tenant/permission filters | cross-tenant test |
-| Delete/reindex lifecycle | 11, 23 | ingestion/retrieval | index versions/tombstones | deleted doc not retrieved |
+| Delete/reindex lifecycle | 04, 05, 23 | ingestion/retrieval | soft delete + `document_chunks.deleted_at` tombstone (04), vector delete job + index versions (05) | deleted doc not retrieved |
 
 
 ## 9. Agents, Tools, MCP, And Memory Coverage

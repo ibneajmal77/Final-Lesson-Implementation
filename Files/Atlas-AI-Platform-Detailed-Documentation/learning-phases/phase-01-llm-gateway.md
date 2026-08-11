@@ -1549,6 +1549,34 @@ agent_runs (0..1) ----< ai_runs (0..n)       soft until Phase 09
 
 The self-reference on `model_routes.fallback_route_id` deserves attention: it makes a fallback cycle physically possible. Section 23 covers cycle detection.
 
+### 18.6 Lineage Columns Phase 01 Populates
+
+Blueprint §11.11 requires the system to explain where a piece of data came from and how it changed. For Phase 01 the answer is narrow but load-bearing: **every `ai_runs` row must be able to reconstruct the exact conditions of its own model call**, months later, after the route has been edited and the provider has silently swapped the model behind an alias.
+
+The columns that carry that:
+
+```text
+tenant_id            -- who the work was done for
+model_route_id       -- which route was selected
+provider_name        -- resolved at call time, not read back from the route later
+model_name           -- the model actually used
+resolved_model_name  -- what the provider reported back, which may differ from the request
+pricing_version      -- which price table produced the cost figure
+prompt_version_id    -- soft reference until Phase 02
+request_id           -- ties the run to the HTTP request and the log line
+attempts             -- how many tries this took
+used_fallback        -- whether the primary route served it
+created_at           -- when
+```
+
+The non-obvious ones are `provider_name`, `resolved_model_name`, and `pricing_version`, and they are non-obvious for the same reason: **lineage must be denormalized at write time, not derived by joining later.** A route is mutable configuration. If an `ai_run` stores only `model_route_id` and someone repoints that route at a cheaper model next quarter, every historical run silently starts claiming it used the new model. The join gives you today's configuration, not the one that ran. The same argument applies to cost: `pricing_version` is what lets a cost figure be re-derived or defended, and without it a price change rewrites financial history.
+
+`resolved_model_name` earns its place separately. Section 8.16 covers floating aliases — a request for a dated alias can be served by a different underlying build. Storing what you asked for and what you got is the only way to notice.
+
+`cost_records` inherits lineage through `ai_run_id`. It stores no independent copy of the model or route, because a cost row without its run is not meaningful, and two copies of the same fact drift.
+
+What Phase 01 deliberately does **not** record: any lineage of document, chunk, or retrieval provenance. That belongs to Phases 04 through 06, which own the data whose lineage it is.
+
 ## 19. Migration Plan And Deferred Foreign Keys
 
 ### 19.1 The Canonical Migration Order
@@ -3184,6 +3212,20 @@ Capture and commit a baseline report at the end of Phase 01. It is a portfolio a
 
 Configuring the route now and using it later is correct sequencing: Phase 07 will need no gateway change.
 
+### 35.5 Bias, Fairness, And Toxicity
+
+Blueprint §25.11 requires these checks for workflows where they apply. **Phase 01 is not such a workflow, and saying so precisely matters more than adding a token check.**
+
+The gateway does not author content, choose what to retrieve, or decide anything about a person. It routes a request to a model and records what happened. There is no Phase 01 output to score for bias, because Phase 01 has no opinion about the content passing through it.
+
+What Phase 01 owes those checks is not a scorer but the **substrate they will need**:
+
+- `ai_runs` stores the route, model, and prompt version for every call, so a fairness result found in Phase 07 can be attributed to a specific model and configuration rather than to "the system".
+- Section 29's redaction rules keep the demographic content that fairness evaluation is *about* out of logs, so the evaluation happens in the eval store under review, not accidentally in observability.
+- The `llm_judge` route exists, so Phase 07 can score without a gateway change.
+
+Recording "No change, because the gateway produces no content to evaluate" is the honest answer here. The first real bias surface is Phase 06, where retrieval decides what evidence an answer sees, and the first real toxicity surface is Phase 11. A phase that invents a fairness metric for a routing layer is measuring nothing and will be believed anyway.
+
 ## 36. Testing Strategy
 
 ### 36.1 The Governing Constraint
@@ -3735,6 +3777,27 @@ Media route:      disable generation, preserve prompts for retry
 
 Most of those routes do not exist yet. What Phase 01 must provide is the mechanism: a stable error code the caller can branch on, and a route status an operator can flip. Callers in Phases 06 and 09 implement their own degradation on top of it.
 
+### 40.6 Retention, Deletion, And Export Of Phase 01 Rows
+
+Blueprint §11.12 through §11.14 require every phase to say what deletion, retention, and export mean for the rows it creates. Phase 01 creates four kinds, and they do not answer the same way.
+
+| Table | Retention | Deletable on tenant request | Included in tenant export |
+|---|---|---|---|
+| `model_providers` | Indefinite; configuration, not tenant data | No | No — global configuration |
+| `model_routes` | Indefinite; keep disabled rows rather than deleting | No | No, except tenant-scoped routes |
+| `ai_runs` | Tenant retention window, default 90 days per the 2026-07 policy | **No — see below** | Yes, redacted form |
+| `cost_records` | Longer than `ai_runs`; billing evidence | No | Yes, as usage summary |
+
+The row that needs an argument is `ai_runs`. A tenant asking to delete their data has a legitimate request, and `ai_runs` is the audit trail of what the platform did on their behalf — cost, safety decisions, model used. Deleting it on request destroys the evidence that the platform behaved correctly, which is exactly what an audit needs when the tenant later disputes a charge or a decision.
+
+The resolution is that **`ai_runs` holds no tenant content to begin with**. Section 29's redaction rules mean the row stores token counts, identifiers, and decisions — never prompt or completion text. There is nothing in an `ai_run` that a deletion request is actually about. Retention expiry removes the row on schedule; a deletion request does not.
+
+This is why the redaction rules are a retention design decision and not only a privacy one. A gateway that logged prompt text would face a genuine conflict between the tenant's deletion right and the platform's audit obligation. Phase 01 avoids the conflict by never creating it.
+
+Two things Phase 01 must actually build for this: `ai_runs` needs an index on `(tenant_id, created_at)` so the retention job can find expired rows without a sequential scan, and the export path must be defined before Phase 04 adds rows that *do* contain tenant content.
+
+Reindexing and dataset contamination do not apply — Phase 01 owns no index and no eval dataset.
+
 ## 41. Frontend Surface
 
 Phase 19 builds the console. Phase 01 makes its data real. The UX specification defines a Models screen:
@@ -3936,6 +3999,19 @@ Phase 01 is done when every gate below passes. Not before.
 [ ] gen_ai.prompt.name and gen_ai.prompt.version are emitted, empty for now
 [ ] No prompt text is hard-coded anywhere in the gateway
 ```
+
+### 44.6 Cross-Cutting Completion Items
+
+`PHASE-AUTHORING-STANDARD.md` §8.2 requires every phase to answer six blueprint completion items, including the ones that do not apply.
+
+| Item | Phase 01 answer | Where |
+|---|---|---|
+| 28. API contracts | Four endpoints with headers, envelope, error codes, auth rule, and full sample payloads | §31 |
+| 29. ERD and lineage | Relationship fragment for the four Phase 01 tables; lineage columns denormalized at write time | §18.5, §18.6 |
+| 30. Data lifecycle | Per-table retention, and why `ai_runs` is not deletable on request | §40.6 |
+| 35. Streaming | Text streaming only; tool-call deltas and partial structured output deferred | §30 |
+| 41. Threat model | OWASP LLM Top 10 mapping, SSRF on `base_url`, denial-of-wallet, alias pinning | §33 |
+| 43. Bias, fairness, toxicity | No change — the gateway produces no content to evaluate; substrate provided for Phase 07 | §35.5 |
 
 ## 45. Portfolio Evidence
 

@@ -470,6 +470,40 @@ Examples:
 3. Compare document counts, chunk counts, embedding counts, and vector DB point counts.
 4. Check content hashes for duplicate or stale chunks.
 5. Inspect deletion tombstones and whether they propagated to vector DB.
+
+   Steps 3 to 5 are queries against the Phase 04 tables. `document_chunks.deleted_at` is the deletion tombstone — there is no separate tombstone table — and `active = false` marks chunks superseded by a reingest. Both populations need their vectors removed.
+
+```sql
+-- 3. count reconciliation
+select
+  (select count(*) from documents
+     where tenant_id = :t and deleted_at is null and status = 'processed') as docs,
+  (select count(*) from document_chunks
+     where tenant_id = :t and active = true and deleted_at is null)        as live_chunks;
+
+-- 3b. processed documents that produced no chunks (a silent ingestion failure)
+select d.id, d.title, d.status
+from documents d
+where d.tenant_id = :t and d.deleted_at is null and d.status = 'processed'
+  and not exists (select 1 from document_chunks c
+                  where c.document_id = d.id and c.active = true);
+
+-- 4. duplicate chunk text: repeated headers surviving cleaning
+select content_hash, count(*) c
+from document_chunks
+where tenant_id = :t and active = true and deleted_at is null
+group by content_hash having count(*) > 10
+order by c desc limit 50;
+
+-- 5. chunks whose vectors must be removed
+select count(*) from document_chunks
+where tenant_id = :t and (deleted_at is not null or active = false);
+
+-- ingestion failure breakdown, by stable error code
+select error_code, count(*) from ingestion_jobs
+where tenant_id = :t and status = 'failed'
+group by error_code order by 2 desc;
+```
 6. Run retrieval evals against current and previous index versions.
 7. Inspect HNSW/IVF parameters and recall/latency tradeoff.
 8. Confirm metadata filters are applied before or during vector search, not only after answer generation.
@@ -480,7 +514,7 @@ Examples:
 | Root Cause | Fix |
 |---|---|
 | Dimension mismatch | Create new index version; do not mix embedding models/dimensions |
-| Missing chunks | Replay ingestion from source documents using idempotency keys |
+| Missing chunks | Replay ingestion from source documents using idempotency keys (`ingestion_jobs.idempotency_key`, unique per tenant). A reingest creates a new `document_versions` row and deactivates the previous version's chunks rather than deleting them, so the corpus stays searchable throughout and historical citations still resolve |
 | Deleted docs returned | Apply tombstones, rebuild affected tenant index, add deletion regression tests |
 | Low recall after tuning | Restore previous HNSW/IVF config and rerun recall benchmark |
 | Duplicate chunks | Add deduplication by source document, section, page, and content hash |

@@ -275,10 +275,10 @@ Route:
 ```json
 {
   "route_key": "rag_answer_private",
-  "use_case": "rag_answer_private",
+  "use_case": "rag_answer",
   "provider_key": "azure_private_llm",
   "model_name": "private-chat-model",
-  "priority": 1,
+  "priority": 2,
   "max_input_tokens": 16000,
   "max_output_tokens": 1600,
   "temperature": 0.2,
@@ -295,7 +295,53 @@ Why:
 - Some tenants must not send sensitive content to public/provider-default routes.
 - Fallback should not silently downgrade to less private provider.
 
-### 3.7 Media Generation Route
+The `use_case` here is `rag_answer`, not `rag_answer_private`. Data sensitivity is a **filter**, not a different use case: the caller asks for a grounded answer and does not know whether the tenant is restricted. A private route registered under its own `use_case` would never be a candidate for any real request, `rag_answer_primary` could never fall back to it, and a restricted-data request would find no compliant route at all. `use_case` describes what the caller wants; `restricted_data_allowed` and `priority` describe who may serve it. Priority 2 means this route loses to the primary for unrestricted requests and wins when the data-policy filter removes the primary.
+
+### 3.7 Private Fallback Routes For Classification And Embedding
+
+The classification and embedding routes above name fallbacks. Those fallbacks are defined here, under the same rule as §3.6: same `use_case` as the route they serve, priority 2, `restricted_data_allowed: true`, and no onward fallback.
+
+```json
+{
+  "route_key": "classification_private",
+  "use_case": "classification",
+  "provider_key": "azure_private_llm",
+  "model_name": "private-chat-model",
+  "priority": 2,
+  "max_input_tokens": 2000,
+  "max_output_tokens": 300,
+  "temperature": 0.0,
+  "timeout_seconds": 10,
+  "reasoning_enabled": false,
+  "prompt_caching_enabled": false,
+  "restricted_data_allowed": true,
+  "fallback_route_key": null
+}
+```
+
+```json
+{
+  "route_key": "embedding_private",
+  "use_case": "embedding",
+  "provider_key": "azure_private_llm",
+  "model_name": "private-embedding-model",
+  "priority": 2,
+  "max_input_tokens": 8192,
+  "max_output_tokens": 0,
+  "embedding_dimension": 1536,
+  "batch_enabled": true,
+  "max_batch_items": 1024,
+  "timeout_seconds": 60,
+  "restricted_data_allowed": true,
+  "fallback_route_key": null
+}
+```
+
+`embedding_private.embedding_dimension` **must** equal `embedding_primary.embedding_dimension`. Two embedding routes for one collection that produce different vector widths cannot share an index, and the failure appears at query time as a dimension mismatch rather than at configuration time. `max_batch_items` may differ between the two — that is a provider limit, not a correctness constraint.
+
+Every `fallback_route_key` in this document now resolves to a route defined in this document. A configuration loader should validate that before writing routes, because a dangling fallback fails only on the day the primary provider is down.
+
+### 3.8 Media Generation Route
 
 Use case:
 

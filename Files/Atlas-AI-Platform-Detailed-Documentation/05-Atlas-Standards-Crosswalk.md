@@ -197,6 +197,73 @@ atlas.safety.status
 atlas.cost.estimated_usd
 ```
 
+Added by Phase 01 (model gateway):
+
+```text
+atlas.route.key
+atlas.route.id
+atlas.use_case
+atlas.attempts
+atlas.used_fallback
+atlas.circuit_breaker.state
+atlas.pricing.version
+```
+
+Added by Phase 02 (prompt system):
+
+```text
+atlas.prompt.template_id
+atlas.prompt.version_id
+atlas.prompt.use_case
+atlas.prompt.resolution
+atlas.prompt.cache_hit
+```
+
+`atlas.prompt.resolution` takes `tenant`, `global`, or `pinned`. `atlas.prompt.cache_hit` refers to the prompt **registry** cache, not the provider prompt cache — two different caches, and conflating them in a dashboard is expensive.
+
+Added by Phase 03 (structured outputs):
+
+```text
+atlas.output.schema.name
+atlas.output.schema.version
+atlas.output.enforcement_mode
+atlas.output.validation_status
+atlas.output.failure_class
+atlas.repair.attempts
+atlas.repair.of_ai_run_id
+```
+
+Added by Phase 04 (document ingestion):
+
+```text
+atlas.ingestion.job.id
+atlas.ingestion.job.type
+atlas.ingestion.stage
+atlas.ingestion.outcome
+atlas.ingestion.parser.name
+atlas.ingestion.parser.version
+atlas.ingestion.chunker.name
+atlas.ingestion.chunker.version
+atlas.ingestion.chunker.strategy
+atlas.ingestion.cleaning.version
+atlas.ingestion.page_count
+atlas.ingestion.chunk_count
+atlas.ingestion.token_count
+atlas.ingestion.chars_extracted
+atlas.ingestion.empty_page_count
+atlas.ingestion.mojibake_ratio
+atlas.document.id
+atlas.document.version_id
+atlas.document.collection_id
+atlas.document.mime_type
+atlas.storage.backend
+atlas.storage.object_size_bytes
+```
+
+No `gen_ai.*` attribute appears on an ingestion span, because the Phase 04 pipeline makes no model calls. Reusing `gen_ai.*` names for a deterministic pipeline would fill every GenAI dashboard with rows that have no model, no tokens, and no cost. `atlas.tenant.id` and `atlas.user.id` are inherited from the list above and set on every ingestion span; do not coin `atlas.ingestion.tenant.id`.
+
+Naming rule for anything added later: use dotted segments (`atlas.ai_run.id`, never `atlas.ai_run_id`). An attribute that breaks the shape stops the namespace being queryable as a hierarchy. A phase that coins an attribute must add it to this list in the same change — the token-name divergence that produced `cache_read_tokens` versus `cache_read_input_tokens` happened because that step was skipped.
+
 Privacy rule:
 
 Do not capture full prompts, messages, memory records, retrieved documents, or tool arguments by default. These may contain sensitive or private data. Capture only redacted previews unless a tenant explicitly opts in.

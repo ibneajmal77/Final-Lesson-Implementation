@@ -731,13 +731,23 @@ atlas-ai-platform/
       versions.py
       tests.py
 
+    storage/
+      base.py
+      local.py
+      s3.py
+      keys.py
+      factory.py
+
     ingestion/
       upload.py
-      extraction.py
-      ocr.py
+      extraction/
+      triage.py
       cleaning.py
-      chunking.py
+      chunking/
       metadata.py
+      hashing.py
+      tokenizer.py
+      versioning.py
       pipeline.py
 
     retrieval/
@@ -839,7 +849,6 @@ atlas-ai-platform/
       crm.py
       ticketing.py
       email.py
-      storage.py
       webhooks.py
 
   tests/
@@ -870,6 +879,7 @@ Each package should have a clear responsibility.
 
 - `core` owns shared primitives only.
 - `db` owns persistence infrastructure and repository patterns.
+- `storage` owns object storage: an `ObjectStore` interface plus a local and an S3/MinIO backend. It knows about bytes and keys and does not know what a document is. It is a top-level package rather than `integrations/storage.py` because `integrations` owns external *business* systems — CRM, ticketing, email — and object storage is infrastructure in the same category as `db`. Phases 07, 12, and 24 also write to it and must not import from `ingestion` to get a file writer. Ratified in Phase 04 §4.5.
 - `auth` owns identity, tenants, roles, and permissions.
 - `model_gateway` owns all model provider communication.
 - `prompts` owns prompt templates and versions.
@@ -1673,13 +1683,23 @@ updated_at
 Job types:
 
 ```text
+ingest
+reingest
+delete
+reindex
+```
+
+One row per document operation, not one row per pipeline stage. `04-Atlas-Database-Schema-Specification.md` §8.4 carries the check constraint for these four values and is authoritative.
+
+The earlier stage-level list — `extract_text`, `ocr`, `clean_text`, `chunk`, `embed`, `index`, `full_ingestion` — described the *pipeline stages*, not job records, and is retained as such below. It was replaced as a `job_type` vocabulary for three reasons: the unit of retry is the document, because a failed stage must restart from the stored original rather than from intermediate state no hash covers; per-stage timings and counts already have a home in `ingestion_jobs.output_summary_json`; and `embed` and `index` are Phase 05 work scheduled as `background_jobs` with `queue_name = 'embeddings'`, not as ingestion jobs. Ratified in Phase 04 §4.3.
+
+Pipeline stages, for reference:
+
+```text
 extract_text
 ocr
 clean_text
 chunk
-embed
-index
-full_ingestion
 ```
 
 ### 11.4 Conversation And RAG Tables
@@ -2506,6 +2526,93 @@ tool_calls 1 -> many safety_checks optional
 audit_events references many subject types by subject_type + subject_id
 ```
 
+Identity and access relationships:
+
+```text
+tenants 1 -> many api_keys
+users 1 -> many api_keys through created_by_user_id optional
+```
+
+Cost, jobs, and feedback relationships:
+
+```text
+tenants 1 -> many cost_records
+ai_runs 1 -> many cost_records optional
+tenants 1 -> many background_jobs
+background_jobs 1 -> one ingestion_jobs optional
+documents 1 -> many ingestion_jobs
+document_versions 1 -> many ingestion_jobs optional
+users 1 -> many ingestion_jobs through requested_by_user_id optional
+conversations 1 -> many feedback optional
+conversation_messages 1 -> many feedback optional
+rag_answers 1 -> many feedback optional
+ai_runs 1 -> many feedback optional
+```
+
+Memory relationships:
+
+```text
+tenants 1 -> many memory_items
+users 1 -> many memory_items optional, null for tenant/shared memory
+conversations 1 -> many memory_items optional
+agent_runs 1 -> many memory_items optional
+```
+
+Optimization and index-version relationships:
+
+```text
+tenants 1 -> many semantic_cache_entries
+prompt_versions 1 -> many semantic_cache_entries optional
+tenants 1 -> many batch_model_jobs
+batch_model_jobs 1 -> many batch_model_job_items
+batch_model_job_items 1 -> one ai_runs optional
+knowledge_collections 1 -> many knowledge_index_versions
+vector_index_versions 1 -> many knowledge_index_versions optional
+```
+
+MCP and multi-agent relationships:
+
+```text
+tenants 1 -> many mcp_servers
+mcp_servers 1 -> many mcp_tool_mappings
+tool_definitions 1 -> many mcp_tool_mappings
+agent_runs 1 -> many agent_handoffs through source_agent_run_id
+agent_definitions 1 -> many agent_handoffs through target_agent_definition_id optional
+agent_runs 1 -> many agent_handoffs through target_agent_run_id optional
+```
+
+Generative media relationships:
+
+```text
+tenants 1 -> many media_generation_jobs
+users 1 -> many media_generation_jobs
+media_generation_jobs 1 -> many media_assets
+media_generation_jobs 1 -> many media_safety_checks optional
+media_assets 1 -> many media_safety_checks optional
+users 1 -> many media_safety_checks through reviewer_user_id optional
+```
+
+Voice relationships:
+
+```text
+tenants 1 -> many voice_sessions
+users 1 -> many voice_sessions optional
+conversations 1 -> many voice_sessions optional
+voice_sessions 1 -> many voice_transcript_segments
+```
+
+Governance relationships:
+
+```text
+users 1 -> many system_cards through owner_user_id optional
+model_routes 1 -> many model_cards optional
+users 1 -> many risk_register_items through owner_user_id optional
+users 1 -> many governance_reviews through reviewer_user_id optional
+users 1 -> many governance_reviews through requested_by_user_id optional
+```
+
+Every table above is specified in `04-Atlas-Database-Schema-Specification.md`. The advanced blocks — optimization, MCP, media, voice, governance — describe tables that arrive in Phases 20 through 25; they appear here so the relationship map is complete rather than MVP-only.
+
 Implementation rules:
 
 - Use foreign keys where relationships are stable and direct.
@@ -2540,7 +2647,7 @@ Lineage fields to include where relevant:
 ```text
 source_type
 source_uri
-source_checksum
+checksum            (spelled source_checksum in earlier drafts of this list)
 parser_name
 parser_version
 chunker_name
@@ -2555,6 +2662,10 @@ created_by_user_id
 job_id
 trace_id
 ```
+
+Naming: the column is `checksum` on both `documents` and `document_versions`. `source_checksum` is a historical alias from this list; the implementation-ready schema is authoritative. Ratified in Phase 04 §24.2.
+
+Placement rule that Phase 04 established for these fields, and which later phases should follow: **lineage must outlive operational history.** Parser identity is copied onto `document_versions` rather than joined from `ingestion_jobs`, because an ops team will eventually prune job rows older than ninety days and doing so would otherwise erase the provenance of every document ingested before that date. Chunker identity is carried on `document_chunks.metadata_json` for the same reason plus one more: a re-chunk does not create a new version, so a `chunker_version` column on `document_versions` would be overwritten in place and stop being a fact about anything.
 
 Why this matters:
 
@@ -2808,15 +2919,25 @@ Implementation notes:
 Endpoints:
 
 ```text
+POST   /api/v1/collections
+GET    /api/v1/collections
+GET    /api/v1/collections/{collection_id}
+
 POST   /api/v1/documents
 GET    /api/v1/documents
 GET    /api/v1/documents/{document_id}
 DELETE /api/v1/documents/{document_id}
 GET    /api/v1/documents/{document_id}/versions
 GET    /api/v1/documents/{document_id}/chunks
+GET    /api/v1/documents/{document_id}/pages
+GET    /api/v1/documents/{document_id}/download
 POST   /api/v1/documents/{document_id}/reingest
 GET    /api/v1/ingestion-jobs/{job_id}
 ```
+
+The collection endpoints are not optional convenience. `documents.collection_id` is `not null` with a foreign key to `knowledge_collections`, and §13.16 requires `collection_id` in the upload request — so without them the first upload on a fresh database fails and the only remedy is a manual `INSERT`. Atlas additionally creates one collection named `default` per tenant at tenant creation, so the first upload works with no prior setup step. Ratified in Phase 04 §4.2; ticket `P04-011`.
+
+`/pages` feeds the Documents screen's Extracted Text tab (`08-…` §6.3), which reads pages rather than chunks. `/download` returns a short-lived presigned URL with `Content-Disposition: attachment` — never `inline`, never proxied through the API.
 
 Responsibilities:
 
@@ -3664,11 +3785,13 @@ Rules:
 Data fields to add to `ai_runs`:
 
 ```text
-cache_read_tokens
-cache_write_tokens
+cache_read_input_tokens
+cache_creation_input_tokens
 cache_hit_rate optional
 cache_strategy
 ```
+
+Naming note: earlier drafts of this section called the first two fields `cache_read_tokens` and `cache_write_tokens`. The ratified names are the OpenTelemetry-aligned ones above, matching `04-Atlas-Database-Schema-Specification.md` and the crosswalk's `gen_ai.usage.cache_read.input_tokens` and `gen_ai.usage.cache_creation.input_tokens`. Treat the older spellings as historical aliases only.
 
 ### 15.11 Semantic Caching
 
@@ -3847,6 +3970,7 @@ Capability fields:
 ```text
 supports_chat
 supports_structured_output
+structured_output_max_mode
 supports_streaming
 supports_tool_calling
 supports_prompt_caching
@@ -3868,6 +3992,8 @@ region_support
 ```
 
 This matrix prevents accidental use of unsupported features and helps explain routing decisions.
+
+`structured_output_max_mode` is an ordered value rather than a second boolean beside `supports_structured_output`, because the modes are a ladder — `none`, then `json_mode`, then `strict_schema`. Two independent booleans would permit the meaningless combination "strict yes, json no". The gateway selects the strongest mode a provider supports and records which one it used.
 
 ### 15.16 LLM Optimization Decision Tree
 
@@ -4078,6 +4204,7 @@ Example object types:
 
 ```text
 IntentClassification
+TicketClassification
 DocumentExtractionResult
 QueryRewriteResult
 AgentPlan
@@ -4085,6 +4212,8 @@ ToolSelection
 SafetyDecision
 EvaluationScore
 ```
+
+This list is examples rather than a closed inventory, but a schema a phase actually builds belongs here. `TicketClassification` carries `category`, `priority`, `requires_human`, and `entities`, and is the schema the Phase 03 seed dataset exercises.
 
 Rules:
 
@@ -4171,10 +4300,15 @@ user uploads file
 -> worker splits into pages or sections
 -> worker chunks text
 -> worker calculates content hashes
--> worker creates embeddings
--> worker stores vectors
--> document status becomes processed
+-> document status becomes processed          [end of Phase 04]
+-> worker creates embeddings                  [Phase 05]
+-> worker stores vectors                      [Phase 05]
+-> chunks become searchable                   [Phase 05]
 ```
+
+`documents.status = 'processed'` is a statement about the *text pipeline* — extracted, cleaned, chunked, hashed — not about searchability. Embeddings and vector storage are Phase 05 per `02-Atlas-Coverage-Matrix.md` §8, so requiring them for `processed` would make Phase 04 unfinishable by its own acceptance proof ("job moves queued -> processed").
+
+Searchability is a second, separate fact, and `08-Atlas-Frontend-UX-Specification.md` §6.1 already models it correctly by listing both `status` and `embedding status` as columns. Phase 04 populates the first and returns `null` for the second. A document can be perfectly extracted and completely unsearchable, and a single green checkmark that hides that difference produces a bug filed against retrieval. Ratified in Phase 04 §4.4.
 
 ### 18.3 Extraction Strategy
 
@@ -6491,6 +6625,17 @@ Track:
 - Extracted actions.
 - Human corrections.
 
+These are stored in two tables, specified in `04-Atlas-Database-Schema-Specification.md` §12.2:
+
+```text
+voice_sessions            -- one row per call or recording
+voice_transcript_segments -- one row per diarized segment
+```
+
+`voice_sessions` carries `tenant_id`, optional `user_id` and `conversation_id`, `mode` (upload, streaming, realtime), `consent_status` (captured, not_required, missing), `audio_object_key`, and `retention_expires_at`. `voice_transcript_segments` carries `voice_session_id`, `speaker_id`, `start_time_ms`, `end_time_ms`, `text`, and `confidence`.
+
+Two of those columns are the reason the tables exist rather than a JSON blob on a conversation: `consent_status` must be queryable to prove consent was captured before processing, and `retention_expires_at` must be queryable for the deletion job to find expired audio. Both are covered in §29.7.
+
 ### 29.4 Voice Evaluation
 
 Evaluate:
@@ -6978,7 +7123,7 @@ This track is done when:
 
 The frontend should be a serious product console, not a landing page.
 
-### 32.1 Main Navigation
+### 33.1 Main Navigation
 
 Recommended navigation:
 
@@ -6996,7 +7141,7 @@ Observability
 Admin
 ```
 
-### 32.2 Core Screens
+### 33.2 Core Screens
 
 #### Dashboard
 
@@ -7095,7 +7240,7 @@ Shows:
 - Token usage.
 - Job failures.
 
-### 32.3 Frontend Data Rules
+### 33.3 Frontend Data Rules
 
 Rules:
 
@@ -7108,7 +7253,7 @@ Rules:
 
 ## 34. Authentication And Authorization
 
-### 33.1 Authentication
+### 34.1 Authentication
 
 Authentication options:
 
@@ -7125,7 +7270,7 @@ Recommended implementation path:
 5. Add API keys with scopes.
 6. Add SSO/OIDC later if needed.
 
-### 33.2 Authorization
+### 34.2 Authorization
 
 Authorization must happen at service layer, not only frontend.
 
@@ -7142,7 +7287,7 @@ Check permissions for:
 - Managing model routes.
 - Viewing costs and audit logs.
 
-### 33.3 Tenant Isolation
+### 34.3 Tenant Isolation
 
 Tenant isolation rules:
 
@@ -7153,7 +7298,7 @@ Tenant isolation rules:
 - Background jobs must include tenant id.
 - Admin APIs must not accidentally cross tenant boundaries.
 
-### 33.4 Audit Requirements
+### 34.4 Audit Requirements
 
 Audit these events:
 
@@ -7171,7 +7316,7 @@ Audit these events:
 
 ## 35. Security Architecture
 
-### 34.1 Security Layers
+### 35.1 Security Layers
 
 Security layers:
 
@@ -7191,7 +7336,7 @@ audit logging
 monitoring and alerting
 ```
 
-### 34.2 Input Validation
+### 35.2 Input Validation
 
 Validate:
 
@@ -7203,7 +7348,7 @@ Validate:
 - Query filters.
 - Pagination parameters.
 
-### 34.3 File Upload Security
+### 35.3 File Upload Security
 
 File upload controls:
 
@@ -7215,7 +7360,7 @@ File upload controls:
 - Do not execute uploaded files.
 - Extract text in worker process.
 
-### 34.4 Secrets
+### 35.4 Secrets
 
 Rules:
 
@@ -7225,7 +7370,7 @@ Rules:
 - Do not send secrets into LLM context.
 - Separate dev/staging/prod secrets.
 
-### 34.5 Tool Action Security
+### 35.5 Tool Action Security
 
 Tool execution requires:
 
@@ -7238,7 +7383,7 @@ Tool execution requires:
 - Idempotency key for side effects.
 - Audit record.
 
-### 34.6 AI-Specific Security
+### 35.6 AI-Specific Security
 
 AI-specific risks:
 
@@ -7261,7 +7406,7 @@ Controls:
 - Safety datasets.
 - Audit logs.
 
-### 34.7 Governance And Compliance Package
+### 35.7 Governance And Compliance Package
 
 Governance means the organization can explain, review, control, and improve AI behavior responsibly.
 
@@ -7280,7 +7425,7 @@ tenant AI policy
 provider data-sharing register
 ```
 
-### 34.8 AI System Card
+### 35.8 AI System Card
 
 The AI system card explains the full product behavior.
 
@@ -7306,7 +7451,7 @@ Last review date
 Owner
 ```
 
-### 34.9 Model Card
+### 35.9 Model Card
 
 Each deployed model or important model route should have a model card.
 
@@ -7330,7 +7475,7 @@ Owner
 Review date
 ```
 
-### 34.10 Risk Register
+### 35.10 Risk Register
 
 The risk register tracks AI risks and mitigation status.
 
@@ -7360,7 +7505,7 @@ RISK-004: fine-tuning dataset contains sensitive data
 RISK-005: MCP server schema changes without review
 ```
 
-### 34.11 Review Cadence
+### 35.11 Review Cadence
 
 Recommended review cadence:
 
@@ -7372,7 +7517,7 @@ quarterly: system card and model card review
 before release: red-team and regression suite review
 ```
 
-### 34.12 Provider Data-Sharing Policy
+### 35.12 Provider Data-Sharing Policy
 
 For every provider/model route, document:
 
@@ -7394,7 +7539,7 @@ Rules:
 - Sensitive workflows can require private/local model routes.
 - Provider policy changes require review.
 
-### 34.13 Incident Process
+### 35.13 Incident Process
 
 AI incident examples:
 
@@ -7425,7 +7570,7 @@ detect incident
 
 Observability is required for debugging and production operation.
 
-### 35.1 Logs
+### 36.1 Logs
 
 Use structured JSON logs.
 
@@ -7447,7 +7592,7 @@ job_id
 
 Do not log secrets or raw sensitive content unless explicitly allowed and redacted.
 
-### 35.2 Metrics
+### 36.2 Metrics
 
 Metrics:
 
@@ -7466,7 +7611,7 @@ Metrics:
 - Evaluation pass rate.
 - Safety block rate.
 
-### 35.3 Traces
+### 36.3 Traces
 
 Trace important workflows:
 
@@ -7505,7 +7650,7 @@ verification
 final result
 ```
 
-### 35.4 Cost Observability
+### 36.4 Cost Observability
 
 Track cost by:
 
@@ -7526,7 +7671,7 @@ Cost dashboard should answer:
 - Did a new prompt increase token usage?
 - Did RAG context packing become too large?
 
-### 35.5 Production SLOs
+### 36.5 Production SLOs
 
 SLO means service level objective. It is a measurable reliability or quality target.
 
@@ -7586,7 +7731,7 @@ critical unsafe media generation rate = 0
 prompt injection test pass rate >= configured threshold
 ```
 
-### 35.6 Alerts
+### 36.6 Alerts
 
 Alert on:
 
@@ -7601,7 +7746,7 @@ Alert on:
 - Evaluation regression after deployment.
 - Model serving GPU memory pressure.
 
-### 35.7 GenAI Observability Semantic Fields
+### 36.7 GenAI Observability Semantic Fields
 
 GenAI traces should include consistent fields:
 
@@ -7660,7 +7805,7 @@ agent.stop_reason
 
 Testing must cover backend correctness and AI behavior.
 
-### 36.1 Unit Tests
+### 37.1 Unit Tests
 
 Unit test:
 
@@ -7675,7 +7820,7 @@ Unit test:
 - Agent state transitions.
 - Safety policy logic.
 
-### 36.2 Integration Tests
+### 37.2 Integration Tests
 
 Integration test:
 
@@ -7687,7 +7832,7 @@ Integration test:
 - Approval flow.
 - Evaluation run creation.
 
-### 36.3 Contract Tests
+### 37.3 Contract Tests
 
 Contract test:
 
@@ -7697,7 +7842,7 @@ Contract test:
 - Frontend API expectations.
 - Structured output schemas.
 
-### 36.4 AI Evaluation Tests
+### 37.4 AI Evaluation Tests
 
 AI eval tests:
 
@@ -7708,7 +7853,7 @@ AI eval tests:
 - Safety adversarial tests.
 - Fine-tuned model comparison tests.
 
-### 36.5 Security Tests
+### 37.5 Security Tests
 
 Security tests:
 
@@ -7720,7 +7865,7 @@ Security tests:
 - PII redaction.
 - API key scopes.
 
-### 36.6 Load And Reliability Tests
+### 37.6 Load And Reliability Tests
 
 Load tests:
 
@@ -7741,7 +7886,7 @@ Reliability tests:
 
 ## 38. CI/CD Design
 
-### 37.1 Pull Request Checks
+### 38.1 Pull Request Checks
 
 Run:
 
@@ -7756,7 +7901,7 @@ security checks
 small AI eval smoke tests with fake provider
 ```
 
-### 37.2 Main Branch Checks
+### 38.2 Main Branch Checks
 
 Run:
 
@@ -7769,7 +7914,7 @@ migration validation
 security scan
 ```
 
-### 37.3 Deployment Pipeline
+### 38.3 Deployment Pipeline
 
 Pipeline:
 
@@ -7786,7 +7931,7 @@ merge to main
 -> rollback if error thresholds exceeded
 ```
 
-### 37.4 Migration Strategy
+### 38.4 Migration Strategy
 
 Rules:
 
@@ -7798,7 +7943,7 @@ Rules:
 
 ## 39. Deployment Architecture
 
-### 38.1 Local Docker Compose
+### 39.1 Local Docker Compose
 
 Services:
 
@@ -7814,7 +7959,7 @@ minio optional
 
 Local command should start the platform with sample data.
 
-### 38.2 Staging
+### 39.2 Staging
 
 Staging includes:
 
@@ -7824,7 +7969,7 @@ Staging includes:
 - Real model provider keys with limited budget.
 - Full observability.
 
-### 38.3 Production
+### 39.3 Production
 
 Production includes:
 
@@ -7841,7 +7986,7 @@ Production includes:
 - Alerting.
 - Backups.
 
-### 38.4 Kubernetes Later
+### 39.4 Kubernetes Later
 
 Kubernetes is useful later for:
 
@@ -8995,7 +9140,7 @@ The platform is not production-ready until these exist:
 
 ## 44. Data Flow Reference
 
-### 43.1 RAG Question Flow
+### 44.1 RAG Question Flow
 
 ```text
 User enters question
@@ -9023,7 +9168,7 @@ User enters question
 -> User feedback is stored
 ```
 
-### 43.2 Agent Task Flow
+### 44.2 Agent Task Flow
 
 ```text
 User submits task
@@ -9050,7 +9195,7 @@ User submits task
 -> Evaluation hooks capture result
 ```
 
-### 43.3 Document Ingestion Flow
+### 44.3 Document Ingestion Flow
 
 ```text
 User uploads file
@@ -9070,7 +9215,7 @@ User uploads file
 -> Search and RAG can now use document
 ```
 
-### 43.4 Fine-Tuning Flow
+### 44.4 Fine-Tuning Flow
 
 ```text
 AI engineer selects use case
@@ -9091,7 +9236,7 @@ AI engineer selects use case
 
 ## 45. Failure Mode Matrix
 
-### 44.1 Model Provider Failure
+### 45.1 Model Provider Failure
 
 Failure:
 
@@ -9108,7 +9253,7 @@ Mitigation:
 - User-facing graceful error.
 - Alert if repeated.
 
-### 44.2 Retrieval Failure
+### 45.2 Retrieval Failure
 
 Failure:
 
@@ -9125,7 +9270,7 @@ Mitigation:
 - Embedding version checks.
 - Retrieval evals.
 
-### 44.3 Agent Failure
+### 45.3 Agent Failure
 
 Failure:
 
@@ -9144,7 +9289,7 @@ Mitigation:
 - Verification step.
 - Blocked state.
 
-### 44.4 Safety Failure
+### 45.4 Safety Failure
 
 Failure:
 
@@ -9161,7 +9306,7 @@ Mitigation:
 - Approval gates.
 - Audit and alerts.
 
-### 44.5 Data Failure
+### 45.5 Data Failure
 
 Failure:
 

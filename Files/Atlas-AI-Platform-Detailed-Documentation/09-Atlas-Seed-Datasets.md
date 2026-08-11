@@ -15,6 +15,10 @@ Rules:
 - CI smoke evals may use `draft` rows for schema and pipeline validation.
 - Promotion evals that decide whether a prompt, route, model, index, or safety policy can ship must use only `reviewed` or `approved` rows unless the run is explicitly labeled experimental.
 
+Consequence worth stating plainly, because it is easy to discover at the wrong moment: **every row committed today is `review_status: draft`, so no promotion eval can legally run against this corpus yet.** The starter files exist to prove the importer, the schema, and the pipeline work end to end. Before Phase 07 gates anything on them, a human must review rows and move them to `reviewed`. Treat the starter corpus as CI-smoke material until that pass happens, and do not read a green eval report built on `draft` rows as a promotion signal.
+
+Row counts are also deliberately small — three to four cases per file. That is enough to exercise a pipeline and nowhere near enough to measure quality. Judge calibration in particular needs tens of human-labeled cases before its agreement rate means anything.
+
 ## 2. Standard JSONL Envelope
 
 Every actual starter file uses the same importer-compatible envelope:
@@ -78,10 +82,15 @@ seed-datasets/structured_output_tickets.jsonl
 Excerpt from the actual file:
 
 ```jsonl
-{"case_id":"struct_001","use_case":"structured_output","input":{"ticket_text":"Customer cannot log in after password reset."},"reference":{"schema_name":"ticket_classifier_v1","expected_output":{"category":"account_access","priority":"high","requires_human":false,"entities":[{"type":"problem","value":"password reset login failure"}]}},"tags":["classification","entity_extraction","account_access"],"difficulty":"easy","source_type":"synthetic","review_status":"draft"}
+{"case_id":"struct_001","use_case":"structured_output","input":{"ticket_text":"Customer cannot log in after password reset."},"reference":{"schema_name":"ticket_classification","schema_version":1,"expected_output":{"category":"account_access","priority":"high","requires_human":false,"entities":[{"type":"problem","value":"password reset login failure"}]}},"tags":["classification","entity_extraction","account_access"],"difficulty":"easy","source_type":"synthetic","review_status":"draft"}
 ```
 
 This dataset proves that Phase 03 can validate model output against a schema instead of accepting untrusted free text.
+
+Two naming rules apply to this file:
+
+- Schema identity is the pair `(schema_name, schema_version)`, never a single compound string. An earlier version of this file used `ticket_classifier_v1`, which embeds a version number inside a name column and turns every "which version is this schema on?" query into a string parse. The schema is a `Classification`, not a `classifier`.
+- `use_case` here is a **dataset** use case from §2's list, not a `model_routes.use_case` from the routing vocabulary. The two share a field name and must never be joined. Add a comment wherever these rows are loaded as fixtures, because someone will otherwise try.
 
 ## 6. Tool Calling Dataset
 
@@ -195,6 +204,18 @@ seed-documents/
 | `seed-documents/admin-self-service-export.md` | `admin-self-service-export` | `admin_policies` | near-miss distractor: active account usage export, not suspended audit logs |
 | `seed-documents/retention-policy-2026-07.md` | `retention-policy-2026-07` | `retention_policies` | positive source for `rag_003` date-sensitive retention question |
 | `seed-documents/retention-policy-2025.md` | `retention-policy-2025` | `retention_policies` | near-miss distractor: retired 180 day policy, not post-July 1, 2026 policy |
+
+Front-matter field mapping, ratified in Phase 04 §24.6. Two field names collide with platform column names and mean different things, so an importer that passes them through will either fail on a type error or store the wrong thing:
+
+| Front-matter field | Destination | Note |
+|---|---|---|
+| `document_key` | `documents.metadata_json.document_key` | Also the importer's idempotency key, so a re-run is a no-op |
+| `collection_id` | Resolved by name to `knowledge_collections.id` | **This is a collection *key*, not a UUID.** `documents.collection_id` is a UUID foreign key; the importer resolves the string against `knowledge_collections.name` and creates the collection if absent |
+| `source_type` | `documents.metadata_json.dataset_source_type` | **Not `documents.source_type`.** That column's vocabulary is `upload`, `url`, `ticket`, `email` and describes the ingestion channel; `synthetic` describes dataset provenance. An imported seed document is `source_type = 'upload'` |
+| `review_status` | `documents.metadata_json.review_status`, propagated to every chunk | Carries the `draft` label down to chunk level so Phase 07 cannot treat a synthetic policy as ground truth |
+| `effective_date` | `documents.metadata_json.effective_date` | Required by the date-sensitive `rag_003` case, where the 2025 retention policy is a deliberate distractor |
+| `owner` | `documents.metadata_json.owner` | |
+| Body after the closing `---` | The document text | Front matter must be stripped before hashing and chunking, or the first chunk is a YAML block |
 
 These source files are synthetic and draft. They exist so Phase 04 through Phase 07 can run an end-to-end loop: ingest documents, chunk them, embed them, retrieve evidence, generate answers, verify citations, and score the RAG eval set. Each RAG collection includes at least one near-miss distractor so recall@k, MRR, hybrid search, reranking, and citation verification are meaningful instead of trivially perfect.
 

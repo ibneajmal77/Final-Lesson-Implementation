@@ -73,6 +73,10 @@ Scope: Required MVP.
 | P00-008 | Docker | Add Postgres and Redis Docker Compose | containers healthy |
 | P00-009 | Tests | Add pytest setup and CI-style commands | test suite passes |
 | P00-010 | Docs | README setup and run instructions | new developer can run locally |
+| P00-011 | Schema | Add `002_create_identity_tables` migration: `tenants`, `users`, `tenant_memberships`, `roles`, `permissions`, `role_permissions`, `api_keys` | migration applies cleanly; unique and FK constraints proved in `tests/migrations` |
+| P00-012 | Security | Enforce tenant scoping in the session/query layer and add the cross-tenant test fixture | cross-tenant query returns zero rows |
+
+`P00-011` exists because every later phase references `tenants(id)` and `users(id)`, and `04-Atlas-Database-Schema-Specification.md` §4.1 places `002_create_identity_tables` before the Phase 01 tables. `P00-012` exists because `P01-010` and the Phase 08 tool-permission tickets both assume tenant scoping and RBAC are already enforced; neither is satisfiable if the identity layer is only a pair of tables with no enforcement path.
 
 ### Phase 01 - LLM Gateway
 
@@ -90,6 +94,9 @@ Scope: Required MVP.
 | P01-008 | API | Add internal model test endpoint or service call | endpoint returns ai_run id |
 | P01-009 | Observability | Emit GenAI span fields | trace sample contains model/request attrs |
 | P01-010 | Security | Block provider calls when tenant policy disallows route | restricted route test passes |
+| P01-011 | Schema | Add `cost_records` migration and write one row per billable unit | cost broken down by billing unit; `ai_run_id` links back to the run |
+
+`P01-011` exists because `P01-006` requires estimated cost to be tracked and the cost runbook requires cost broken down by billing unit. `P01-001` creates only three tables, so without this ticket `cost_records` has no owner and `P01-006` is satisfiable only in a degraded form.
 
 ### Phase 02 - Prompt System
 
@@ -126,7 +133,7 @@ Scope: Required MVP.
 
 | Ticket | Area | Task | Acceptance Proof |
 |---|---|---|---|
-| P04-001 | Schema | Add collection, document, version, page, chunk, job tables | migration applies |
+| P04-001 | Schema | Add `background_jobs`, then collection, document, version, page, chunk, and ingestion job tables | migration applies |
 | P04-002 | API | Upload document endpoint with idempotency | duplicate upload handled |
 | P04-003 | Storage | Object storage adapter local implementation | file stored and retrievable |
 | P04-004 | Worker | Ingestion job pipeline | job moves queued -> processed |
@@ -136,6 +143,16 @@ Scope: Required MVP.
 | P04-008 | Lineage | Store parser/chunker/content hash metadata | lineage fields populated |
 | P04-009 | UI | Documents list and ingestion status | user sees processing status |
 | P04-010 | Failure | Failed ingestion stores error and allows reingest | failure test passes |
+| P04-011 | API | Collections endpoint plus a default collection per tenant | first upload succeeds on a fresh tenant with no manual setup |
+| P04-012 | Extraction | Scanned-document triage: detect a missing text layer and fail with a specific code | scanned PDF fails terminally as `ingestion.no_text_extracted`; failure breakdown by error code returns a usable population |
+
+Two notes on this table.
+
+`P04-001` names `background_jobs` because `04-Atlas-Database-Schema-Specification.md` §7.3 fully specifies it, no phase document or ticket previously claimed it, and `ingestion_jobs.background_job_id` references it. Phase 04 is the first phase with real background work, so it creates the table rather than shipping a soft reference that Phases 05, 07, 12, and 24 would inherit.
+
+`P04-011` and `P04-012` close gaps between this list and `02-Atlas-Coverage-Matrix.md`. Without `P04-011` the first upload on a fresh database fails, because `documents.collection_id` is `not null` and nothing creates a collection. `P04-012` is the Phase 04 half of the matrix's `OCR baseline | 04, 12` row: Phase 04 detects that a document has no usable text layer and fails it loudly; Phase 12 runs the OCR engine on the population that creates. Without it, a scanned PDF ingests "successfully" with no text and the resulting silent gap in the corpus is attributed to retrieval months later.
+
+Dependencies inside the phase: `P04-011` before `P04-002`; `P04-005` before `P04-012` before `P04-006`, because triage must judge raw extraction output before cleaning has a chance to make garbage look tidy.
 
 ### Phase 05 - Embeddings And Vector Database
 
@@ -312,11 +329,11 @@ These rows make the first build milestone executable. The detailed tickets in Se
 
 | Phase | Tickets | Depends On | Priority | Est. Size | Target Files Or Folders | Exact Verification Commands |
 |---|---|---|---|---|---|---|
-| 00 Engineering Foundation | P00-001 to P00-010 | none | P0 | L | `pyproject.toml`, `.env.example`, `apps/api`, `apps/worker`, `packages/core`, `packages/db`, `tests`, `infra/docker-compose.yml` | `python -m ruff check .`<br>`python -m mypy apps packages`<br>`python -m pytest tests/unit tests/api`<br>`docker compose -f infra/docker-compose.yml config` |
-| 01 LLM Gateway | P01-001 to P01-010 | Phase 00 | P0 | L | `packages/model_gateway`, `packages/db/models/model_routes.py`, `apps/api/routes/model_gateway.py`, `tests/model_gateway`, `tests/migrations` | `python -m alembic upgrade head`<br>`python -m pytest tests/model_gateway tests/migrations`<br>`python -m pytest tests/api/test_model_gateway.py` |
+| 00 Engineering Foundation | P00-001 to P00-012 | none | P0 | L | `pyproject.toml`, `.env.example`, `apps/api`, `apps/worker`, `packages/core`, `packages/db`, `packages/db/models/identity.py`, `tests`, `infra/docker-compose.yml` | `python -m ruff check .`<br>`python -m mypy apps packages`<br>`python -m pytest tests/unit tests/api`<br>`docker compose -f infra/docker-compose.yml config` |
+| 01 LLM Gateway | P01-001 to P01-011 | Phase 00 | P0 | L | `packages/model_gateway`, `packages/db/models/model_routes.py`, `apps/api/routes/model_gateway.py`, `tests/model_gateway`, `tests/migrations` | `python -m alembic upgrade head`<br>`python -m pytest tests/model_gateway tests/migrations`<br>`python -m pytest tests/api/test_model_gateway.py` |
 | 02 Prompt System | P02-001 to P02-008 | Phase 00, Phase 01 | P0 | M | `packages/prompts`, `apps/api/routes/prompts.py`, `packages/db/models/prompts.py`, `tests/prompts`, `tests/migrations` | `python -m alembic upgrade head`<br>`python -m pytest tests/prompts tests/migrations tests/api/test_prompts.py` |
 | 03 Structured Outputs | P03-001 to P03-007 | Phase 01, Phase 02 | P0 | M | `packages/structured_outputs`, `packages/model_gateway/structured.py`, `tests/structured_outputs` | `python -m pytest tests/structured_outputs tests/model_gateway/test_structured_outputs.py` |
-| 04 Document Ingestion | P04-001 to P04-010 | Phase 00 | P0 | L | `packages/ingestion`, `packages/storage`, `apps/api/routes/documents.py`, `apps/worker/jobs/ingestion.py`, `packages/db/models/documents.py`, `tests/ingestion` | `python -m alembic upgrade head`<br>`python -m pytest tests/ingestion tests/api/test_documents.py tests/worker/test_ingestion_jobs.py` |
+| 04 Document Ingestion | P04-001 to P04-012 | Phase 00 | P0 | L | `packages/ingestion`, `packages/storage`, `apps/api/routes/documents.py`, `apps/api/routes/collections.py`, `apps/worker/jobs/ingestion.py`, `packages/db/models/documents.py`, `packages/db/models/jobs.py`, `scripts/import_seed_documents.py`, `tests/ingestion`, `tests/storage` | `python -m alembic upgrade head`<br>`python -m pytest tests/ingestion tests/api/test_documents.py tests/worker/test_ingestion_jobs.py`<br>`python -m pytest tests/storage tests/security tests/migrations/test_phase04_migrations.py`<br>`python scripts/import_seed_documents.py --tenant-slug demo --path seed-documents/` |
 | 05 Embeddings And Vector DB | P05-001 to P05-009 | Phase 01, Phase 04 | P0 | L | `packages/retrieval/vector_store.py`, `packages/retrieval/embeddings.py`, `apps/worker/jobs/embeddings.py`, `packages/db/models/embeddings.py`, `tests/retrieval` | `python -m alembic upgrade head`<br>`python -m pytest tests/retrieval/test_embeddings.py tests/retrieval/test_vector_store.py tests/retrieval/test_tenant_filters.py` |
 | 06 RAG, Reranking, And Citations | P06-001 to P06-010 | Phase 02, Phase 03, Phase 05 | P0 | XL | `packages/retrieval/retrieval.py`, `packages/retrieval/rerank.py`, `packages/rag/context.py`, `packages/rag/answering.py`, `packages/rag/citations.py`, `apps/api/routes/rag.py`, `tests/retrieval`, `tests/rag` | `python -m alembic upgrade head`<br>`python -m pytest tests/retrieval/test_retrieval.py tests/retrieval/test_rerank.py tests/rag/test_rag_answers.py tests/rag/test_citations.py tests/rag/test_unknowns.py` |
 | 07 Evaluation Platform | P07-001 to P07-010 | Phase 03, Phase 06 | P1 | L | `packages/evals`, `apps/worker/jobs/evals.py`, `apps/api/routes/evals.py`, `seed-datasets`, `tests/evals` | `python -m alembic upgrade head`<br>`python scripts/import_eval_dataset.py --path seed-datasets/rag_eval.jsonl --dataset rag_eval`<br>`python -m pytest tests/evals tests/api/test_evals.py` |

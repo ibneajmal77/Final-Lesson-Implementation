@@ -2439,9 +2439,45 @@ name
 created_at
 ```
 
-This table is optional. If you prefer, Phase 00 can create only migration infrastructure and wait for tenant/user tables in the auth phase.
+This table is **not** optional, and an earlier draft of this section said it was. Tickets `P00-011` and `P00-012` place the identity tables — `tenants`, `users`, `tenant_memberships`, `roles`, `permissions`, `role_permissions`, `api_keys` — in Phase 00, matching `04-Atlas-Database-Schema-Specification.md` §4.1, which orders `002_create_identity_tables` before every Phase 01 table. Phase 01's `ai_runs.tenant_id` is a non-nullable foreign key to `tenants(id)`; if Phase 00 defers identity, Phase 01 cannot start.
 
-### 25.2 Alembic Version Table
+### 25.2 Lineage And Audit Column Conventions
+
+Blueprint §11.11 requires the platform to explain where a row came from. Phase 00 owns no interesting data, but it owns the **conventions every later table inherits**, and conventions are cheap now and expensive to retrofit across forty tables later.
+
+Every table created from Phase 00 onward carries:
+
+```text
+id           uuid, gen_random_uuid()
+tenant_id    uuid, not null, on every tenant-scoped table
+created_at   timestamptz, not null, now()
+updated_at   timestamptz, not null, now()
+deleted_at   timestamptz, nullable -- soft delete, never a hard DELETE
+```
+
+And where a human or job caused the row:
+
+```text
+created_by_user_id   uuid, nullable -- null means a system/job actor, not "unknown"
+request_id           text -- ties the row to the log line and trace that created it
+```
+
+Two rules that are easy to state now and impossible to add later:
+
+- **`tenant_id` is not nullable on tenant-scoped tables.** A nullable tenant column is an invitation to write a row that belongs to nobody, and every cross-tenant leak test becomes meaningless. Phase 01 §4 records this as a blocking prerequisite for exactly this reason.
+- **Soft delete, not hard delete.** `deleted_at` preserves the audit trail that retention and incident review depend on. Hard deletes are performed only by the retention job, on a schedule, with the row already expired.
+
+### 25.3 Retention And Deletion Foundations
+
+Phase 00 stores no tenant content, so nothing here is deletable on request. What it must provide is the **shape** later retention work needs:
+
+- Every tenant-scoped table gets an index on `(tenant_id, created_at)`. The retention job's query is "expired rows for this tenant", and without that index it is a sequential scan over the largest table in the system.
+- `deleted_at` exists from the first migration, so no later phase needs a backfill to introduce soft delete.
+- The worker skeleton exists (`P00-007`), which is where the retention job will run. Phase 00 does not write the job.
+
+Export and dataset contamination do not apply to Phase 00: there is no tenant content to export and no eval dataset to contaminate.
+
+### 25.4 Alembic Version Table
 
 Alembic creates:
 
@@ -3140,6 +3176,19 @@ README includes:
 - `packages/agents` placeholder exists.
 - Logging includes request id.
 - Error system includes future AI error categories.
+
+### 37.6 Cross-Cutting Completion Items
+
+`PHASE-AUTHORING-STANDARD.md` §8.2 requires every phase to answer six blueprint completion items, including the ones that do not apply. Phase 00 answers most of them as conventions rather than features, which is the point: they are cheap here and expensive everywhere else.
+
+| Item | Phase 00 answer | Where |
+|---|---|---|
+| 28. API contracts | Error envelope, request-id header, and the health contract every later endpoint inherits | §24 |
+| 29. ERD and lineage | Identity tables plus the audit/lineage column conventions all later tables inherit | §25.1, §25.2 |
+| 30. Data lifecycle | Soft-delete convention, `(tenant_id, created_at)` retention index, worker skeleton for the retention job | §25.3 |
+| 35. Streaming | No change — Phase 00 has no model calls and no streaming endpoints. The response envelope is designed so a streaming variant can be added without changing it | §24 |
+| 41. Threat model | Secrets handling, input validation, and the tenant-isolation rule that later threats are checked against | §29 |
+| 43. Bias, fairness, toxicity | No change — Phase 00 runs no model and produces no content to evaluate | — |
 
 ## 38. What To Avoid Building Too Early
 

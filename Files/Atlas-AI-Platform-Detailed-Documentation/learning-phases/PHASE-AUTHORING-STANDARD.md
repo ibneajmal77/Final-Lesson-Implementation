@@ -9,6 +9,7 @@ Reference implementations, already written to this standard:
 ```text
 phase-00-engineering-foundation.md   48 sections
 phase-01-llm-gateway.md              49 sections
+phase-04-document-ingestion.md       47 sections   <- first written to §8.2 from the start
 ```
 
 Read one of them end to end before writing. Everything below is easier to follow after seeing it done.
@@ -195,6 +196,8 @@ Conflicts between the source documents are common. Every one you find must be ha
 5. Name the acceptable alternative.
 6. Say what is NOT acceptable, if something obvious would be wrong.
 7. Instruct the reader to write a decision record.
+8. Edit the source document so it carries the ratified answer.
+9. Add the decision to the register in `00-Atlas-Documentation-Map.md`.
 ```
 
 Phase 01 §4.1 (identity tables) and §18.2 (migration ordering) are the models. This is the highest-value work a phase author does: it turns a landmine into a decision.
@@ -203,6 +206,16 @@ Two conflict types recur:
 
 - **Blocking prerequisite** — your phase needs something an earlier phase does not clearly build. Put it in Section 4 and mark the phase blocked until resolved.
 - **Naming drift** — two documents use different names for one thing. Pick the authoritative source, declare the others historical aliases, and say which document should be corrected.
+
+### 6.1 Steps 8 And 9 Are Not Optional
+
+Steps 1 through 7 were followed faithfully by Phases 00 through 03 and produced excellent analysis. Steps 8 and 9 did not exist, and the result was that **not one** ratified decision reached the document it corrected. A review later found the blueprint still specifying `cache_read_tokens` while the schema specification, the crosswalk, and the shipped code all used `cache_read_input_tokens`; a routing document still spelling a `use_case` in a way that would make its own private route unreachable; a seed file still carrying a schema name the phase document had ruled against; and two tables built in code that no ticket authorized.
+
+A phase document is not the place a decision lives. It is the place a decision is *argued*. The source document is where it lives.
+
+Practical rule: a phase document that says "propose X back into document Y" is unfinished. Either make the edit to Y in the same change, or — if the decision is genuinely the documentation owner's to make and you cannot make it — open it as an explicit unresolved item in the register with an owner's name against it, so it is visible as a debt rather than buried in a 4,000-line document.
+
+Writing "should be corrected" and stopping is how the set drifts.
 
 ## 7. Scope Boundaries
 
@@ -214,6 +227,8 @@ Two rules that prevent scope creep:
 - **One sentence that draws the line.** Phase 01's is "if the question is *which model and under what limits*, it is Phase 01." Write yours.
 
 ## 8. Quality Gate
+
+### 8.1 Per-Document Gate
 
 The document is done when all of these hold:
 
@@ -233,7 +248,37 @@ The document is done when all of these hold:
 [ ] Section numbering is contiguous; every cross-reference resolves
 [ ] Blocking prerequisites are called out in Section 4, not discovered mid-build
 [ ] A reader finishing the previous phase can start this one with nothing missing
+[ ] Every cross-cutting item in Section 8.2 is answered, including the "No change" ones
 ```
+
+### 8.2 Cross-Cutting Completion Items
+
+Most completion requirements in the blueprint's Final System Completion Standard belong to one phase. Six do not. They accumulate a little at a time across nearly every phase, which means no phase document is naturally accountable for them — and an obligation owned by everyone is owned by no one. Phase 20 will not retrofit your pagination contract; Phase 25 will not reconstruct the lineage your tables should have recorded.
+
+So each of the six gets answered in every phase document, in the structural section that already exists for it.
+
+| Blueprint item | What your phase must state | Blueprint source | Carried in structure section |
+|---|---|---|---|
+| 28. API contracts | Every endpoint you add, with headers, response envelope, pagination shape, error codes, auth rule, and one complete sample request and response | §13.1, §13.14, §13.15, §13.16-13.20 | 16 Data Contracts, 26 API Design |
+| 29. ERD and lineage | Your tables' place in the relationship map, and which lineage columns your writes populate | §11.10, §11.11, `04-Atlas-Database-Schema-Specification.md` | 17 Database Objects, 18 Migration Plan |
+| 30. Data lifecycle | What deletion, reindexing, export, retention, and contamination mean for the rows and artifacts your phase creates | §11.12-11.15, §20.16 | 17 Database Objects, 35 Operations Perspective |
+| 35. Streaming | Whether your phase streams, and how text, tool-call deltas, agent progress, and partial structured output behave if so | §15.8, §15.14 | 26 API Design |
+| 41. Threat model | The threats your phase introduces and the control that answers each one | §24.6-24.8 | 28 Safety And Security Perspective |
+| 43. Bias, fairness, toxicity | Whether your phase touches a workflow where these apply, and which check covers it | §25.11 | 30 Evaluation Perspective |
+
+**The "No change" rule.** Several of these will not apply to a given phase — Phase 02 adds no endpoints that paginate, Phase 16 streams nothing. Write "No change, because …" and give the reason in one sentence. Do not omit the row. An unanswered item is indistinguishable from a forgotten one; a recorded "No change" is a decision a reviewer can check.
+
+**Do not create new sections for these.** Each maps to a structure section from Section 5 that your document already has. A phase that grows six extra headings to satisfy this gate has misread it — the point is that the existing sections carry a specific obligation, not that the document gets longer.
+
+**Retrofit status: complete.** Phases 00 through 03 were written before this gate existed and have since been brought up to it. Each now carries a "Cross-Cutting Completion Items" table in its Quality Gates section — Phase 00 §37.6, Phase 01 §44.6, Phase 02 §35.6, Phase 03 §38.6 — and the content those tables point at.
+
+What the retrofit found, which is worth knowing before writing Phase 04:
+
+- **Item 29 was the real gap.** All four documents described their tables and none said which lineage columns their writes populate. Filling it surfaced a genuine design rule that had never been written down: *mutable data must be denormalized at write time, immutable data may be joined.* Phase 01 copies provider and pricing details onto every `ai_run` because a route is editable configuration; Phase 02 joins to `prompt_versions` because a version is immutable and hash-verified. Same problem, opposite answers, and the reason is the mutability of the referent.
+- **Item 30 was missing where it looked present.** Keyword scans found "retention" in Phase 01, but every hit was the provider's `data_retention_policy` capability — not the lifecycle of Phase 01's own rows, which was absent.
+- **Item 43 is mostly "No change", and that is the correct answer.** Phases 00 and 01 produce no content to evaluate. Writing a fairness metric for a routing layer would measure nothing and be trusted anyway. Phase 03 is where it starts to bite, because a schema turns a soft tendency into an automated decision.
+
+Use these four as precedent now. Earlier drafts of this note treated them as owing a debt; that debt is paid.
 
 ## 9. Known Pitfalls
 

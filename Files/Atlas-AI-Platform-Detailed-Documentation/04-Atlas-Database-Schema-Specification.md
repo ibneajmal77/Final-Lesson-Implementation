@@ -150,8 +150,9 @@ Use PostgreSQL enums or text columns with check constraints. For flexibility dur
 ### 3.1 Common Status Enums
 
 ```sql
-document_status: uploaded, queued, processing, processed, failed, archived, deleted
+document_status: uploaded, queued, processing, processed, failed, archived
 job_status: queued, running, succeeded, failed, cancelled, retrying
+prompt_template_status: active, archived
 prompt_version_status: draft, testing, approved, active, retired
 ai_run_status: queued, running, succeeded, failed, cancelled, blocked
 agent_run_status: created, planning, waiting_for_approval, running_tool, verifying, completed, failed, cancelled, blocked, expired
@@ -161,6 +162,18 @@ safety_status: allowed, blocked, needs_review, redacted, failed
 eval_run_status: queued, running, completed, failed, cancelled
 media_generation_status: queued, running, completed, failed, blocked, cancelled
 ```
+
+`prompt_template_status` and `prompt_version_status` are deliberately separate types even though both tables spell the column `status`, and both contain the value `active`. They mean different things: an *active template* is an asset in use, an *active version* is the exact text currently live. One template row is `active` while exactly one of its version rows is also `active`, and they are not the same statement.
+
+Rules that follow:
+
+- Qualify the owner in code — `template.status`, `version.status` — never a bare `status`.
+- Never write a shared helper that accepts "a status" and checks it against `'active'`. It will read correctly and be wrong for one of the two callers.
+- Column names are not renamed. The distinction lives in the enum types, so no migration is required.
+
+`document_status` no longer carries `deleted`. Soft deletion is carried by `documents.deleted_at` alone, and `status` describes the ingestion pipeline. Two columns encoding one fact produced a filter that could diverge — a read path checking `status != 'deleted'` and one checking `deleted_at is null` agree until a write path forgets one — and a document deleted mid-ingestion also lost its pipeline state. Every read path filters `deleted_at is null`. Ratified in Phase 04 §4.6.
+
+Note also that `document_status` and `job_status` are different vocabularies for tables whose columns are both spelled `status`: a document is `processing`/`processed`, a job is `running`/`succeeded`. The same two rules above apply — qualify the owner, and never write a helper that takes "a status".
 
 ## 4. Migration Order
 
@@ -178,6 +191,21 @@ media_generation_status: queued, running, completed, failed, blocked, cancelled
 009_create_eval_tables
 010_create_feedback_tables
 ```
+
+**This list is a logical dependency order, not a filename list.** The shipped Alembic chain uses the practical numbering established in Phase 01 §19.4 and it has diverged from the numbers above. Both are useful; only one is executable. The mapping as of Phase 04:
+
+| Shipped migration | Owning phase | Covers logical step |
+|---|---|---|
+| `0001_initial_foundation` | 00 | `001`, `002` |
+| `0002_model_gateway` | 01 | part of `004` (`model_providers`, `model_routes`, `ai_runs`, `cost_records`) |
+| `0003_audit_events` | 01 | part of `003` (`audit_events` only) |
+| `0004_prompt_system` | 02 | rest of `004` |
+| `0005_add_ai_runs_prompt_version_fk` | 02 | deferred FK hardening |
+| `0006_add_ai_runs_structured_output_columns` | 03 | `ALTER TABLE` |
+| `0007_create_background_jobs` | 04 | the remainder of `003` |
+| `0008_create_document_tables` | 04 | `005` and `006` |
+
+`background_jobs` is grouped with `audit_events` and `cost_records` in §7.3 and was not built with them: `0003_audit_events` created only `audit_events`, and no phase document or ticket claimed the table. **Phase 04 creates it**, in its own migration, because Phase 04 is the first phase with real background work and because leaving it to Phase 07 would make `ingestion_jobs.background_job_id` a soft reference for three phases. Ratified in Phase 04 §4.1; ticket `P04-001`.
 
 ### 4.2 Agent And Safety Migration Order
 
@@ -343,6 +371,42 @@ Constraints:
 unique(tenant_id, user_id)
 check (status in ('active','invited','disabled'))
 ```
+
+### 5.4 api_keys
+
+Programmatic tenant access. Specified in `01-Atlas-Technical-Master-Blueprint.md` §11.2; columns below are the schema-level form of that field list.
+
+| Column | Type | Null | Default | Notes |
+|---|---|---|---|---|
+| id | uuid | no | gen_random_uuid() | primary key |
+| tenant_id | uuid | no | none | references tenants(id) |
+| name | text | no | none | human label for the key |
+| key_hash | text | no | none | hash only, never the key itself |
+| scopes | jsonb | no | '[]' | permission scopes granted to this key |
+| status | text | no | active | active, revoked, expired |
+| last_used_at | timestamptz | yes | null | updated on use |
+| created_by_user_id | uuid | yes | none | references users(id) |
+| created_at | timestamptz | no | now() | created time |
+| expires_at | timestamptz | yes | null | null means no expiry |
+
+Constraints:
+
+```sql
+unique(key_hash)
+check (status in ('active','revoked','expired'))
+```
+
+Indexes:
+
+```sql
+idx_api_keys_tenant_status(tenant_id, status)
+```
+
+Rules:
+
+- Store only a hash of the key; the plaintext is shown once at creation and never persisted.
+- Every key must carry at least one scope. A scopeless key is a full-access key by accident.
+- Revocation is a status change, not a delete, so audit history survives.
 
 ## 6. Prompt And Model Tables
 
@@ -604,6 +668,64 @@ idx_ai_runs_model_route(model_route_id)
 idx_ai_runs_trace_id(trace_id)
 ```
 
+### 7.1a ai_runs Columns Added By Phase 03
+
+Structured-output tracking. Added by the Phase 03 migration, not present in the Phase 01 form of the table.
+
+| Column | Type | Null | Default | Notes |
+|---|---|---|---|---|
+| output_validation_status | text | yes | null | `valid`, `valid_after_repair`, `invalid`; null means the run requested no schema |
+| output_schema_name | text | yes | null | registry name of the schema requested |
+| output_schema_version | int | yes | null | registry version of the schema requested |
+| output_failure_class | text | yes | null | null unless status is `invalid` |
+| repair_attempts | int | no | 0 | repair calls this logical request made |
+| repair_of_ai_run_id | uuid | yes | null | self-reference to the run this run repaired |
+
+Constraints:
+
+```sql
+check (output_validation_status is null
+       or output_validation_status in ('valid','valid_after_repair','invalid'))
+
+check (output_failure_class is null
+       or output_failure_class in ('unparseable','schema_mismatch','enum_violation',
+                                   'truncated','refusal','empty','unauthorized_value'))
+
+check (repair_attempts >= 0)
+
+check (output_schema_version is null or output_schema_version > 0)
+
+-- a schema name and version travel together or not at all
+check ((output_schema_name is null) = (output_schema_version is null))
+
+-- a failure class only makes sense on an invalid run
+check (output_failure_class is null or output_validation_status = 'invalid')
+
+foreign key (repair_of_ai_run_id) references ai_runs(id) on delete set null
+```
+
+Indexes:
+
+```sql
+create index idx_ai_runs_validation_status
+on ai_runs(output_validation_status, created_at desc)
+where output_validation_status is not null;
+
+create index idx_ai_runs_output_schema
+on ai_runs(output_schema_name, output_schema_version, created_at desc)
+where output_schema_name is not null;
+```
+
+Both indexes are partial. Most `ai_runs` rows are not structured calls, so the indexes cover only the rows that are, and a chat-heavy tenant pays nothing for them. That is what makes six extra columns on a shared table acceptable.
+
+Two rules that are easy to get wrong:
+
+- `output_validation_status` null means "not a structured call", not `valid`. Defaulting it to `valid` would make every chat request in the platform count as a structured-output success.
+- **`ai_runs.status` is not touched by validation.** `status` means *did the provider call succeed*, and it drives provider health metrics, the circuit breaker, and the outage runbook. A model that returns well-delivered invalid JSON had a successful provider call. Setting `status = 'failed'` on a validation failure would make a schema regression look like a provider outage and could open the circuit breaker against a healthy provider.
+
+`repair_attempts` is stored on the original run, not the repair run — the repair run's own value is 0. A sum over a period is then the number of repair calls made, with no double counting.
+
+Schema identity is the pair `(output_schema_name, output_schema_version)`. Never a compound string with an embedded version.
 
 ### 7.2 conversations and conversation_messages
 
@@ -916,8 +1038,21 @@ Indexes:
 idx_chunks_tenant_document(tenant_id, document_id)
 idx_chunks_version_active(document_version_id, active)
 idx_chunks_parent(parent_chunk_id)
+idx_chunks_content_hash(content_hash)
 idx_chunks_search_vector using gin(search_vector)
+
+-- added by Phase 04: the live-row predicate every Phase 05 and 06 query uses
+create index idx_chunks_tenant_live
+on document_chunks(tenant_id, document_id)
+where active = true and deleted_at is null;
 ```
+
+Ownership split on `search_vector`: **Phase 04 creates the column and leaves it null. Phase 17 owns population and creates `idx_chunks_search_vector`.** Hybrid keyword search is assigned to Phases 17 and 23 by `02-Atlas-Coverage-Matrix.md` §8, and the population strategy needs a per-language `to_tsvector` configuration that is Phase 17's design problem — choosing `'english'` now and indexing on it would force Phase 17 either to live with it or to rewrite the table. A GIN index is also not free on write, and a bulk import of millions of chunks is exactly the write pattern that makes an unused index expensive. Ratified in Phase 04 §17.9.
+
+Two further Phase 04 clarifications on this table:
+
+- `active` and `deleted_at` are different facts. `active = false` means the chunk's version was superseded by a reingest; `deleted_at` means its document was deleted. Retrieval filters `active = true and deleted_at is null`; **citation lookup filters `deleted_at is null` only**, so a citation recorded before a reingest still resolves to the text that was actually cited. This is what satisfies blueprint §11.3's "chunk ids must be stable enough for citations".
+- `content_hash` is the SHA-256 of `normalized_text`, prefixed `sha256:`, and covers text only — not `chunk_index`, page numbers, or the document id. Hashing the index would invalidate a whole document for a one-paragraph edit and force a full re-embed. Phase 04 §24.4.
 
 `chunk_embeddings`:
 
@@ -1878,8 +2013,20 @@ If Atlas later supports multiple indexed dimensions, each dimension needs a sepa
 Full-text index:
 
 ```sql
+-- Phase 17 creates this, in the same migration that populates search_vector.
+-- Phase 04 creates the column only. See §8.3.
 create index idx_document_chunks_search_vector
 on document_chunks using gin(search_vector);
+```
+
+Partial live-row indexes added by Phase 04, matching the query predicate exactly rather than only the column list. On a corpus with churn, deactivated and deleted rows can be the majority of `document_chunks`, and an index that includes them is mostly rows no query returns:
+
+```sql
+create index idx_documents_tenant_created_live
+on documents(tenant_id, created_at desc) where deleted_at is null;
+
+create index idx_chunks_tenant_live
+on document_chunks(tenant_id, document_id) where active = true and deleted_at is null;
 ```
 
 JSONB indexes should be added only when queries require them:

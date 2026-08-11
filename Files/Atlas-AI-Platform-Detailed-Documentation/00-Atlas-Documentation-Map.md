@@ -79,18 +79,27 @@ Atlas-AI-Platform-Detailed-Documentation/
 
 ## Implementation Repository
 
-The Phase 00 starter implementation now lives beside the documentation set:
+The implementation lives beside the documentation set, in the sibling folder:
 
 ```text
-C:\Users\muhammad.awais\OneDrive - 7x\Documents\Files\Atlas-AI-Platform
+../Atlas-AI-Platform
 ```
+
+Use the relative path. An absolute path here is wrong on every machine except the one it was written on.
 
 Current implementation status:
 
 ```text
-Phase 00 scaffold created: project config, FastAPI shell, settings, errors, request-id middleware, DB/Alembic skeleton, worker entry point, tests, Docker Compose.
-MVP spine not complete yet: Phases 01 through 07 still need implementation.
+Phase 00 implemented: project config, FastAPI shell, settings, errors, request-id middleware, DB/Alembic, worker entry point, tests, Docker Compose.
+Phase 01 implemented: packages/model_gateway with provider adapters, routing, cost tracking.
+Phase 02 implemented: packages/prompts with registry, rendering, versioning.
+Phase 03 partial: gateway capability flags only; the structured-output package is not built.
+Phases 04 through 25: not implemented.
+Migrations applied: 0001_initial_foundation, 0002_model_gateway, 0003_audit_events, 0004_prompt_system.
+Tables live: tenants, users, model_providers, model_routes, ai_runs, cost_records, audit_events, prompt_templates, prompt_versions, prompt_test_cases.
 ```
+
+Status accuracy rule: this block names what exists in code, not what is designed. Update it in the same change that lands a phase, or it becomes the least trustworthy paragraph in the set.
 
 ## Why The Documentation Is Split
 
@@ -149,15 +158,78 @@ Current written learning documents:
 ```text
 learning-phases/phase-00-engineering-foundation.md
 learning-phases/phase-01-llm-gateway.md
+learning-phases/phase-02-prompt-system.md
+learning-phases/phase-03-structured-outputs.md
+learning-phases/phase-04-document-ingestion.md
+```
+
+Supporting authoring documents:
+
+```text
+learning-phases/PHASE-AUTHORING-STANDARD.md
+learning-phases/HOW-TO-WRITE-phase-02-prompt-system.md
 ```
 
 Planned learning documents:
 
 ```text
-learning-phases/phase-02-prompt-system.md through phase-25-governance-compliance-risk-management.md
+learning-phases/phase-05-embeddings-and-vector-database.md through phase-25-governance-compliance-risk-management.md
 ```
 
-The planned list is intentional. It shows the complete learning path, but it should not be read as completed documentation. New phase learning docs should be written only when implementation is ready to move into that phase, starting with Phase 01 through Phase 07 for the MVP spine.
+The planned list is intentional. It shows the complete learning path, but it should not be read as completed documentation. New phase learning docs should be written only when implementation is ready to move into that phase, continuing with Phase 05 through Phase 07 for the MVP spine.
+
+Phases 00 through 03 were written before `PHASE-AUTHORING-STANDARD.md` §8.2 existed and have since been retrofitted against its cross-cutting completion items. Phase 04 was the first phase written to that gate from the start.
+
+## Ratified Cross-Document Decisions
+
+When a phase document resolves a conflict between source documents, the answer is edited into the source document and recorded here. `PHASE-AUTHORING-STANDARD.md` §6 steps 8 and 9 make this mandatory. This table is the short answer to "which spelling won, and where does it live now?"
+
+| Decision | Ratified answer | Raised in | Applied to |
+|---|---|---|---|
+| Prompt-cache token field names | `cache_read_input_tokens`, `cache_creation_input_tokens`. The older `cache_read_tokens` / `cache_write_tokens` are historical aliases. | Phase 01 §16.5 | Blueprint §15.10; already correct in `04`, `05`, and code |
+| `use_case` vocabulary | `chat`, `classification`, `rag_answer`, `embedding`, `llm_judge`. `classifier` and `judge` are historical aliases. | Phase 01 §7.4 | `07` §3; blueprint and tickets retain alias spellings in prose only |
+| Private route `use_case` | A private route shares the `use_case` of the route it serves. Data sensitivity is a filter (`restricted_data_allowed` + `priority`), not a separate use case. | Phase 01 §21.3 | `07` §3.6, §3.8 |
+| Structured-output schema identity | The pair `(schema_name, schema_version)`. Never a compound string such as `ticket_classifier_v1`. | Phase 03 §19.6 | `seed-datasets/structured_output_tickets.jsonl`; `09` §5 |
+| Ticket classification schema | `TicketClassification` with `category`, `priority`, `requires_human`, `entities`. | Phase 03 §19.6 | Blueprint §17.2 |
+| Provider structured-output capability | `structured_output_max_mode`, an ordered ladder (`none`, `json_mode`, `strict_schema`), not a second boolean. | Phase 03 §20.4 | Blueprint §15.15 |
+| Atlas span-attribute namespace | Dotted segments only (`atlas.output.schema.name`, never `atlas.output_schema_name`). Every coined attribute joins the crosswalk list in the same change. | Phases 01, 02, 03 | `05` §8 |
+| `cost_records` ownership | Phase 01 owns it, under ticket `P01-011`. | Phase 01 §43 | `06` Phase 01 tickets |
+| Identity table ownership | Phase 00 owns identity, under tickets `P00-011` and `P00-012`, matching `04` §4.1 migration order. | This review | `06` Phase 00 tickets |
+| `api_keys` schema | Specified at column level in `04` §5.4, matching blueprint §11.2. | This review | `04` §5.4 |
+
+Also ratified in this review:
+
+| Decision | Ratified answer | Raised in | Applied to |
+|---|---|---|---|
+| Status vocabulary collision | Column names stay `status` on both tables. The **enum types** are named `template_status` and `version_status` so the two vocabularies are distinguishable in the schema. Code must qualify the owner (`template.status`, `version.status`) and must never route both through one helper that takes "a status". No migration required. | Phase 02 §17.1 | `04` §6.1, §6.2 |
+| Phase 00 config names | Resolved by architecture rather than by picking a spelling. These limits are **per-route columns** on `model_routes` — `timeout_seconds`, `max_input_tokens`, `max_output_tokens`, `max_cost_usd` — not global settings. Neither `MODEL_REQUEST_TIMEOUT_SECONDS` nor `REQUEST_TIMEOUT_SECONDS` is implemented, and neither is needed. A limit that varies per route cannot live in one global env var. If a global *default* is ever added, it takes the blueprint §8 names. | Phase 01 §20.2 | `04` §6.3; no code change |
+| `prompt_test_cases` column set | Twelve columns. Already shipped in migration `0004_prompt_system` and matching `04` §6.2a exactly, so reality has decided; the blueprint's eight-column sketch is the historical form. | Phase 02 §17.4 | `04` §6.2a; already in code |
+| Seed corpus review status | Starter rows stay `draft` and are CI-smoke material only. A human review pass moves rows to `reviewed` before Phase 07 gates any promotion decision on them. Until that pass, a green eval report on this corpus is not a promotion signal. | `09` §1 | `09` §1 |
+
+Ratified in Phase 04 (document ingestion), 2026-08-10:
+
+| Decision | Ratified answer | Raised in | Applied to |
+|---|---|---|---|
+| `background_jobs` ownership | Phase 04 creates it, under ticket `P04-001`, in migration `0007_create_background_jobs`. It was specified in `04` §7.3, grouped with two tables that shipped without it, and claimed by no phase or ticket. Phase 04 is the first phase with real background work | Phase 04 §4.1 | `04` §4.1; `06` Phase 04 tickets |
+| Collections have no API | Phase 04 adds create/list/get, plus a `default` collection per tenant at tenant creation. `documents.collection_id` is `not null` and the upload contract requires it, so without this the first upload on a fresh database fails | Phase 04 §4.2 | `01` §13.3; `06` new ticket `P04-011` |
+| `ingestion_jobs.job_type` vocabulary | The four document-level values `ingest`, `reingest`, `delete`, `reindex`. The seven stage-level names are pipeline stages, not job records; stage detail lives in `output_summary_json` | Phase 04 §4.3 | `01` §11.3 |
+| What `processed` means | Extracted, cleaned, chunked, hashed — **not** searchable. Searchability is a second fact carried by `embedding status`, which Phase 05 populates and Phase 04 returns as `null` | Phase 04 §4.4 | `01` §18.2 |
+| Object storage adapter location | `packages/storage`, a top-level package. `integrations` owns external *business* systems; object storage is infrastructure, and Phases 07, 12, and 24 write to it | Phase 04 §4.5 | `01` §5, §5.1 |
+| Document soft deletion | `deleted_at` alone. `deleted` removed from `document_status`; `status` describes the ingestion pipeline. Two columns encoding one fact is a divergent-filter bug, and it also destroyed the pipeline state of a document deleted mid-ingestion | Phase 04 §4.6 | `04` §3.1 |
+| `document_chunks.search_vector` | Phase 04 creates the column; Phase 17 populates it and creates the GIN index, because the `to_tsvector` language configuration is Phase 17's design problem | Phase 04 §17.9 | `04` §8.3, §13 |
+| Lineage checksum naming | `checksum` on both `documents` and `document_versions`. `source_checksum` is a historical alias from the blueprint's prose list | Phase 04 §24.2 | `01` §11.11 |
+| Lineage placement rule | **Lineage must outlive operational history.** Parser identity is denormalized onto `document_versions` rather than joined from `ingestion_jobs`, because job rows get pruned. Chunker identity lives on the chunk, because a re-chunk creates no new version | Phase 04 §17.10, §24.3 | `01` §11.11 |
+| Chunk `content_hash` definition | SHA-256 of `normalized_text`, prefixed `sha256:`, covering text only — not the chunk index, page numbers, or document id. Hashing the index would force a full re-embed for a one-paragraph edit | Phase 04 §24.4 | `04` §8.3 |
+| Migration numbering schemes | `04` §4.1 is a logical dependency order, not a filename list. The shipped Alembic chain is authoritative for filenames; a mapping table now lives in `04` §4.1 | Phase 04 §18.1 | `04` §4.1 |
+| Seed front-matter field mapping | `collection_id` in the seed documents is a collection *key* resolved by name; `source_type: synthetic` is dataset provenance and maps to `metadata_json.dataset_source_type`, not to `documents.source_type` | Phase 04 §24.6 | `09` §12 |
+| Scanned-document triage ownership | Phase 04 detects a missing text layer and fails loudly with a specific code; Phase 12 runs the OCR engine on the population that creates. This is the Phase 04 half of the matrix's `OCR baseline \| 04, 12` row, which had no ticket | Phase 04 §21.7 | `06` new ticket `P04-012` |
+| Ingestion makes no model calls | The Phase 04 pipeline is deterministic. Contextual enrichment is a separate downstream job on the `enrichment` queue, owned by Phase 23 — reprocessing must stay cheap, hashing needs determinism, and Phase 04's declared dependency is Phase 00 alone | Phase 04 §12.3 | `06` Phase 04 dependency row (unchanged, now justified) |
+| `atlas.ingestion.*` attributes | Twenty-two new span attributes; no `gen_ai.*` on an ingestion span, because there is no model call | Phase 04 §29.2 | `05` §8 |
+| Delete/reindex lifecycle phases | Phases 04, 05, and 23 — matching `02` §16's "Document deletion lifecycle" row. `02` §8 previously said 11 and 23, which named neither phase that builds it | This review | `02` §8 |
+
+One item is carried forward as a **named obligation on Phase 05 rather than an open decision**: until Phase 05 ships its vector-delete job, a deleted document's vectors survive. In Phase 04 that is harmless because nothing searches them; the moment embeddings ship without deletion it is a live data-protection defect with an existing alert in `10` §10.2. Phase 04 §27.4 and §41.5 record it as blocking for Phase 05.
+
+No open cross-document decisions remain. When a new one is raised, add it here with an owner and a date rather than leaving it inside the phase document that found it.
 
 ## Correct Reading Order
 

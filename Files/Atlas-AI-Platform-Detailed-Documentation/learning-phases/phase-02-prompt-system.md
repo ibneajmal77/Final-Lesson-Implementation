@@ -1436,6 +1436,34 @@ prompt_templates 1 -> many prompt_test_cases
 prompt_versions 1 -> many ai_runs
 ```
 
+### 17.7 Lineage And Data Lifecycle For Prompt Rows
+
+**Lineage.** A prompt version is the instruction that produced an answer, so "which text ran?" must be answerable for any historical `ai_run`. The columns that carry it:
+
+```text
+prompt_versions.id            -- referenced by ai_runs.prompt_version_id
+prompt_versions.version       -- the human-meaningful identity, emitted as gen_ai.prompt.version
+prompt_versions.content_hash  -- proves the text was not edited in place
+prompt_versions.created_by_user_id
+prompt_versions.approved_by_user_id
+prompt_versions.status        -- version_status, not template_status
+audit_events                  -- who activated what, and when
+```
+
+`content_hash` is the one that does real work. Prompt versions are **immutable after creation**: an edit creates a new version, never a rewrite. The hash is what turns that from a convention into something provable — if a stored hash no longer matches the stored text, someone edited history, and every `ai_run` pointing at that version has become uninterpretable.
+
+This is why `ai_runs.prompt_version_id` is a foreign key rather than a copied string. The text is immutable, so the join is safe — the opposite of the routing case in Phase 01 §18.6, where the route is mutable and its details must be denormalized at write time. Immutable data may be joined; mutable data must be copied.
+
+**Lifecycle.**
+
+| Concern | Answer |
+|---|---|
+| Deletion | Templates and versions are archived or retired, never deleted, while any `ai_run` inside the retention window references them |
+| Retention | Outlives `ai_runs`. A version deleted before the runs that used it makes those runs unreadable |
+| Export | Included in tenant export for tenant-scoped prompts; global prompts are platform configuration and are excluded |
+| Reindexing | Not applicable — Phase 02 owns no index |
+| Contamination | Applies. Sections 8 and 21.6 cover it: cases used to *tune* a prompt must not also be used to *score* it, which is what the holdout split exists for |
+
 ## 18. Migration Plan And Deferred Foreign Keys
 
 ### 18.1 Ordering
@@ -3445,6 +3473,19 @@ Phase 02 is done when every gate below passes. Not before.
 [ ] Test case type 'format' exists and has at least one case
 [ ] The renderer can place a schema description into a prompt via a variable
 ```
+
+### 35.6 Cross-Cutting Completion Items
+
+`PHASE-AUTHORING-STANDARD.md` §8.2 requires every phase to answer six blueprint completion items, including the ones that do not apply.
+
+| Item | Phase 02 answer | Where |
+|---|---|---|
+| 28. API contracts | Prompt CRUD, version, and activate endpoints with envelope, pagination, error codes, and sample payloads | §22 |
+| 29. ERD and lineage | Relationship map for the three prompt tables; `content_hash` plus immutability is the lineage mechanism | §17.6, §17.7 |
+| 30. Data lifecycle | Archive-not-delete, retention outliving `ai_runs`, tenant-scoped export, holdout contamination control | §17.7, §21.6 |
+| 35. Streaming | No change — prompt endpoints are CRUD and return complete objects. Rendering is synchronous and produces no partial output | §22 |
+| 41. Threat model | Template injection through variables, prompt text as tenant content, activation as a privileged action | §24 |
+| 43. Bias, fairness, toxicity | Partially applies. Prompt wording is where bias is *introduced*, but Phase 02 has no scorer — it provides `expected_behavior` for human review and defers judge-based scoring, with its known position and verbosity biases, to Phase 07 | §21.3, §26 |
 
 ## 36. Portfolio Evidence
 

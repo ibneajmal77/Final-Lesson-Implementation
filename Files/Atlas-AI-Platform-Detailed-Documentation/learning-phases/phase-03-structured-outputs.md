@@ -1168,6 +1168,36 @@ The third and fourth rows are the ones worth watching. Both tables already have 
 
 Do this as part of Step 2, not "later". A schema document that lags a phase by one release is how Phase 04 acquires a blocking prerequisite it did not earn.
 
+**Status: applied.** `04-…` now carries these columns as §7.1a, following the §6.2a precedent. The schema document and this phase agree.
+
+### 17.4 Lineage And Data Lifecycle For Structured-Output Rows
+
+**Lineage.** Phase 03 creates no table of its own; it adds six columns to `ai_runs`. The lineage question it must answer is narrow and specific: *given a stored structured output, which schema validated it, and was the answer repaired?*
+
+```text
+output_schema_name + output_schema_version  -- which contract was enforced
+output_validation_status                    -- valid, valid_after_repair, or invalid
+output_failure_class                        -- why, when invalid
+repair_attempts                             -- whether help was needed
+repair_of_ai_run_id                         -- the chain back to the original attempt
+```
+
+The pair `(output_schema_name, output_schema_version)` is denormalized text rather than a foreign key, and that is deliberate for the reason Phase 01 §18.6 gives: **the registry is code, not a table.** A schema version ships in a release and can be deleted from the codebase; the historical run must still say which contract it was judged against. A join to something that no longer exists returns nothing, so the name and version are copied at write time.
+
+`repair_of_ai_run_id` is the lineage edge that matters most in review. Without it, a repaired answer looks identical to a first-attempt answer, and "how often does this schema need a second try?" is unanswerable — which is exactly the question that decides whether a schema is badly designed or a model is badly suited.
+
+**Lifecycle.**
+
+| Concern | Answer |
+|---|---|
+| Deletion | Inherited from `ai_runs`; no independent deletion. `on delete set null` on the self-reference means a retention job removing an original run does not fail on its repair run |
+| Retention | Same window as `ai_runs`. Section 18.3 covers the ordering consequence |
+| Export | Inherited from `ai_runs`; validation metadata is not tenant content |
+| Reindexing | Not applicable — Phase 03 owns no index over tenant data |
+| Contamination | Applies to the seed fixtures. The cases used to *develop* a schema must not be the cases used to *report* its validity rate; Phase 07 owns the split |
+
+The retention interaction is the one that bites. A run and its repair are separate rows with separate timestamps, so a naive "delete rows older than N days" job can remove the original while its repair survives, leaving a repair run pointing at nothing. `on delete set null` makes that survivable rather than a constraint violation at 3am — but the honest fix is that the retention job should delete a repair chain together.
+
 ## 18. Migration Plan And Deferred Foreign Keys
 
 ### 18.1 Ordering
@@ -2696,6 +2726,22 @@ It may not drive an automated threshold until Phase 07 has calibrated it,
 and calibration means measuring it against labels, not asserting it in a review.
 ```
 
+### 29.5 Bias, Fairness, And Toxicity
+
+Blueprint §25.11 requires these checks where the workflow warrants them. Phase 03 warrants a partial answer, and the reason is more interesting than a yes or no.
+
+Structured output is where bias becomes **operational**. A free-text answer that leans one way is a paragraph someone may read critically. A `TicketClassification` that assigns `priority: critical` to some phrasings and `priority: low` to others is a routing decision, applied automatically, at volume, with no reader in the loop. The schema converts a soft tendency into a hard consequence.
+
+The specific exposure in Phase 03 is **enum choice under ambiguity**. When a ticket is genuinely borderline, the model must still emit one of the permitted values, and which value it reaches for can correlate with dialect, formality, name, or phrasing that has nothing to do with urgency. Validation cannot detect this: `priority: low` is perfectly schema-valid. It is exactly the failure that passes every test Phase 03 writes.
+
+What Phase 03 does about it:
+
+- **Records what is needed to measure it later.** `output_schema_name`, `output_schema_version`, and the parsed output are stored per run, so Phase 07 can group decisions by schema version and compare distributions across cohorts. Without the version, a fairness finding cannot be attributed to a particular schema revision.
+- **Keeps `requires_human` in the schema.** It is the escape hatch that stops an automated decision on cases the model should not be deciding alone.
+- **Refuses to score it here.** Phase 03 has no labelled cohort data and no judge. A fairness metric invented in this phase would be uncalibrated and would be trusted anyway.
+
+Recorded honestly: **partially applies — the exposure is created here, the measurement belongs to Phase 07.** The one thing Phase 03 must not do is treat "all outputs validated successfully" as evidence that the outputs are fair. Those are unrelated claims, and conflating them is how a schema-validation dashboard becomes a false assurance.
+
 ## 30. Testing Strategy
 
 ### 30.1 The Ticket Proofs, As Named Tests
@@ -3304,6 +3350,19 @@ The sixth line is the one to enforce with a test rather than a review, because i
 ```
 
 The last line matters more than it looks. Phase 04's ingestion pipeline runs in `apps/worker`, not behind an HTTP request, and a structured call that implicitly depends on request-scoped context will be discovered to be unusable at exactly the wrong moment. Test it from a worker path in Step 13.
+
+### 38.6 Cross-Cutting Completion Items
+
+`PHASE-AUTHORING-STANDARD.md` §8.2 requires every phase to answer six blueprint completion items, including the ones that do not apply.
+
+| Item | Phase 03 answer | Where |
+|---|---|---|
+| 28. API contracts | Structured call and schema listing endpoints with envelope, error codes, and sample payloads | §25 |
+| 29. ERD and lineage | Six columns on `ai_runs`; schema identity denormalized because the registry is code, not a table | §17.1, §17.4 |
+| 30. Data lifecycle | Inherited from `ai_runs`; `on delete set null` on the repair self-reference, and why a repair chain should be deleted together | §17.4, §18.3 |
+| 35. Streaming | Partial structured output is explicitly deferred to Phase 20. A schema is validated whole or not at all, so a partial object has no valid intermediate state | §20, §26 |
+| 41. Threat model | Unsafe enum and action blocking, the repair prompt as an injection surface, and the log-capture prohibition on repair prompts | §24, §27 |
+| 43. Bias, fairness, toxicity | Partially applies — enum choice under ambiguity turns a soft tendency into an automated decision; measurement belongs to Phase 07 | §29.5 |
 
 ## 39. Portfolio Evidence
 
