@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\PC-Name\\Downloads\\CardGameInterviewPrep\\csharp\\Skeleton\\Skeleton.csproj",
+      "projectUniqueName": "D:\\Final-Lesson-Implementation\\CardGameInterviewPrep\\csharp\\Skeleton\\Skeleton.csproj",
       "projectName": "Skeleton",
-      "projectPath": "C:\\Users\\PC-Name\\Downloads\\CardGameInterviewPrep\\csharp\\Skeleton\\Skeleton.csproj",
+      "projectPath": "D:\\Final-Lesson-Implementation\\CardGameInterviewPrep\\csharp\\Skeleton\\Skeleton.csproj",
       "packagesPath": "C:\\Users\\PC-Name\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\PC-Name\\Downloads\\CardGameInterviewPrep\\csharp\\Skeleton\\obj\\",
+      "outputPath": "D:\\Final-Lesson-Implementation\\CardGameInterviewPrep\\csharp\\Skeleton\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
