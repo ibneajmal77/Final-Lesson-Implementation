@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Mock2Practice")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8c7551c6c02557d6fafde678e56f5a272266c461")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b12a311ababc5f8d48e21569cb6cba820b3d3efe")]
 [assembly: System.Reflection.AssemblyProductAttribute("Mock2Practice")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Mock2Practice")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
